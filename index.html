@@ -1709,7 +1709,7 @@ function iniciarMapaDetalleNegocio(lat, lng){
     limpiarLeafletDeContenedor(contenedor);
     try{
       const mapa = L.map('detalleMapaUbicacion', { zoomControl:false, attributionControl:false, dragging:false, scrollWheelZoom:false, doubleClickZoom:false, touchZoom:false }).setView([lat, lng], 16);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(mapa);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom:20, subdomains:'abcd', attribution:'&copy; OpenStreetMap &copy; CARTO' }).addTo(mapa);
       L.marker([lat, lng], {
         icon: L.divIcon({ className:'', html:pinFlechaHtml(), iconSize:[28,36], iconAnchor:[14,34] })
       }).addTo(mapa);
@@ -2364,7 +2364,7 @@ function iniciarMapaPickerNegocio(lat, lng){
     try{
       contenedor.innerHTML = '<div class="picker-hint">Toca o arrastra el pin 📍</div>';
       const mapa = L.map('negMapPicker', { zoomControl:false, attributionControl:false }).setView([lat, lng], 16);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(mapa);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom:20, subdomains:'abcd', attribution:'&copy; OpenStreetMap &copy; CARTO' }).addTo(mapa);
       // Se usa un pin/flecha propio (SVG en línea) en vez del ícono azul por
       // defecto de Leaflet: así siempre se ve, sin depender de que carguen
       // las imágenes marker-icon.png/marker-shadow.png del CDN.
@@ -2663,9 +2663,10 @@ function construirMapaLeaflet(){
     mapaLeaflet = L.map('realMap', { zoomControl:true, attributionControl:true })
       .setView([TRUJILLO_CENTRO.lat, TRUJILLO_CENTRO.lng], 15);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom:19
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      maxZoom:20,
+      subdomains:'abcd'
     }).addTo(mapaLeaflet);
 
     L.marker([TRUJILLO_CENTRO.lat, TRUJILLO_CENTRO.lng], {
