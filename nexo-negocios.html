@@ -1,0 +1,3001 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Nexo — Comercio y servicios de tu comunidad</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
+
+  :root{
+    --ink:#0F1A2E; --ink-2:#16264A;
+    --paper:#F1F2ED; --surface:#FFFFFF; --line:#E3E3DC;
+    --primary:#1C4A87; --primary-2:#0D2C55;
+    --signal:#E07B2E; --signal-dark:#B65E1B;
+    --danger:#C4433F; --success:#2E8558; --gold:#C4881F;
+    --muted:#5B6472; --muted-2:#8891A0;
+    --radius:18px; --radius-sm:12px;
+    --shadow:0 6px 20px rgba(15,26,46,0.08);
+    --shadow-lg:0 20px 48px rgba(15,26,46,0.18);
+    --grad-blue:linear-gradient(135deg,#2A5FAE,#0D2C55);
+    --grad-signal:linear-gradient(135deg,#F2A354,#D9691E);
+    --grad-cyan:linear-gradient(135deg,#3E8FD9,#1C4A87);
+    --grad-violet:linear-gradient(135deg,#7C6FE0,#4A3FA0);
+    --grad-green:linear-gradient(135deg,#3FAE7C,#1F6642);
+    --grad-gold:linear-gradient(135deg,#EFC059,#C4881F);
+    --grad-slate:linear-gradient(135deg,#5A6B8C,#1F2C46);
+    --font-display:'Space Grotesk',sans-serif;
+    --font-body:'Inter',sans-serif;
+    --font-mono:'IBM Plex Mono',monospace;
+  }
+  @keyframes fadeInUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fadeInScale{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+  @keyframes drift{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  @keyframes pulseDot{0%,100%{box-shadow:0 0 0 0 rgba(196,67,63,.45)}50%{box-shadow:0 0 0 6px rgba(196,67,63,0)}}
+
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{font-family:var(--font-body);background:var(--paper);color:var(--ink);display:flex;justify-content:center;}
+  #app{width:100%;max-width:430px;min-height:100vh;background:var(--paper);position:relative;overflow-x:hidden;}
+  .iframe-banner{
+    position:sticky; top:0; z-index:9999; background:var(--ink); color:#fff; padding:9px 14px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:11.5px; line-height:1.35;
+  }
+  .iframe-banner button{
+    background:var(--signal); color:#fff; font-weight:700; font-size:11px; padding:6px 12px; border-radius:8px; flex-shrink:0;
+  }
+  svg.icon{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;display:block;}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;}
+  input{font-family:inherit;}
+  .hidden{display:none !important;}
+
+  /* ═══════ AUTH (bienvenida / login / registro) ═══════ */
+  .auth-wrap{
+    min-height:100vh; position:relative; background:var(--ink);
+    display:flex; align-items:center; justify-content:center; padding:26px; overflow:hidden;
+  }
+  .auth-wrap::before{
+    content:''; position:absolute; inset:0;
+    background-image:
+      radial-gradient(circle at 18% 20%, rgba(224,123,46,0.16), transparent 42%),
+      radial-gradient(circle at 84% 80%, rgba(28,74,135,0.55), transparent 46%),
+      repeating-linear-gradient(120deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 64px);
+    pointer-events:none;
+  }
+  .auth-card{
+    position:relative; z-index:1; background:var(--surface); border-radius:22px; padding:34px 28px 28px;
+    width:100%; max-width:380px; box-shadow:var(--shadow-lg); animation:fadeInScale .45s ease both;
+    border:1px solid rgba(255,255,255,0.06);
+  }
+  .logo-mark{
+    width:66px; height:66px; margin:0 auto 14px; position:relative;
+    background:var(--grad-blue); border-radius:18px; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 12px 28px rgba(28,74,135,0.4), inset 0 1px 0 rgba(255,255,255,0.25);
+    animation:drift 3.4s ease-in-out infinite;
+  }
+  .logo-mark::after{ content:''; position:absolute; inset:-6px; border-radius:22px; background:var(--grad-blue); opacity:.28; filter:blur(10px); z-index:-1; }
+  .logo-mark svg{ width:30px; height:30px; stroke:#fff; stroke-width:2.1; }
+  .auth-logo{ text-align:center; margin-bottom:24px; }
+  .auth-logo h1{ font-family:var(--font-display); font-weight:700; font-size:25px; color:var(--ink); letter-spacing:-.3px; }
+  .auth-logo p{ font-size:12.5px; color:var(--muted); margin-top:6px; line-height:1.5; max-width:260px; margin-left:auto; margin-right:auto; }
+
+  .auth-actions{ display:flex; flex-direction:column; gap:10px; margin-top:6px; }
+  .btn-primary{
+    width:100%; padding:14px; background:var(--ink); color:#fff; border-radius:11px;
+    font-size:15px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px;
+    transition:transform .15s, background .15s;
+  }
+  .btn-primary:hover{ background:var(--primary-2); transform:translateY(-1px); }
+  .btn-primary:active{ transform:scale(.98); }
+  .btn-primary svg{ width:17px; height:17px; stroke:#fff; }
+  .btn-outline{
+    width:100%; padding:13px; background:var(--paper); color:var(--primary); border:1.5px solid var(--line);
+    border-radius:11px; font-size:14.5px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .btn-outline svg{ width:17px; height:17px; stroke:var(--primary); }
+  .btn-ghost{ width:100%; padding:10px; text-align:center; font-size:13px; font-weight:700; color:var(--muted); }
+
+  .form-screen{ min-height:100vh; padding:24px 24px 30px; display:flex; flex-direction:column; background:var(--ink); position:relative; }
+  .form-screen::before{
+    content:''; position:absolute; inset:0;
+    background-image:radial-gradient(circle at 14% 8%, rgba(28,74,135,0.5), transparent 40%);
+    pointer-events:none;
+  }
+  .form-top{ position:relative; z-index:1; display:flex; align-items:center; gap:12px; margin-bottom:6px; }
+  .back-circle{ width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.14); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .back-circle svg{ stroke:#fff; width:17px; height:17px; }
+  .form-top h2{ font-family:var(--font-display); font-size:20px; font-weight:700; color:#fff; }
+
+  .form-card{ position:relative; z-index:1; background:var(--surface); border-radius:20px; padding:24px 22px; margin-top:20px; box-shadow:var(--shadow-lg); animation:fadeInUp .4s ease both; }
+  .form-card .sub{ font-size:12.5px; color:var(--muted); margin-bottom:18px; line-height:1.5; }
+
+  .field{ margin-bottom:15px; }
+  .field label{ display:block; font-family:var(--font-mono); font-size:10.5px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--primary); margin-bottom:6px; }
+  .field .inp-wrap{ display:flex; align-items:center; gap:9px; background:var(--paper); border:1.5px solid var(--line); border-radius:10px; padding:12px 13px; transition:border .15s, background .15s; }
+  .field .inp-wrap:focus-within{ border-color:var(--primary); background:#fff; }
+  .field .inp-wrap svg{ stroke:var(--muted); flex-shrink:0; width:17px; height:17px; }
+  .field input{ border:none; outline:none; flex:1; font-size:14px; color:var(--ink); background:transparent; }
+  .field input::placeholder{ color:#A7B0C2; }
+
+  .form-footer{ text-align:center; font-size:12.5px; color:var(--muted); margin-top:16px; }
+  .form-footer b{ color:var(--primary); font-weight:700; cursor:pointer; }
+  .form-error{ background:#FBEAE9; color:var(--danger); border:1px solid rgba(196,67,63,0.25); border-radius:9px; padding:9px 11px; font-size:12px; font-weight:600; margin:2px 0 12px; line-height:1.4; }
+  .form-success{ background:#E7F3EC; color:var(--success); border:1px solid rgba(46,133,88,0.25); border-radius:9px; padding:9px 11px; font-size:12px; font-weight:600; margin:2px 0 12px; line-height:1.4; }
+  .btn-primary[disabled]{ opacity:.6; pointer-events:none; }
+
+  /* ═══════ APP HEADER ═══════ */
+  .app-header{ background:var(--ink); position:relative; overflow:hidden; padding:20px 20px 22px; }
+  .app-header::before{
+    content:''; position:absolute; inset:0;
+    background-image:radial-gradient(circle at 85% -10%, rgba(224,123,46,0.20), transparent 46%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 22px);
+    pointer-events:none;
+  }
+  .hdr-top{ display:flex; align-items:center; justify-content:space-between; position:relative; z-index:1; }
+  .hdr-brand{ display:flex; align-items:center; gap:10px; }
+  .hdr-brand .mini-logo{ width:38px; height:38px; background:var(--grad-blue); border-radius:11px; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 16px rgba(28,74,135,0.4), inset 0 1px 0 rgba(255,255,255,0.3); }
+  .hdr-brand .mini-logo svg{ width:19px; height:19px; stroke:#fff; stroke-width:2.2; }
+  .hdr-brand span{ font-family:var(--font-display); font-weight:700; font-size:19px; color:#fff; letter-spacing:-.2px; }
+  .hdr-actions{ display:flex; gap:8px; position:relative; z-index:1; }
+  .hdr-notif{ width:36px; height:36px; background:rgba(255,255,255,0.1); border-radius:50%; display:flex; align-items:center; justify-content:center; border:1px solid rgba(255,255,255,0.12); position:relative; }
+  .hdr-notif svg{ width:17px; height:17px; stroke:#fff; }
+  .notif-badge{ position:absolute; top:-2px; right:-2px; width:14px; height:14px; background:var(--danger); border:2px solid var(--ink); border-radius:50%; }
+  .hdr-greet{ margin-top:18px; position:relative; z-index:1; }
+  .hdr-greet h2{ color:#fff; font-family:var(--font-display); font-size:20px; font-weight:700; letter-spacing:-.2px; }
+  .hdr-greet p{ color:rgba(255,255,255,0.6); font-size:12.5px; margin-top:3px; }
+  .hdr-banner{
+    background:rgba(255,255,255,0.08); border-radius:12px; padding:12px 14px; margin-top:15px; position:relative; z-index:1;
+    display:flex; align-items:center; gap:11px; border:1px solid rgba(255,255,255,0.12);
+  }
+  .hdr-banner svg{ width:19px; height:19px; flex-shrink:0; stroke:var(--signal); }
+  .hdr-banner p{ color:rgba(255,255,255,0.82); font-size:12px; line-height:1.5; }
+  .hdr-banner strong{ color:var(--signal); }
+
+  /* ═══════ contenido / tabs ═══════ */
+  .app-content{ padding:0 0 88px; }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; animation:fadeInUp .3s ease both; }
+  .tab-screen{ padding:18px 18px 0; }
+
+  .quick-search{ display:flex; align-items:center; gap:9px; background:var(--surface); border-radius:13px; padding:12px 15px; box-shadow:var(--shadow); border:1px solid var(--line); margin-bottom:20px; }
+  .quick-search svg{ stroke:var(--muted); width:18px; height:18px; flex-shrink:0; }
+  .quick-search span{ font-size:13px; color:#A7B0C2; }
+
+  .sec-title{ font-family:var(--font-display); font-size:15px; font-weight:700; color:var(--ink); margin:0 0 11px; display:flex; align-items:center; justify-content:space-between; letter-spacing:-.1px; }
+  .sec-title .lft{ display:flex; align-items:center; gap:7px; }
+  .sec-title .verall{ font-family:var(--font-body); font-size:11px; color:var(--primary); font-weight:700; cursor:pointer; }
+
+  /* Categorías — mismo patrón visual que el quick-grid de la app cívica */
+  .cat-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:24px; }
+  .cat-btn{
+    background:var(--surface); border-radius:var(--radius-sm); padding:15px 8px 12px; text-align:center;
+    box-shadow:var(--shadow); border:1px solid var(--line); transition:transform .18s, box-shadow .18s;
+  }
+  .cat-btn:hover{ transform:translateY(-3px); box-shadow:0 14px 28px rgba(15,26,46,0.14); }
+  .cat-btn.active{ border-color:var(--primary); }
+  .cat-btn .c-icon-wrap{ width:38px; height:38px; margin:0 auto 8px; border-radius:11px; display:flex; align-items:center; justify-content:center; transition:transform .25s cubic-bezier(.34,1.56,.64,1); }
+  .cat-btn:hover .c-icon-wrap{ transform:rotate(-6deg) scale(1.08); }
+  .cat-btn svg{ width:18px; height:18px; stroke:#fff; stroke-width:2.1; }
+  .cat-btn .c-label{ font-size:10.5px; font-weight:700; color:var(--muted); }
+
+  .hscroll{ display:flex; gap:12px; overflow-x:auto; padding-bottom:6px; margin-bottom:24px; scrollbar-width:none; }
+  .hscroll::-webkit-scrollbar{ display:none; }
+
+  .biz-card{
+    flex-shrink:0; width:172px; background:var(--surface); border-radius:var(--radius-sm); box-shadow:var(--shadow);
+    overflow:hidden; position:relative; border:1px solid var(--line); animation:fadeInUp .35s ease both;
+  }
+  .biz-card .cover{ height:90px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
+  .biz-card .cover svg{ width:30px; height:30px; stroke:#fff; opacity:.95; stroke-width:1.7; }
+  .biz-card .cover img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .biz-card .fav-btn{ position:absolute; top:8px; right:8px; width:27px; height:27px; border-radius:50%; background:rgba(255,255,255,0.92); display:flex; align-items:center; justify-content:center; }
+  .biz-card .fav-btn svg{ width:14px; height:14px; stroke:var(--danger); fill:none; stroke-width:2.1; }
+  .biz-card .fav-btn.is-fav svg{ fill:var(--danger); }
+  .biz-card .tag{ position:absolute; top:8px; left:8px; font-family:var(--font-mono); font-size:8.5px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:3px 8px; border-radius:6px; }
+  .tag-signal{ background:#FCEDE0; color:var(--signal-dark); }
+  .tag-green{ background:#E7F3EC; color:var(--success); }
+  .tag-gold{ background:#FBF1DD; color:var(--gold); }
+  .biz-card .info{ padding:10px 11px 12px; }
+  .biz-card h4{ font-size:12.5px; font-weight:800; line-height:1.25; margin-bottom:4px; }
+  .biz-card .meta{ font-family:var(--font-mono); font-size:9.5px; color:var(--muted); display:flex; align-items:center; gap:4px; }
+  .biz-card .meta .rt{ display:flex; align-items:center; gap:2px; color:var(--gold); font-weight:700; }
+  .biz-card .meta .rt svg{ width:10px; height:10px; stroke:var(--gold); fill:var(--gold); }
+
+  /* fila de negocio (lista vertical) — mismo patrón visual que .info-card */
+  .biz-row{
+    display:flex; align-items:center; gap:12px; background:var(--surface); border-radius:var(--radius-sm);
+    box-shadow:var(--shadow); border-left:3px solid var(--primary); padding:12px 13px; margin-bottom:10px;
+    transition:transform .15s; animation:fadeInUp .35s ease both;
+  }
+  .biz-row:hover{ transform:translateX(3px); }
+  .biz-row .cover-sm{ width:50px; height:50px; border-radius:12px; flex-shrink:0; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
+  .biz-row .cover-sm svg{ width:21px; height:21px; stroke:#fff; stroke-width:1.8; }
+  .biz-row .cover-sm img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .biz-row .body{ flex:1; min-width:0; }
+  .biz-row h4{ font-size:13px; font-weight:800; margin-bottom:3px; display:flex; align-items:center; gap:6px; }
+  .biz-row .meta{ font-family:var(--font-mono); font-size:10px; color:var(--muted); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .biz-row .meta .rt{ display:flex; align-items:center; gap:2px; color:var(--gold); font-weight:700; }
+  .biz-row .meta .rt svg{ width:10px; height:10px; stroke:var(--gold); fill:var(--gold); }
+  .biz-row .fav-mini{ width:32px; height:32px; border-radius:50%; background:#E9EFF7; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .biz-row .fav-mini svg{ width:15px; height:15px; stroke:var(--danger); fill:none; stroke-width:2; }
+  .biz-row .fav-mini.is-fav svg{ fill:var(--danger); }
+
+  .register-banner{
+    display:flex; align-items:center; gap:13px; background:var(--ink); border-radius:16px; padding:16px; margin:4px 0 26px;
+    box-shadow:var(--shadow-lg); position:relative; overflow:hidden;
+  }
+  .register-banner::before{ content:''; position:absolute; inset:0; background-image:radial-gradient(circle at 90% 0%, rgba(224,123,46,0.22), transparent 50%); pointer-events:none; }
+  .register-banner .ic{ position:relative; z-index:1; width:42px; height:42px; border-radius:12px; background:var(--grad-signal); display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 6px 14px rgba(224,123,46,.35); }
+  .register-banner .ic svg{ width:21px; height:21px; stroke:#fff; }
+  .register-banner .tx{ position:relative; z-index:1; flex:1; }
+  .register-banner h4{ color:#fff; font-family:var(--font-display); font-size:13.5px; font-weight:700; }
+  .register-banner p{ color:rgba(255,255,255,0.7); font-size:10.5px; margin-top:2px; }
+  .register-banner svg.chev{ position:relative; z-index:1; stroke:#fff; width:18px; height:18px; flex-shrink:0; }
+
+  .empty-state{ text-align:center; padding:60px 20px; color:var(--muted); }
+  .empty-state svg{ width:42px; height:42px; stroke:var(--line); margin:0 auto 14px; }
+  .empty-state h4{ font-family:var(--font-display); font-size:14px; color:var(--ink); font-weight:700; margin-bottom:5px; }
+  .empty-state p{ font-size:12px; line-height:1.5; }
+
+  /* ═══════ Explorar (mapa ilustrado — 100% local, sin red externa) ═══════ */
+  .map-wrap{
+    margin:14px 0 16px; height:290px; border-radius:20px; overflow:hidden; position:relative; border:1px solid var(--line);
+    box-shadow:var(--shadow);
+  }
+  #realMap{
+    width:100%; height:100%; position:relative; overflow:hidden;
+    background-color:#E9EEF6;
+    background-image:
+      linear-gradient(rgba(28,74,135,0.09) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(28,74,135,0.09) 1px, transparent 1px),
+      linear-gradient(rgba(28,74,135,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(28,74,135,0.05) 1px, transparent 1px);
+    background-size:64px 64px, 64px 64px, 16px 16px, 16px 16px;
+    background-position:-1px -1px;
+  }
+  .leaflet-popup-content-wrapper{ border-radius:12px; font-family:var(--font-body); }
+  .leaflet-popup-content{ margin:11px 13px; font-size:12.5px; }
+  .leaflet-popup-content b{ font-family:var(--font-display); font-size:13px; }
+  .map-plaza{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:112px; height:112px; border-radius:16px;
+    background:repeating-linear-gradient(45deg, rgba(46,133,88,0.16) 0 6px, rgba(46,133,88,0.08) 6px 12px);
+    border:1.5px dashed rgba(46,133,88,0.45);
+  }
+  .map-plaza::after{
+    content:'Plaza de Armas'; position:absolute; bottom:-20px; left:50%; transform:translateX(-50%);
+    font-family:var(--font-mono); font-size:8.5px; font-weight:700; color:var(--success); white-space:nowrap;
+    letter-spacing:.02em;
+  }
+  .map-label-city{
+    position:absolute; top:10px; left:12px; z-index:5; background:rgba(255,255,255,0.85); backdrop-filter:blur(2px);
+    padding:5px 10px; border-radius:8px; font-family:var(--font-mono); font-size:9.5px; font-weight:700; color:var(--ink-2);
+    box-shadow:0 2px 6px rgba(15,26,46,0.1);
+  }
+  .map-pin{ position:absolute; transform:translate(-50%,-100%); z-index:10; cursor:pointer; }
+  .you-marker-wrap{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:8; }
+  .you-marker{ width:16px; height:16px; border-radius:50%; background:var(--primary); box-shadow:0 0 0 6px rgba(28,74,135,0.22), 0 0 0 2px #fff; }
+  .you-marker-wrap .you-label{
+    position:absolute; top:22px; left:50%; transform:translateX(-50%); white-space:nowrap;
+    font-family:var(--font-mono); font-size:8.5px; font-weight:700; color:var(--primary-2);
+    background:rgba(255,255,255,0.88); padding:2px 7px; border-radius:6px;
+  }
+  .biz-pin{ width:30px; height:30px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 8px rgba(15,27,51,0.3); border:2px solid #fff; transition:transform .15s; }
+  .map-pin:hover .biz-pin, .map-pin:active .biz-pin{ transform:rotate(-45deg) scale(1.12); }
+  .biz-pin svg{ transform:rotate(45deg); width:14px; height:14px; stroke:#fff; }
+  .map-pin-tip{
+    position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%);
+    background:var(--ink); color:#fff; padding:6px 10px; border-radius:9px; white-space:nowrap;
+    font-size:10.5px; font-weight:700; box-shadow:var(--shadow-lg); opacity:0; pointer-events:none;
+    transition:opacity .15s; z-index:20;
+  }
+  .map-pin-tip b{ font-family:var(--font-display); }
+  .map-pin:hover .map-pin-tip{ opacity:1; }
+  .map-toggle{ position:absolute; bottom:12px; left:12px; z-index:400; background:var(--surface); border-radius:12px; padding:8px 12px; font-size:11px; font-weight:700; color:var(--primary); box-shadow:var(--shadow); display:flex; align-items:center; gap:6px; }
+  .map-toggle svg{ width:13px; height:13px; stroke:var(--primary); }
+  .map-locate{ position:absolute; bottom:12px; right:12px; z-index:400; background:var(--surface); border-radius:12px; padding:8px 12px; font-size:11px; font-weight:700; color:var(--primary); box-shadow:var(--shadow); display:flex; align-items:center; gap:6px; cursor:pointer; transition:background .15s,color .15s; }
+  .map-locate svg{ width:13px; height:13px; stroke:var(--primary); }
+  .map-locate.activa{ background:var(--primary); color:#fff; }
+  .map-locate.activa svg{ stroke:#fff; }
+  .map-locate.activa .dot-live{ display:inline-block; }
+  .dot-live{ display:none; width:6px; height:6px; border-radius:50%; background:#4CD97B; animation:pulseDot 1.4s infinite; flex-shrink:0; }
+  .map-note{ font-size:10.5px; color:var(--muted); margin:-10px 0 18px; line-height:1.5; }
+
+  /* ═══════ Personalizar negocio o servicio ═══════ */
+  .personalizar-banner{
+    background:var(--ink); border-radius:16px; padding:14px; display:flex; align-items:center; gap:12px; cursor:pointer;
+    position:relative; overflow:hidden; margin-bottom:16px;
+  }
+  .personalizar-banner::before{ content:''; position:absolute; inset:0; background-image:radial-gradient(circle at 90% 0%, rgba(74,63,160,0.35), transparent 55%); pointer-events:none; }
+  .personalizar-banner .ic{
+    position:relative; z-index:1; width:42px; height:42px; border-radius:12px;
+    background:linear-gradient(135deg,#7C6FE0,#4A3FA0); display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    box-shadow:0 6px 14px rgba(74,63,160,.35);
+  }
+  .personalizar-banner .ic svg{ width:21px; height:21px; stroke:#fff; }
+  .personalizar-banner .tx{ position:relative; z-index:1; flex:1; }
+  .personalizar-banner h4{ color:#fff; font-family:var(--font-display); font-size:13.5px; font-weight:700; }
+  .personalizar-banner p{ color:rgba(255,255,255,0.7); font-size:10.5px; margin-top:2px; }
+  .personalizar-banner svg.chev{ position:relative; z-index:1; stroke:#fff; width:18px; height:18px; flex-shrink:0; }
+
+  .pers-sec-label{ font-family:var(--font-mono); font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--primary); margin:20px 0 10px; }
+  .pers-sec-label:first-child{ margin-top:0; }
+
+  .color-swatches{ display:flex; flex-wrap:wrap; gap:12px; }
+  .color-swatch{
+    width:38px; height:38px; border-radius:50%; border:3px solid transparent; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(15,26,46,0.15);
+  }
+  .color-swatch svg{ width:16px; height:16px; stroke:#fff; opacity:0; transition:opacity .12s; }
+  .color-swatch.active{ border-color:var(--ink); }
+  .color-swatch.active svg{ opacity:1; }
+
+  .tam-chips{ display:flex; gap:8px; }
+  .tam-chip{
+    flex:1; text-align:center; padding:11px 6px; border-radius:11px; border:1.5px solid var(--line);
+    background:var(--surface); font-weight:700; color:var(--muted); cursor:pointer;
+  }
+  .tam-chip.active{ border-color:var(--primary); color:var(--primary); background:#EAF1FB; }
+  .tam-chip .muestra{ display:block; font-family:var(--font-display); margin-bottom:3px; }
+
+  .pers-preview{
+    border-radius:16px; overflow:hidden; position:relative; height:110px; display:flex; align-items:flex-end;
+    box-shadow:var(--shadow); margin-bottom:4px;
+  }
+  .pers-preview::after{ content:''; position:absolute; inset:0; background:linear-gradient(to top, rgba(15,26,46,0.72), transparent 60%); }
+  .pers-preview .pers-preview-tx{ position:relative; z-index:1; padding:12px; }
+  .pers-preview .pers-preview-tx h4{ font-family:var(--font-display); font-weight:700; }
+  .pers-preview .pers-preview-tx p{ color:rgba(255,255,255,0.75); font-size:10.5px; margin-top:2px; }
+  .pers-promo-box{
+    border:1.5px solid var(--line); border-radius:12px; padding:12px; background:var(--surface);
+  }
+
+  /* ═══════ Selector: mis negocios (varios negocios en una cuenta) ═══════ */
+  .selector-neg-row{
+    display:flex; align-items:center; gap:12px; padding:13px 12px; border-radius:14px;
+    border:1.5px solid var(--line); background:var(--surface); margin-bottom:10px; cursor:pointer;
+  }
+  .selector-neg-row .dot{ width:14px; height:14px; border-radius:50%; flex-shrink:0; box-shadow:0 0 0 3px rgba(15,26,46,0.05); }
+  .selector-neg-row .tx{ flex:1; min-width:0; }
+  .selector-neg-row h4{ font-size:13px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .selector-neg-row p{ font-family:var(--font-mono); font-size:9.5px; color:var(--muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .selector-neg-row .promo-mini{ color:var(--signal-dark); font-weight:700; }
+  .selector-neg-row svg.chev{ stroke:var(--muted-2); width:18px; height:18px; flex-shrink:0; }
+
+  /* ═══════ Foto del negocio (formulario) ═══════ */
+  .foto-upload{
+    position:relative; height:130px; border-radius:14px; border:1.5px dashed var(--line); background:var(--paper);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; overflow:hidden; cursor:pointer;
+  }
+  .foto-upload img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .foto-upload .placeholder{ display:flex; flex-direction:column; align-items:center; gap:6px; color:var(--muted); }
+  .foto-upload .placeholder svg{ width:24px; height:24px; stroke:var(--muted-2); }
+  .foto-upload .placeholder span{ font-size:11.5px; font-weight:600; }
+  .foto-upload .foto-editar{
+    position:absolute; bottom:8px; right:8px; background:rgba(15,26,46,0.72); color:#fff; font-size:10.5px; font-weight:700;
+    padding:5px 10px; border-radius:20px; z-index:2;
+  }
+
+  /* ═══════ Selector de ubicación en el mapa (formulario) ═══════ */
+  .mini-map-picker{
+    height:170px; border-radius:14px; overflow:hidden; border:1.5px solid var(--line); position:relative; background:#E9EEF6;
+  }
+  .mini-map-picker .picker-hint{
+    position:absolute; top:8px; left:8px; z-index:500; background:rgba(255,255,255,0.9); padding:5px 9px; border-radius:8px;
+    font-size:10px; font-weight:700; color:var(--ink-2); pointer-events:none;
+  }
+  .coord-readout{ font-family:var(--font-mono); font-size:10.5px; color:var(--muted); margin-top:6px; }
+
+  /* ═══════ Mapa de ubicación dentro del detalle de un negocio ═══════ */
+  .detail-map-wrap{ margin-top:12px; }
+  .detail-map{
+    height:160px; border-radius:14px; overflow:hidden; border:1.5px solid var(--line); position:relative; background:#E9EEF6;
+  }
+  .detail-map .picker-hint-fallback{ display:flex; align-items:center; justify-content:center; height:100%; font-size:11px; color:var(--muted); text-align:center; padding:0 16px; }
+  .detail-map-coord{ font-family:var(--font-mono); font-size:10.5px; color:var(--muted); margin-top:6px; text-align:center; }
+
+  /* ═══════ Modal propio (reemplaza alert/confirm nativos) ═══════ */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(15,26,46,0.55); display:flex; align-items:center; justify-content:center;
+    padding:24px; z-index:9999;
+  }
+  .modal-card{
+    background:var(--surface); border-radius:18px; padding:22px 20px; max-width:340px; width:100%;
+    box-shadow:var(--shadow-lg); animation:fadeInScale .22s ease both;
+  }
+  .modal-msg{ font-size:14px; color:var(--ink); line-height:1.55; margin-bottom:18px; white-space:pre-line; }
+  .modal-actions{ display:flex; gap:10px; }
+  .modal-actions button{ flex:1; padding:12px; border-radius:10px; font-size:13.5px; font-weight:700; text-align:center; }
+  .modal-btn-primary{ background:var(--ink); color:#fff; }
+  .modal-btn-outline{ background:var(--paper); color:var(--primary); border:1.5px solid var(--line); }
+  .modal-btn-danger{ background:var(--danger); color:#fff; }
+
+  /* ═══════ Panel de administrador (pestaña Perfil) ═══════ */
+  .admin-neg-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+  .admin-neg-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--surface);
+    border-radius:12px; padding:10px 12px; box-shadow:var(--shadow); border:1px solid var(--line);
+  }
+  .admin-neg-row .body{ min-width:0; }
+  .admin-neg-row .body h4{ font-size:12.5px; font-weight:800; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .admin-neg-row .body p{ font-family:var(--font-mono); font-size:9.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .admin-neg-row .acciones{ display:flex; gap:6px; flex-shrink:0; }
+  .admin-neg-row .acciones button{ width:30px; height:30px; border-radius:50%; background:var(--paper); font-size:13px; border:1px solid var(--line); }
+
+  /* ═══════ Pantalla de detalle de negocio ═══════ */
+  .detail-hero{
+    height:170px; border-radius:18px; position:relative; overflow:hidden; display:flex; align-items:flex-end;
+    box-shadow:var(--shadow-lg); margin-top:20px;
+  }
+  .detail-hero img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .detail-hero .hero-icon{ width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+  .detail-hero .hero-icon svg{ width:46px; height:46px; stroke:#fff; opacity:.85; }
+  .detail-hero::after{ content:''; position:absolute; inset:0; background:linear-gradient(to top, rgba(15,26,46,0.75), transparent 55%); }
+  .detail-hero .hero-tx{ position:relative; z-index:1; padding:16px; color:#fff; }
+  .detail-hero .hero-tx h2{ font-family:var(--font-display); font-size:19px; font-weight:700; }
+  .detail-hero .hero-tx p{ font-size:12px; opacity:.9; margin-top:3px; }
+  .detail-hero .hero-fav{
+    position:absolute; top:12px; right:12px; z-index:2; width:36px; height:36px; border-radius:50%;
+    background:rgba(255,255,255,0.92); display:flex; align-items:center; justify-content:center;
+  }
+  .detail-hero .hero-fav svg{ width:16px; height:16px; stroke:var(--danger); }
+  .detail-hero .hero-fav.is-fav svg{ fill:var(--danger); }
+  .detail-card{ background:var(--surface); border-radius:18px; padding:18px; margin-top:14px; box-shadow:var(--shadow); }
+  .detail-card p.desc{ font-size:13px; color:var(--ink-2); line-height:1.6; margin-bottom:14px; }
+  .detail-row{ display:flex; align-items:center; gap:11px; padding:11px 0; border-top:1px solid var(--line); }
+  .detail-row:first-of-type{ border-top:none; }
+  .detail-row .ic{ width:32px; height:32px; border-radius:9px; background:#E9EFF7; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .detail-row .ic svg{ width:15px; height:15px; stroke:var(--primary); }
+  .detail-row span{ font-size:12.5px; font-weight:600; color:var(--ink-2); }
+  .detail-row a{ color:var(--primary); text-decoration:none; }
+
+  /* ═══════ Buscar — chips ═══════ */
+  .chips-row{ display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:20px; scrollbar-width:none; }
+  .chips-row::-webkit-scrollbar{ display:none; }
+  .chip{ flex-shrink:0; display:flex; align-items:center; gap:6px; background:var(--surface); border:1.5px solid var(--line); border-radius:20px; padding:8px 14px; font-size:12px; font-weight:700; color:var(--primary); white-space:nowrap; }
+  .chip.active{ background:var(--primary); border-color:var(--primary); color:#fff; }
+
+  /* ═══════ Perfil ═══════ */
+  .profile-card{ background:var(--ink); border-radius:20px; padding:26px 20px; text-align:center; box-shadow:var(--shadow-lg); margin:14px 0 20px; position:relative; overflow:hidden; }
+  .profile-card::before{ content:''; position:absolute; inset:0; background-image:radial-gradient(circle at 85% -10%, rgba(224,123,46,0.2), transparent 46%); pointer-events:none; }
+  .avatar-big{ position:relative; z-index:1; width:64px; height:64px; border-radius:50%; background:var(--grad-blue); margin:0 auto 12px; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 20px rgba(28,74,135,0.4); }
+  .avatar-big svg{ width:28px; height:28px; stroke:#fff; }
+  .profile-card h3{ position:relative; z-index:1; font-family:var(--font-display); font-size:16px; font-weight:700; color:#fff; }
+  .profile-card p{ position:relative; z-index:1; font-size:11.5px; color:rgba(255,255,255,0.6); margin-top:3px; }
+  .profile-card .btn-primary{ position:relative; z-index:1; margin-top:16px; background:var(--grad-blue); }
+  .profile-card .btn-ghost{ position:relative; z-index:1; color:rgba(255,255,255,0.65); }
+
+  .sec-label-p{ font-family:var(--font-mono); font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:6px 0 8px 4px; }
+  .settings-list{ background:var(--surface); border-radius:16px; box-shadow:var(--shadow); overflow:hidden; margin-bottom:16px; border:1px solid var(--line); }
+  .settings-row{ display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .settings-row:last-child{ border-bottom:none; }
+  .settings-row .ic{ width:32px; height:32px; border-radius:9px; background:#E9EFF7; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .settings-row .ic svg{ width:15px; height:15px; stroke:var(--primary); }
+  .settings-row span{ flex:1; font-size:13px; font-weight:600; }
+  .settings-row svg.chev{ width:15px; height:15px; stroke:var(--line); }
+  .settings-row.danger span{ color:var(--danger); }
+  .settings-row.danger .ic{ background:#FBEAE9; }
+  .settings-row.danger .ic svg{ stroke:var(--danger); }
+
+  /* ═══════ Notificaciones (switch on/off) ═══════ */
+  .settings-row .sub-tx{ flex:1; }
+  .settings-row .sub-tx span{ display:block; }
+  .settings-row .sub-tx small{ display:block; font-size:11px; color:var(--muted); font-weight:500; margin-top:1px; }
+  .switch{ position:relative; width:42px; height:24px; flex-shrink:0; cursor:pointer; }
+  .switch input{ position:absolute; inset:0; opacity:0; margin:0; cursor:pointer; z-index:1; }
+  .switch .track{ position:absolute; inset:0; background:var(--line); border-radius:999px; transition:background .15s; }
+  .switch .thumb{ position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(15,26,46,0.3); transition:transform .15s; }
+  .switch input:checked ~ .track{ background:var(--success); }
+  .switch input:checked ~ .thumb{ transform:translateX(18px); }
+
+  /* ═══════ Clasificación de promoción (1-100) en Personalizar ═══════ */
+  .promo-rank-row{ display:flex; align-items:center; gap:10px; margin-top:10px; }
+  .promo-rank-row input[type="range"]{ flex:1; accent-color:var(--signal); }
+  .promo-rank-row .rank-val{ font-family:var(--font-mono); font-weight:700; font-size:13px; color:var(--signal-dark); min-width:30px; text-align:right; }
+  .promo-bar{
+    display:flex; align-items:center; gap:8px; margin-top:10px; padding:10px 12px; border-radius:11px;
+    background:var(--grad-signal); box-shadow:0 4px 12px rgba(224,123,46,0.3);
+  }
+  .promo-bar span{ color:#fff; font-weight:700; font-size:12.5px; }
+
+  /* ═══════ bottom nav — mismo patrón que la app cívica ═══════ */
+  .bottom-nav{
+    position:fixed; left:50%; transform:translateX(-50%); bottom:0; width:100%; max-width:430px;
+    background:var(--surface); display:flex; box-shadow:0 -6px 20px rgba(15,26,46,0.08); z-index:100;
+    border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom,0);
+  }
+  .nav-item{ flex:1; padding:9px 4px 10px; display:flex; flex-direction:column; align-items:center; gap:5px; color:var(--muted-2); }
+  .nav-item .n-icon-wrap{ width:30px; height:30px; border-radius:10px; display:flex; align-items:center; justify-content:center; transition:all .25s cubic-bezier(.34,1.56,.64,1); }
+  .nav-item svg{ width:19px; height:19px; stroke:var(--muted-2); fill:none; stroke-width:1.8; }
+  .nav-item .n-label{ font-size:10px; font-weight:700; }
+  .nav-item.active{ color:var(--primary); }
+  .nav-item.active .n-icon-wrap{ background:var(--grad-blue); transform:translateY(-3px); box-shadow:0 6px 14px rgba(28,74,135,0.4); }
+  .nav-item.active svg{ stroke:#fff; stroke-width:2.2; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ═══════════════════ AVISO: ABRIR FUERA DEL IFRAME DE SITES ═══════════════════
+       Si Nexo está embebido dentro de otra página (Google Sites la mete en un
+       <iframe>), el navegador bloquea el permiso de ubicación. Este aviso se
+       muestra solo en ese caso y ofrece abrir la app en una pestaña nueva,
+       donde la geolocalización sí funciona sin restricciones. -->
+  <div class="iframe-banner hidden" id="iframeBanner">
+    <span>📍 Para usar tu ubicación en tiempo real, abre Nexo en una pestaña aparte.</span>
+    <button onclick="abrirEnPestanaNueva()">Abrir</button>
+  </div>
+
+  <!-- ═══════════════════ BIENVENIDA ═══════════════════ -->
+  <div class="auth-wrap" id="screenWelcome">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="logo-mark"><svg viewBox="0 0 24 24"><path d="M4 21V9l8-6 8 6v12"/><path d="M9 21v-7h6v7"/></svg></div>
+        <h1>Nexo</h1>
+        <p>Descubre, apoya y conecta con los negocios y servicios de tu comunidad.</p>
+      </div>
+      <div class="auth-actions">
+        <button class="btn-primary" onclick="mostrarPantalla('screenLogin')">
+          <svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg>
+          Iniciar sesión
+        </button>
+        <button class="btn-outline" onclick="mostrarPantalla('screenRegister')">
+          <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-4 3-6.5 6.5-6.5"/><path d="M17 8v6M14 11h6"/></svg>
+          Crear cuenta
+        </button>
+        <button class="btn-ghost" onclick="entrarComoInvitado()">Ingresar como invitado</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ LOGIN ═══════════════════ -->
+  <div class="form-screen hidden" id="screenLogin">
+    <div class="form-top">
+      <div class="back-circle" onclick="mostrarPantalla('screenWelcome')"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <h2>Iniciar sesión</h2>
+    </div>
+    <div class="form-card">
+      <p class="sub">Entra para guardar tus favoritos y gestionar tu negocio.</p>
+      <div class="field">
+        <label>Correo electrónico</label>
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><input id="loginEmail" type="email" placeholder="tucorreo@gmail.com o @hotmail.com"></div>
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg><input id="loginPass" type="password" maxlength="8" placeholder="Exactamente 8 caracteres"></div>
+      </div>
+      <p id="loginError" class="form-error hidden"></p>
+      <button class="btn-primary" id="btnLogin" style="margin-top:6px" onclick="iniciarSesion()">Iniciar sesión</button>
+      <p class="form-footer">¿No tienes cuenta? <b onclick="mostrarPantalla('screenRegister')">Regístrate</b></p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ REGISTRO ═══════════════════ -->
+  <div class="form-screen hidden" id="screenRegister">
+    <div class="form-top">
+      <div class="back-circle" onclick="mostrarPantalla('screenWelcome')"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <h2>Crear cuenta</h2>
+    </div>
+    <div class="form-card">
+      <p class="sub">Regístrate para guardar favoritos y, si quieres, registrar tu negocio.</p>
+      <div class="field">
+        <label>Nombre completo</label>
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-4 3-6.5 7-6.5s7 2.5 7 6.5"/></svg><input id="regName" type="text" placeholder="Nombre y apellido"></div>
+      </div>
+      <div class="field">
+        <label>Correo electrónico</label>
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><input id="regEmail" type="email" placeholder="tucorreo@gmail.com o @hotmail.com"></div>
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg><input id="regPass" type="password" maxlength="8" placeholder="Exactamente 8 caracteres"></div>
+      </div>
+      <p id="regError" class="form-error hidden"></p>
+      <button class="btn-primary" id="btnRegister" style="margin-top:6px" onclick="crearCuenta()">Crear cuenta</button>
+      <p class="form-footer">¿Ya tienes cuenta? <b onclick="mostrarPantalla('screenLogin')">Inicia sesión</b></p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ VERIFICACIÓN DE CORREO ═══════════════════ -->
+  <div class="form-screen hidden" id="screenVerify">
+    <div class="form-top">
+      <div class="back-circle" onclick="mostrarPantalla('screenWelcome')"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <h2>Verifica tu correo</h2>
+    </div>
+    <div class="form-card">
+      <p class="sub">Te enviamos un código de 6 dígitos a <b id="verifyEmailTxt"></b>. Ingrésalo para activar tu cuenta.</p>
+      <div class="field">
+        <label>Código de verificación</label>
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><input id="verifyCodigo" type="text" inputmode="numeric" maxlength="6" placeholder="123456"></div>
+      </div>
+      <p id="verifyError" class="form-error hidden"></p>
+      <button class="btn-primary" id="btnVerify" style="margin-top:6px" onclick="verificarCodigo()">Verificar y continuar</button>
+      <p class="form-footer">¿No te llegó? <b id="btnReenviar" onclick="reenviarCodigo()">Reenviar código</b></p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ ¿NEGOCIO O SERVICIO? ═══════════════════ -->
+  <div class="form-screen hidden" id="screenTipoRegistro">
+    <div class="form-top">
+      <div class="back-circle" onclick="volverDesdeTipoRegistro()"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <h2>¿Qué quieres registrar?</h2>
+    </div>
+    <div class="form-card">
+      <p class="sub">Elige la opción que mejor describe lo que ofreces. Cada una tiene su propio formulario.</p>
+      <div class="auth-actions">
+        <button class="btn-primary" onclick="elegirTipoRegistro('negocio')">
+          <svg viewBox="0 0 24 24"><path d="M3 9l9-6 9 6v11a1 1 0 01-1 1H4a1 1 0 01-1-1z"/><path d="M9 20v-6h6v6"/></svg>
+          Registrar un negocio
+        </button>
+        <button class="btn-outline" onclick="elegirTipoRegistro('servicio')">
+          <svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 11-5.4 5.4l-6 6V21h3.3l6-6a4 4 0 015.4-5.4z"/></svg>
+          Registrar un servicio
+        </button>
+      </div>
+      <p class="form-footer" style="margin-top:14px">Un <b>negocio</b> es un local o tienda (panadería, farmacia, restaurante…). Un <b>servicio</b> es una actividad independiente que ofreces (gasfitería, clases, delivery…).</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ REGISTRAR / ADMINISTRAR NEGOCIO ═══════════════════ -->
+  <div class="form-screen hidden" id="screenNegocio">
+    <div class="form-top">
+      <div class="back-circle" onclick="volverDesdeNegocio()"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <h2 id="tituloNegocio">Registrar negocio</h2>
+    </div>
+    <div class="form-card">
+      <p class="sub" id="subNegocio">Completa los datos de tu negocio o servicio para que aparezca en Nexo.</p>
+
+      <div class="field">
+        <label>Foto del negocio (opcional)</label>
+        <div class="foto-upload" onclick="document.getElementById('negFotoInput').click()">
+          <img id="negFotoPreview" class="hidden">
+          <div class="placeholder" id="negFotoPlaceholder">
+            <svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M21 16l-5-5-4 4-3-3-4 4"/></svg>
+            <span>Toca para subir una foto</span>
+          </div>
+          <div class="foto-editar hidden" id="negFotoEditarTag">Cambiar foto</div>
+        </div>
+        <input type="file" id="negFotoInput" accept="image/*" class="hidden" onchange="previsualizarFotoNegocio(event)">
+      </div>
+
+      <div class="field">
+        <label id="lblNombreNegocio">Nombre del negocio</label>
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><path d="M3 9l9-6 9 6v11a1 1 0 01-1 1H4a1 1 0 01-1-1z"/></svg><input id="negNombre" type="text" placeholder="Ej. Panadería San José" oninput="actualizarPreviewPersonalizar()"></div>
+      </div>
+      <div class="field" id="campoCategoriaNegocio">
+        <label>Tipo de negocio</label>
+        <div class="inp-wrap">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>
+          <select id="negCategoria" onchange="actualizarPreviewPersonalizar()" style="border:none;outline:none;flex:1;font-size:14px;background:transparent;color:var(--ink)">
+            <option value="Comida">Comida</option>
+            <option value="Belleza">Belleza</option>
+            <option value="Salud">Salud</option>
+            <option value="Tienda">Tienda</option>
+            <option value="Educación">Educación</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+      </div>
+      <div class="field hidden" id="campoTipoServicio">
+        <label>Tipo de servicio</label>
+        <div class="inp-wrap">
+          <svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 11-5.4 5.4l-6 6V21h3.3l6-6a4 4 0 015.4-5.4z"/></svg>
+          <select id="negTipoServicio" style="border:none;outline:none;flex:1;font-size:14px;background:transparent;color:var(--ink)"></select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Descripción</label>
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><input id="negDescripcion" type="text" placeholder="Cuéntanos qué ofreces"></div>
+      </div>
+      <div class="field">
+        <label>Teléfono</label>
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3-8.7A2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .3 2 .7 2.9a2 2 0 01-.4 2.1L8 10a16 16 0 006 6l1.3-1.4a2 2 0 012.1-.4c.9.4 1.9.6 2.9.7a2 2 0 011.7 2z"/></svg><input id="negTelefono" type="tel" placeholder="Ej. 987 654 321"></div>
+      </div>
+      <div class="field">
+        <label>Dirección</label>
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><path d="M4 21V9l8-6 8 6v12"/></svg><input id="negDireccion" type="text" placeholder="Referencia o dirección en Trujillo"></div>
+      </div>
+
+      <div class="field">
+        <label>Ubicación en el mapa</label>
+        <div class="mini-map-picker" id="negMapPicker"><div class="picker-hint">Toca o arrastra el pin 📍</div></div>
+        <p class="coord-readout" id="negCoordTxt">Cargando mapa…</p>
+      </div>
+
+      <p id="negError" class="form-error hidden" style="margin-top:16px"></p>
+      <p id="negSuccess" class="form-success hidden"></p>
+      <button class="btn-primary" id="btnNegocio" onclick="publicarNegocio()">Publicar negocio</button>
+      <button class="btn-ghost hidden" id="btnEliminarNegocio" style="color:var(--danger)" onclick="eliminarNegocioActual()">Eliminar mi negocio</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ PERSONALIZAR NEGOCIO O SERVICIO ═══════════════════
+       Pantalla independiente del registro: solo edita el ASPECTO visual de un
+       negocio/servicio que ya existe (color, tamaño de letra y promoción). Se
+       abre desde la tarjeta "Personalizar negocio o servicio" en Inicio. -->
+  <div class="form-screen hidden" id="screenPersonalizar">
+    <div class="form-top">
+      <div class="back-circle" onclick="volverDesdePersonalizar()"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <h2>Personalizar</h2>
+    </div>
+    <div class="form-card">
+      <p class="sub" id="subPersonalizar">Elige cómo se ve tu negocio o servicio en Nexo.</p>
+
+      <div class="pers-preview" id="persPreview" style="background:var(--grad-signal)">
+        <div class="pers-preview-tx">
+          <h4 id="persPreviewNombre">Mi negocio</h4>
+          <p id="persPreviewSub">Así se verá tu nombre en Nexo</p>
+        </div>
+      </div>
+
+      <p class="pers-sec-label">Color de tu negocio</p>
+      <div class="color-swatches" id="persColorSwatches"></div>
+
+      <p class="pers-sec-label">Tamaño del nombre</p>
+      <div class="tam-chips">
+        <div class="tam-chip" id="chipTamSm" onclick="seleccionarTamanoPers('sm')"><span class="muestra" style="font-size:12px">Aa</span>Pequeño</div>
+        <div class="tam-chip" id="chipTamMd" onclick="seleccionarTamanoPers('md')"><span class="muestra" style="font-size:15px">Aa</span>Mediano</div>
+        <div class="tam-chip" id="chipTamLg" onclick="seleccionarTamanoPers('lg')"><span class="muestra" style="font-size:18px">Aa</span>Grande</div>
+      </div>
+
+      <p class="pers-sec-label">Descripción</p>
+      <div class="field" style="margin-bottom:0">
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><input id="persDescripcion" type="text" placeholder="Cuéntanos qué ofreces" oninput="actualizarPreviewPersonalizar()"></div>
+      </div>
+
+      <div class="field" style="margin-top:20px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="negTienePromo" onchange="togglePromoNegocio()" style="width:16px;height:16px;accent-color:var(--primary)">
+          Tengo una promoción activa
+        </label>
+        <div class="hidden" id="campoPromoRank" style="margin-top:10px">
+          <label style="display:block;font-family:var(--font-mono);font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--primary);margin-bottom:4px">Porcentaje de descuento</label>
+          <p style="font-size:11px;color:var(--muted);margin-bottom:6px;line-height:1.4">Elige el % de descuento. Todos los usuarios de Nexo lo verán en tu tarjeta y en "Promociones del día".</p>
+          <div class="promo-rank-row">
+            <input type="range" id="negPromoRank" min="5" max="90" step="5" value="20" oninput="actualizarPromoRankVal()">
+            <span class="rank-val" id="negPromoRankVal">20%</span>
+          </div>
+        </div>
+        <div class="inp-wrap hidden" id="campoPromoTxt" style="margin-top:8px">
+          <svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.4 2.3 7.4L12 17l-6.3 4.2 2.3-7.4-6-4.4h7.6z"/></svg>
+          <input id="negPromoTxt" type="text" placeholder="Detalle opcional. Ej. solo en pan del día" oninput="actualizarPreviewPersonalizar()">
+        </div>
+        <div class="promo-bar hidden" id="promoBarPreview">
+          <span>🔥</span><span id="promoBarTexto">20% de descuento</span>
+        </div>
+      </div>
+
+      <p id="persError" class="form-error hidden" style="margin-top:16px"></p>
+      <p id="persSuccess" class="form-success hidden"></p>
+      <button class="btn-primary" id="btnGuardarPers" onclick="guardarPersonalizacion()">Guardar personalización</button>
+      <button class="btn-ghost hidden" id="btnCancelarPromo" style="color:var(--danger)" onclick="cancelarPromocion()">Cancelar promoción</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ NOTIFICACIONES ═══════════════════
+       Disponible para CUALQUIER cuenta (no solo el administrador ni el
+       dueño de un negocio): cada usuario elige aquí qué avisos quiere
+       recibir. Se abre desde la fila "Notificaciones" en Perfil. -->
+  <div class="form-screen hidden" id="screenNotificaciones">
+    <div class="form-top">
+      <div class="back-circle" onclick="volverDesdeNotificaciones()"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <h2>Notificaciones</h2>
+    </div>
+    <div class="form-card">
+      <p class="sub">Elige qué avisos quieres recibir de Nexo.</p>
+
+      <div class="settings-list">
+        <div class="settings-row">
+          <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.4 2.3 7.4L12 17l-6.3 4.2 2.3-7.4-6-4.4h7.6z"/></svg></div>
+          <div class="sub-tx"><span>Promociones cerca de ti</span><small>Avisos de promociones nuevas en tu zona</small></div>
+          <label class="switch">
+            <input type="checkbox" id="notifPromos" onchange="guardarNotificaciones()">
+            <span class="track"></span><span class="thumb"></span>
+          </label>
+        </div>
+        <div class="settings-row">
+          <div class="ic"><svg viewBox="0 0 24 24"><path d="M3 9l9-6 9 6v11a1 1 0 01-1 1H4a1 1 0 01-1-1z"/></svg></div>
+          <div class="sub-tx"><span>Negocios y servicios nuevos</span><small>Cuando se publica algo nuevo cerca de ti</small></div>
+          <label class="switch">
+            <input type="checkbox" id="notifNegocios" onchange="guardarNotificaciones()">
+            <span class="track"></span><span class="thumb"></span>
+          </label>
+        </div>
+        <div class="settings-row">
+          <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg></div>
+          <div class="sub-tx"><span>Actividad de tus favoritos</span><small>Novedades y promociones de tus favoritos</small></div>
+          <label class="switch">
+            <input type="checkbox" id="notifFavoritos" onchange="guardarNotificaciones()">
+            <span class="track"></span><span class="thumb"></span>
+          </label>
+        </div>
+      </div>
+      <p id="notifGuardado" class="form-success hidden">Preferencias guardadas ✅</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ CENTRO DE NOTIFICACIONES ═══════════════════
+       Esto es lo que abre la campanita del header: un resumen en vivo de
+       qué tipos de negocios ya están publicados en Nexo y qué promociones
+       (con su % de descuento) están activas ahora mismo. -->
+  <div class="form-screen hidden" id="screenNotifCentro">
+    <div class="form-top">
+      <div class="back-circle" onclick="volverDesdeNotifCentro()"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <h2>Notificaciones</h2>
+    </div>
+    <div class="form-card">
+      <p class="sub">Esto es lo nuevo en Nexo ahora mismo.</p>
+
+      <p class="pers-sec-label">Promociones activas</p>
+      <div class="settings-list" id="notifCentroPromos"></div>
+
+      <p class="pers-sec-label">Tipos de negocios publicados</p>
+      <div class="settings-list" id="notifCentroCategorias"></div>
+
+      <button class="btn-outline" onclick="irANotificaciones()">Preferencias de notificaciones</button>
+    </div>
+  </div>
+
+  <!-- Nota: hay DOS puertas de entrada distintas y separadas:
+       1) "Registrar/Administrar" (screenNegocio, arriba): datos básicos —
+          foto, nombre, categoría/tipo, descripción, teléfono, dirección y
+          ubicación en el mapa. Se abre desde la tarjeta "Registrar mi
+          negocio o servicio" (nuevo) o "Editar mi negocio" (existente).
+       2) "Personalizar" (screenPersonalizar, arriba): SOLO aspecto visual —
+          color, tamaño de letra y promoción. Se abre desde la tarjeta
+          "Personalizar negocio o servicio" en Inicio, y solo aparece una
+          vez que la cuenta ya tiene un negocio o servicio publicado. -->
+
+  <!-- ═══════════════════ SELECTOR: MIS NEGOCIOS ═══════════════════ -->
+  <div class="form-screen hidden" id="screenSelectorNegocios">
+    <div class="form-top">
+      <div class="back-circle" onclick="volverDesdeSelector()"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <h2 id="tituloSelector">Mis negocios</h2>
+    </div>
+    <div class="form-card">
+      <p class="sub" id="subSelector">Tienes varios negocios o servicios publicados. Elige cuál quieres administrar.</p>
+      <div id="listaSelectorNegocios"></div>
+      <button class="btn-outline hidden" id="btnRegistrarOtroDesdeSelector" style="margin-top:6px" onclick="registrarOtroDesdeSelector()">+ Registrar otro negocio o servicio</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ DETALLE DE NEGOCIO ═══════════════════ -->
+  <div class="form-screen hidden" id="screenDetalleNegocio">
+    <div class="form-top">
+      <div class="back-circle" onclick="volverDesdeDetalle()"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <h2>Detalle del negocio</h2>
+    </div>
+    <div id="detalleContenido" style="position:relative;z-index:1"></div>
+  </div>
+
+  <!-- ═══════════════════ APP PRINCIPAL ═══════════════════ -->
+  <div id="mainShell" class="hidden">
+    <div class="app-header">
+      <div class="hdr-top">
+        <div class="hdr-brand">
+          <div class="mini-logo"><svg viewBox="0 0 24 24"><path d="M4 21V9l8-6 8 6v12"/><path d="M9 21v-7h6v7"/></svg></div>
+          <span>Nexo</span>
+        </div>
+        <div class="hdr-actions">
+          <div class="hdr-notif" onclick="mostrarTab('tabFavoritos')"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg></div>
+          <div class="hdr-notif" id="btnCentroNotif" onclick="abrirCentroNotificaciones()"><span class="notif-badge hidden" id="notifBadgeDot"></span><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></div>
+        </div>
+      </div>
+      <div class="hdr-greet">
+        <h2 id="greetTitulo">Hola 👋</h2>
+        <p id="greetSub">Descubre lo mejor de tu comunidad hoy</p>
+      </div>
+      <div class="hdr-banner">
+        <svg viewBox="0 0 24 24"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg>
+        <p><strong>3 promociones</strong> activas cerca de ti hoy. Toca "Promociones del día" para verlas.</p>
+      </div>
+    </div>
+
+    <div class="app-content">
+      <!-- ── TAB: INICIO ── -->
+      <section class="tab-panel active" id="tabInicio">
+        <div class="tab-screen">
+          <div class="register-banner" id="bannerRegistrar" onclick="registrarNuevoNegocio()" style="margin-top:16px">
+            <div class="ic"><svg viewBox="0 0 24 24"><path d="M3 9l9-6 9 6v11a1 1 0 01-1 1H4a1 1 0 01-1-1z"/><path d="M9 20v-6h6v6"/></svg></div>
+            <div class="tx"><h4 id="bannerRegistrarTitulo">Registrar mi negocio o servicio</h4><p>Aparece en Nexo y llega a más vecinos</p></div>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+          </div>
+
+          <div class="quick-search" onclick="mostrarTab('tabBuscar')">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <span>Busca negocios, servicios o categorías…</span>
+          </div>
+
+          <p class="sec-title"><span class="lft">Categorías</span></p>
+          <div class="cat-grid" id="catGrid"></div>
+
+          <div class="personalizar-banner hidden" id="tarjetaPersonalizar" onclick="irAPersonalizarNegocio()">
+            <div class="ic"><svg viewBox="0 0 24 24" stroke-width="1.7"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg></div>
+            <div class="tx"><h4 id="tarjetaPersonalizarTitulo">Personalizar negocio o servicio</h4><p>Color, tamaño, descripción y promoción del día</p></div>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+          </div>
+
+          <div class="sec-title"><span class="lft">⭐ Negocios destacados</span><span class="verall" onclick="mostrarTab('tabBuscar')">Ver todos</span></div>
+          <div class="hscroll" id="rowDestacados"></div>
+
+          <div class="sec-title"><span class="lft">🔥 Promociones del día</span><span class="verall" onclick="mostrarTab('tabBuscar')">Ver todas</span></div>
+          <div class="hscroll" id="rowPromos"></div>
+
+          <div class="sec-title"><span class="lft">📍 Negocios cerca de mí</span><span class="verall" onclick="mostrarTab('tabExplorar')">Ver mapa</span></div>
+          <div id="rowCerca"></div>
+
+          <div class="sec-title"><span class="lft">🆕 Negocios nuevos</span><span class="verall" onclick="mostrarTab('tabBuscar')">Ver todos</span></div>
+          <div class="hscroll" id="rowNuevos"></div>
+
+          <div class="sec-title"><span class="lft">🎯 Servicios recomendados</span><span class="verall" onclick="mostrarTab('tabBuscar')">Ver todos</span></div>
+          <div class="hscroll" id="rowServicios"></div>
+        </div>
+      </section>
+
+      <!-- ── TAB: EXPLORAR ── -->
+      <section class="tab-panel" id="tabExplorar">
+        <div class="tab-screen">
+          <p class="sec-title" style="margin-top:16px"><span class="lft">🗺️ Cerca de tu ubicación</span></p>
+          <div class="map-wrap">
+            <div id="realMap"></div>
+            <div class="map-toggle" onclick="toggleListaExplorar()"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span id="mapToggleTxt">Lista</span></div>
+            <div class="map-locate" id="btnMiUbicacion" onclick="toggleMiUbicacion()"><span class="dot-live"></span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span id="btnMiUbicacionTxt">Mi ubicación</span></div>
+          </div>
+          <p class="map-note" id="mapNote">📍 Plaza de Armas de Trujillo, La Libertad — Perú. Toca "Mi ubicación" para ver los negocios ordenados por cercanía real a ti. Toca un pin para ver el detalle del negocio.</p>
+          <div id="rowExplorarLista"></div>
+        </div>
+      </section>
+
+      <!-- ── TAB: BUSCAR ── -->
+      <section class="tab-panel" id="tabBuscar">
+        <div class="tab-screen">
+          <div class="quick-search" style="margin-top:16px">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input id="inputBuscar" oninput="renderBusqueda()" placeholder="Nombre, categoría o servicio…" style="border:none;outline:none;flex:1;font-size:13px;background:transparent">
+          </div>
+          <div class="chips-row" id="chipsBuscar"></div>
+          <div id="rowResultados"></div>
+        </div>
+      </section>
+
+      <!-- ── TAB: FAVORITOS ── -->
+      <section class="tab-panel" id="tabFavoritos">
+        <div class="tab-screen">
+          <p class="sec-title" style="margin-top:16px"><span class="lft">❤️ Tus favoritos</span></p>
+          <div id="rowFavoritos"></div>
+        </div>
+      </section>
+
+      <!-- ── TAB: PERFIL ── -->
+      <section class="tab-panel" id="tabPerfil">
+        <div class="tab-screen" id="perfilContenido"></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ BARRA INFERIOR ═══════════════════ -->
+  <div class="bottom-nav hidden" id="bottomnav">
+    <div class="nav-item active" data-tab="tabInicio" onclick="mostrarTab('tabInicio')">
+      <div class="n-icon-wrap"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9a1 1 0 01-1 1h-4v-6H9v6H5a1 1 0 01-1-1z"/></svg></div><span class="n-label">Inicio</span>
+    </div>
+    <div class="nav-item" data-tab="tabExplorar" onclick="mostrarTab('tabExplorar')">
+      <div class="n-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg></div><span class="n-label">Explorar</span>
+    </div>
+    <div class="nav-item" data-tab="tabBuscar" onclick="mostrarTab('tabBuscar')">
+      <div class="n-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></div><span class="n-label">Buscar</span>
+    </div>
+    <div class="nav-item" data-tab="tabFavoritos" onclick="mostrarTab('tabFavoritos')">
+      <div class="n-icon-wrap"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg></div><span class="n-label">Favoritos</span>
+    </div>
+    <div class="nav-item" data-tab="tabPerfil" onclick="mostrarTab('tabPerfil')">
+      <div class="n-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-4 3-6.5 7-6.5s7 2.5 7 6.5"/></svg></div><span class="n-label">Perfil</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ MODAL PROPIO (reemplaza alert/confirm nativos) ═══════════════════ -->
+  <div class="modal-overlay hidden" id="miniModalOverlay">
+    <div class="modal-card">
+      <p class="modal-msg" id="miniModalMsg"></p>
+      <div class="modal-actions" id="miniModalActions"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+if(!NodeList.prototype.forEach){ NodeList.prototype.forEach = Array.prototype.forEach; }
+
+/* ════════════════════════════════════════════════════════════════
+   NEXO — Comercio y servicios locales
+   Conectado a Google Sheets a través de un backend en Google Apps
+   Script. Todas las hojas y columnas se crean automáticamente la
+   primera vez que se ejecuta "setup" en el proyecto de Apps Script
+   (ver Code.gs). Aquí solo hace falta pegar la URL publicada.
+   ════════════════════════════════════════════════════════════════ */
+
+const CONFIG = {
+  // 👉 Pega aquí la URL de tu implementación de Apps Script (termina en /exec).
+  // Instrucciones completas en el archivo Code.gs que se te entregó junto a este HTML.
+  API_URL: 'PEGA_AQUI_TU_URL_DE_APPS_SCRIPT'
+};
+
+// 👉 Pon aquí TU correo (el mismo con el que inicias sesión en la app) para
+// tener permisos de administrador: podrás ver, editar y eliminar los
+// negocios de CUALQUIER persona desde la pestaña "Perfil". Debe ser
+// exactamente el mismo correo que pusiste en ADMIN_EMAIL dentro de Code.gs.
+const ADMIN_EMAIL = 'angelcastrovereau@gmail.com';
+
+// Llama al backend en Apps Script. Se usa Content-Type "text/plain" a propósito:
+// así el navegador no envía una petición OPTIONS de pre-vuelo (que Apps Script
+// no responde), evitando errores de CORS.
+async function apiPost(action, data){
+  if(!CONFIG.API_URL || CONFIG.API_URL.indexOf('PEGA_AQUI') !== -1){
+    return { ok:false, error:'Aún no configuraste la URL del backend (CONFIG.API_URL) en el HTML.' };
+  }
+  try{
+    const res = await fetch(CONFIG.API_URL, {
+      method:'POST',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify(Object.assign({ action }, data))
+    });
+    return await res.json();
+  }catch(err){
+    return { ok:false, error:'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.' };
+  }
+}
+
+// Convierte el objeto "crudo" que llega de la hoja "Negocios" (nombres de
+// columna en snake_case) al formato que usan las funciones de render de
+// esta app (n.desc, n.promoTxt, n.servicioReco, etc.), sin tocar el resto
+// del código de la interfaz.
+// Fotos recién subidas (en base64) mientras Google Drive termina de
+// procesar la foto definitiva. Sin esto, la primera recarga en segundo
+// plano después de publicar podía llegar con foto_url todavía vacío y
+// "borrar" de la pantalla la foto que la persona acababa de subir.
+const fotosRecientes = {};
+
+// Convierte texto libre (nombre, descripción, dirección, teléfono, etc.) en
+// una versión segura para insertar dentro de HTML. Sin esto, un negocio real
+// con una comilla, un apóstrofe o un símbolo < / > en el nombre o la
+// descripción rompía el HTML generado (la tarjeta o el detalle se quedaban
+// en blanco o dejaban de abrirse), mientras que los negocios de prueba
+// —escritos a mano sin esos caracteres— sí funcionaban. Se aplica a TODO
+// texto que venga de un negocio antes de insertarlo en la pantalla.
+function escapeHtml(valor){
+  return String(valor == null ? '' : valor)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function normalizarNegocio(n){
+  const id = String(n.id);
+  return {
+    id: id,
+    nombre: String(n.nombre || ''),
+    categoria: String(n.categoria || ''),
+    tipo: String(n.tipo || ''),
+    desc: String(n.descripcion || ''),
+    telefono: String(n.telefono || ''),
+    direccion: String(n.direccion || ''),
+    lat: Number(n.lat),
+    lng: Number(n.lng),
+    rating: Number(n.rating) || 4.5,
+    distancia: Number(n.distancia) || 0.5,
+    destacado: n.destacado === true || n.destacado === 'TRUE' || n.destacado === 'true',
+    promo: n.promo === true || n.promo === 'TRUE' || n.promo === 'true',
+    promoTxt: String(n.promo_txt || ''),
+    promoRank: Number(n.promo_rank) || 20,
+    nuevo: n.nuevo === true || n.nuevo === 'TRUE' || n.nuevo === 'true',
+    servicioReco: n.servicio_reco === true || n.servicio_reco === 'TRUE' || n.servicio_reco === 'true',
+    foto: n.foto_url || fotosRecientes[id] || '',
+    // Nunca dejamos que esto sea otra cosa que texto: si en la hoja de
+    // cálculo esta celda termina con un valor no-texto (por ejemplo, Google
+    // Sheets puede "adivinar" que algo es un número o una fecha si se
+    // edita la celda a mano), un simple "|| ''" no lo detecta porque ese
+    // valor sigue siendo verdadero — y luego cualquier .toLowerCase() sobre
+    // él rompe toda la pantalla. String(...) lo convierte a texto siempre.
+    propietarioEmail: String(n.propietario_email || '').trim(),
+    color: n.color || '#D9691E',
+    tamNombre: (n.tam_nombre === 'sm' || n.tam_nombre === 'lg') ? n.tam_nombre : 'md'
+  };
+}
+
+// Paleta de colores disponible en "Personalizar negocio o servicio". Cada
+// negocio guarda el suyo por separado (columna "color" en la hoja), así que
+// dos negocios de la misma cuenta pueden verse completamente distintos.
+const COLORES_PERSONALIZAR = ['#D9691E','#1C4A87','#4A3FA0','#1F6642','#C4881F','#1F2C46','#C4433F','#0E7C86'];
+
+// Tamaños de letra disponibles para el nombre del negocio en tarjetas,
+// filas y el detalle. Los px son relativos al tamaño base de cada lugar
+// donde se pinta el nombre.
+const TAM_NOMBRE_AJUSTE = { sm: -2, md: 0, lg: 3 };
+function tamNombrePx(base, tam){ return base + (TAM_NOMBRE_AJUSTE[tam] || 0); }
+
+const CATEGORIAS_INFO = [
+  { nombre:'Comida',    icon:'M4 3v8a3 3 0 003 3v7M4 3a2 2 0 00-2 2v4a2 2 0 002 2M4 3v10M17 3c-2 0-3 3-3 6s1 5 3 5 3-2 3-5-1-6-3-6zm0 0v15', grad:'var(--grad-signal)' },
+  { nombre:'Belleza',   icon:'M12 3l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7z', grad:'var(--grad-violet)' },
+  { nombre:'Salud',     icon:'M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z', grad:'var(--grad-green)' },
+  { nombre:'Servicios', icon:'M14.7 6.3a4 4 0 11-5.4 5.4l-6 6V21h3.3l6-6a4 4 0 015.4-5.4z', grad:'var(--grad-blue)' },
+  { nombre:'Tienda',    icon:'M3 9l9-6 9 6v11a1 1 0 01-1 1H4a1 1 0 01-1-1z', grad:'var(--grad-gold)' },
+  { nombre:'Educación', icon:'M22 10L12 5 2 10l10 5 10-5zM6 12v5c0 1.5 2.5 3 6 3s6-1.5 6-3v-5', grad:'var(--grad-slate)' }
+];
+function catInfo(nombre){ return CATEGORIAS_INFO.find(c=>c.nombre===nombre) || CATEGORIAS_INFO[3]; }
+// Texto de promoción que ve cualquier usuario: siempre parte del % de
+// descuento configurado con la barrita, y si el dueño escribió un detalle
+// adicional (opcional) se agrega después.
+function textoPromo(n){
+  if(!n.promo) return '';
+  const pct = n.promoRank ? `${n.promoRank}% de descuento` : 'Promoción activa';
+  return n.promoTxt ? `${pct} · ${n.promoTxt}` : pct;
+}
+
+// Lista completa de tipos de servicio que puede ofrecer una persona de forma
+// independiente (a diferencia de un negocio con local propio). Se usa en el
+// formulario "Registrar un servicio".
+const SERVICIOS_TIPOS = [
+  'Gasfitería / Plomería',
+  'Electricidad',
+  'Limpieza del hogar',
+  'Jardinería',
+  'Carpintería y mueblería',
+  'Pintura',
+  'Cerrajería',
+  'Albañilería y construcción',
+  'Delivery y mensajería',
+  'Mudanzas',
+  'Clases particulares / Tutorías',
+  'Cuidado de niños / Niñera',
+  'Cuidado de adultos mayores',
+  'Peluquería y belleza a domicilio',
+  'Veterinaria a domicilio',
+  'Paseador de mascotas',
+  'Reparación de electrodomésticos',
+  'Reparación de celulares y cómputo',
+  'Fotografía y eventos',
+  'Diseño gráfico y marketing',
+  'Desarrollo web y soporte técnico',
+  'Contabilidad y asesoría legal',
+  'Transporte, taxi o mototaxi',
+  'Costura y arreglos de ropa',
+  'Otro servicio'
+];
+
+// Datos de muestra que se ven de inmediato mientras se conecta con Google
+// Sheets. En cuanto responde el backend, esta lista se reemplaza por los
+// negocios reales guardados en la hoja "Negocios" (ver cargarNegocios()).
+let NEGOCIOS = [
+  { id:'1', nombre:'Panadería San José', categoria:'Comida', rating:4.8, distancia:0.3, destacado:true, promo:true, promoRank:20, nuevo:false, promoTxt:'en pan del día', desc:'Pan artesanal recién horneado todas las mañanas.', lat:-8.1120, lng:-79.0295 },
+  { id:'2', nombre:'Barbería El Corte',  categoria:'Belleza', rating:4.6, distancia:0.5, destacado:true, promo:false, nuevo:false, desc:'Cortes clásicos y modernos, sin cita previa.', lat:-8.1145, lng:-79.0265 },
+  { id:'3', nombre:'Ferretería Rápida',  categoria:'Tienda', rating:4.3, distancia:0.8, destacado:false, promo:false, nuevo:true, desc:'Todo para el hogar y la construcción.', lat:-8.1095, lng:-79.0330 },
+  { id:'4', nombre:'Consultorio Dra. Ruiz', categoria:'Salud', rating:4.9, distancia:1.1, destacado:true, promo:false, nuevo:false, desc:'Medicina general, atención el mismo día.', lat:-8.1160, lng:-79.0310 },
+  { id:'5', nombre:'Gasfitero Torres',   categoria:'Servicios', rating:4.5, distancia:0.6, destacado:false, promo:false, nuevo:false, promoTxt:'Diagnóstico gratis', servicioReco:true, desc:'Reparaciones de agua y desagüe a domicilio.', lat:-8.1080, lng:-79.0270 },
+  { id:'6', nombre:'Tienda Doña Rosa',   categoria:'Tienda', rating:4.4, distancia:0.2, destacado:false, promo:true, promoRank:25, nuevo:false, promoTxt:'2x1 en bebidas', desc:'Abarrotes y bodega de barrio, abierto todo el día.', lat:-8.1130, lng:-79.0250 },
+  { id:'7', nombre:'Academia de Inglés Nexo', categoria:'Educación', rating:4.7, distancia:1.4, destacado:false, promo:false, nuevo:true, desc:'Clases grupales y particulares para todo nivel.', lat:-8.1175, lng:-79.0295 },
+  { id:'8', nombre:'Electricista Vega',  categoria:'Servicios', rating:4.6, distancia:0.9, destacado:false, promo:false, nuevo:false, servicioReco:true, desc:'Instalaciones y emergencias eléctricas 24/7.', lat:-8.1105, lng:-79.0245 },
+  { id:'9', nombre:'Spa Bienestar',      categoria:'Belleza', rating:4.5, distancia:1.6, destacado:false, promo:true, promoRank:15, nuevo:true, promoTxt:'primera cita', desc:'Masajes, faciales y cuidado personal.', lat:-8.1060, lng:-79.0300 },
+  { id:'10',nombre:'Veterinaria Patitas',categoria:'Salud', rating:4.8, distancia:0.7, destacado:false, promo:false, nuevo:false, servicioReco:true, desc:'Consulta, vacunas y emergencias para tu mascota.', lat:-8.1150, lng:-79.0225 }
+];
+
+// Trae los negocios reales desde Google Sheets y vuelve a pintar todas las
+// pantallas que los muestran. Si el backend no está configurado o falla,
+// la app se queda con los datos de muestra de arriba, sin romperse.
+async function cargarNegocios(){
+  const r = await apiPost('listarNegocios', {});
+  if(r && r.ok && Array.isArray(r.negocios)){
+   try{
+    // Si el servidor ya trae la foto definitiva (subida a Google Drive) para
+    // un negocio, ya no hace falta seguir usando la vista previa local.
+    r.negocios.forEach(n => { if(n.foto_url && fotosRecientes[String(n.id)]) delete fotosRecientes[String(n.id)]; });
+    const idsAntes = new Set(NEGOCIOS.map(n => String(n.id)));
+    NEGOCIOS = r.negocios.map(normalizarNegocio);
+    const idsAhora = new Set(NEGOCIOS.map(n => String(n.id)));
+    // Si el usuario tiene sesión, revisamos si ya es dueño de un negocio en
+    // la hoja de cálculo (esto se mantiene entre sesiones, no solo en memoria).
+    if(state.user && state.user.mode === 'user'){
+      const propio = NEGOCIOS.find(n => n.propietarioEmail.toLowerCase() === state.user.email.toLowerCase());
+      state.user.tieneNegocio = !!propio;
+    }
+    renderCategorias(); renderInicio(); renderExplorar(); renderBusqueda(); renderFavoritos(); renderPerfil();
+    const badgeDot = document.getElementById('notifBadgeDot');
+    if(badgeDot) badgeDot.classList.toggle('hidden', !NEGOCIOS.some(n => n.promo));
+    // Si justo estás viendo el detalle de un negocio que alguien (o tú mismo
+    // desde la Sheet) acaba de eliminar, esta recarga automática ya lo quitó
+    // de todas las listas — pero si te quedas parado en su pantalla de
+    // detalle, avisamos y te regresamos en vez de dejarte viendo algo que
+    // ya no existe.
+    if(state.negocioDetalleAbierto && idsAntes.has(state.negocioDetalleAbierto) && !idsAhora.has(state.negocioDetalleAbierto)){
+      const abierto = !document.getElementById('screenDetalleNegocio').classList.contains('hidden');
+      if(abierto){
+        volverDesdeDetalle();
+        mostrarAlerta('Este negocio ya no está disponible: fue eliminado.');
+      }
+      state.negocioDetalleAbierto = null;
+    }
+    return true;
+   }catch(err){
+    // Antes, un solo dato corrupto en una fila de la hoja (por ejemplo, una
+    // celda que Google Sheets terminó guardando como número o fecha en vez
+    // de texto) rompía esta función a la mitad SIN AVISAR: dejaba de
+    // detectar si eras dueño de un negocio y dejaba de refrescar las
+    // pantallas, silenciosamente, cada vez que pasaba. Ahora se registra el
+    // error y se sigue intentando en el próximo refresco en vez de romperse.
+    console.error('Error procesando la lista de negocios:', err);
+    return false;
+   }
+  }
+  return false;
+}
+
+// Refresco automático (igual que en Nexo Live, la otra app): cada cierto
+// tiempo se vuelve a pedir la lista de negocios al servidor sin que la
+// persona tenga que recargar la página. Así, si alguien elimina un negocio
+// —desde la app o directo en la Sheet— desaparece solo de Inicio, Mapa,
+// Buscar y Favoritos de TODOS los que tengan la app abierta, sin que quede
+// "estorbando" hasta la próxima vez que se recargue manualmente.
+const INTERVALO_REFRESCO_NEGOCIOS_MS = 25000;
+let intervaloRefrescoNegocios = null;
+function iniciarRefrescoAutomaticoNegocios(){
+  detenerRefrescoAutomaticoNegocios();
+  intervaloRefrescoNegocios = setInterval(() => {
+    // No interrumpe si la persona está justo publicando/editando un negocio,
+    // o personalizándolo, para no pisarle el formulario a medio llenar.
+    const enFormulario = !document.getElementById('screenNegocio').classList.contains('hidden')
+      || !document.getElementById('screenPersonalizar').classList.contains('hidden');
+    if(!enFormulario) cargarNegocios();
+  }, INTERVALO_REFRESCO_NEGOCIOS_MS);
+}
+function detenerRefrescoAutomaticoNegocios(){
+  if(intervaloRefrescoNegocios){ clearInterval(intervaloRefrescoNegocios); intervaloRefrescoNegocios = null; }
+}
+
+const TRUJILLO_CENTRO = { lat:-8.111725162138729, lng:-79.02919782605912 }; // Plaza de Armas de Trujillo, La Libertad, Perú
+const CATEGORIAS = ['Todos','Comida','Belleza','Salud','Servicios','Tienda','Educación'];
+
+const state = {
+  user:null, favoritos:new Set(), categoriaActiva:'Todos',
+  editandoNegocioId:null, negFotoBase64:null, negLat:null, negLng:null,
+  mapaPickerNegocio:null, marcadorPickerNegocio:null, mapaDetalleNegocio:null,
+  negocioDetalleAbierto:null,
+  personalizandoId:null, persColor:COLORES_PERSONALIZAR[0], persTam:'md',
+  selectorModo:null, selectorLista:[], vinoDelSelector:false,
+  miUbicacion:null, geoWatchId:null, marcadorMiUbicacion:null, circuloMiUbicacion:null
+};
+
+// Red de seguridad: si un error inesperado en cualquier parte del código
+// llega a dejar TODAS las pantallas ocultas a la vez (la causa más común de
+// "la pantalla se queda en blanco"), esto detecta esa situación y vuelve a
+// mostrar algo — la app principal si hay sesión, o la bienvenida si no.
+window.addEventListener('error', function(){
+  try{
+    const hayPantallaAuthVisible = !!document.querySelector('.auth-wrap:not(.hidden), .form-screen:not(.hidden)');
+    const mainVisible = !document.getElementById('mainShell').classList.contains('hidden');
+    if(!hayPantallaAuthVisible && !mainVisible){
+      if(state.user){
+        document.getElementById('mainShell').classList.remove('hidden');
+        document.getElementById('bottomnav').classList.remove('hidden');
+      }else{
+        mostrarPantalla('screenWelcome');
+      }
+    }
+  }catch(e){ /* si hasta esta red de seguridad falla, no hay más que hacer aquí */ }
+});
+
+/* ─────────── Aviso de "abrir fuera del iframe" (Google Sites, etc.) ───────────
+   Se muestra apenas carga la página si detectamos que Nexo NO es la página de
+   nivel superior (está dentro de un <iframe>, como cuando se incrusta en
+   Google Sites). Ese es el escenario típico en el que el navegador bloquea el
+   permiso de ubicación en tiempo real. */
+function estaEnIframe(){
+  try{ return window.self !== window.top; }
+  catch(e){ return true; } // si ni siquiera se puede comparar, asumimos que sí (por seguridad del navegador)
+}
+function abrirEnPestanaNueva(){
+  window.open(window.location.href, '_blank', 'noopener');
+}
+if(estaEnIframe()){
+  const banner = document.getElementById('iframeBanner');
+  if(banner) banner.classList.remove('hidden');
+}
+
+// Reemplazo de alert()/confirm() nativos: cuando la app corre servida desde
+// Apps Script (HtmlService), la página vive dentro de un iframe "aislado"
+// (sandbox) de Google que en algunos casos no deja que se disparen los
+// diálogos nativos del navegador — con eso, un alert() podía no mostrarse
+// nunca (pareciendo que "no pasaba nada" al tocar algo) y un confirm() podía
+// no dejar avanzar la acción (pareciendo que "borrar no funciona"). Este
+// modal propio no depende del navegador, así que funciona siempre.
+function mostrarAlerta(msg, textoBoton){
+  const overlay = document.getElementById('miniModalOverlay');
+  document.getElementById('miniModalMsg').textContent = msg;
+  document.getElementById('miniModalActions').innerHTML = `<button class="modal-btn-primary" id="miniModalOk">${textoBoton || 'Entendido'}</button>`;
+  overlay.classList.remove('hidden');
+  return new Promise(resolve => {
+    document.getElementById('miniModalOk').onclick = () => { overlay.classList.add('hidden'); resolve(); };
+  });
+}
+function mostrarConfirmacion(msg, textoConfirmar){
+  const overlay = document.getElementById('miniModalOverlay');
+  document.getElementById('miniModalMsg').textContent = msg;
+  document.getElementById('miniModalActions').innerHTML = `
+    <button class="modal-btn-outline" id="miniModalCancelar">Cancelar</button>
+    <button class="modal-btn-danger" id="miniModalConfirmar">${textoConfirmar || 'Eliminar'}</button>`;
+  overlay.classList.remove('hidden');
+  return new Promise(resolve => {
+    document.getElementById('miniModalCancelar').onclick = () => { overlay.classList.add('hidden'); resolve(false); };
+    document.getElementById('miniModalConfirmar').onclick = () => { overlay.classList.add('hidden'); resolve(true); };
+  });
+}
+
+/* ─────────── navegación entre pantallas de autenticación ─────────── */
+function mostrarPantalla(id){
+  document.querySelectorAll('.auth-wrap, .form-screen').forEach(el => el.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+function entrarComoInvitado(){ state.user = { mode:'guest' }; iniciarApp(); }
+
+/* ─────────── validaciones (mismas reglas que el backend) ─────────── */
+function esEmailValidoJS(email){ return /^[^\s@]+@(gmail\.com|hotmail\.com)$/i.test(email); }
+let verifyEmailPendiente = '';
+function esNombreValidoJS(nombre){
+  const partes = nombre.trim().split(/\s+/).filter(Boolean);
+  return partes.length >= 2 && partes.every(p => /^[A-Za-zÁÉÍÓÚÑÜáéíóúñü]+$/.test(p));
+}
+function mostrarError(id, msg){ const el = document.getElementById(id); el.textContent = msg; el.classList.remove('hidden'); }
+function ocultarError(id){ document.getElementById(id).classList.add('hidden'); }
+
+async function iniciarSesion(){
+  ocultarError('loginError');
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+
+  if(!esEmailValidoJS(email)){ mostrarError('loginError', 'Ingresa un correo de Gmail (@gmail.com) o Hotmail (@hotmail.com) válido.'); return; }
+  if(pass.length !== 8){ mostrarError('loginError', 'La contraseña debe tener exactamente 8 caracteres.'); return; }
+
+  const btn = document.getElementById('btnLogin');
+  btn.disabled = true; btn.textContent = 'Ingresando…';
+  const r = await apiPost('login', { email, password: pass });
+  btn.disabled = false; btn.textContent = 'Iniciar sesión';
+
+  if(!r.ok){
+    if(r.requiereVerificacion){
+      verifyEmailPendiente = email;
+      document.getElementById('verifyEmailTxt').textContent = email;
+      ocultarError('verifyError');
+      mostrarPantalla('screenVerify');
+      return;
+    }
+    mostrarError('loginError', r.error || 'No se pudo iniciar sesión.');
+    return;
+  }
+  state.user = { mode:'user', id:r.user.id, nombre:r.user.nombre, email:r.user.email, tieneNegocio:false, notif: r.user.notif || { promos:true, negocios:true, favoritos:true } };
+  await iniciarApp();
+}
+
+async function crearCuenta(){
+  ocultarError('regError');
+  const nombre = document.getElementById('regName').value.trim();
+  const email  = document.getElementById('regEmail').value.trim();
+  const pass   = document.getElementById('regPass').value;
+
+  if(!esNombreValidoJS(nombre)){ mostrarError('regError', 'Ingresa tu nombre completo (nombre y apellido, solo letras).'); return; }
+  if(!esEmailValidoJS(email)){ mostrarError('regError', 'Ingresa un correo de Gmail (@gmail.com) o Hotmail (@hotmail.com) válido.'); return; }
+  if(pass.length !== 8){ mostrarError('regError', 'La contraseña debe tener exactamente 8 caracteres.'); return; }
+
+  const btn = document.getElementById('btnRegister');
+  btn.disabled = true; btn.textContent = 'Creando cuenta…';
+  const r = await apiPost('registrar', { nombre, email, password: pass });
+  btn.disabled = false; btn.textContent = 'Crear cuenta';
+
+  if(!r.ok){ mostrarError('regError', r.error || 'No se pudo crear la cuenta.'); return; }
+
+  // La cuenta se creó pero aún no está activa: pedimos el código que llegó al correo.
+  verifyEmailPendiente = email;
+  document.getElementById('verifyEmailTxt').textContent = email;
+  ocultarError('verifyError');
+  document.getElementById('verifyCodigo').value = '';
+  mostrarPantalla('screenVerify');
+}
+
+async function verificarCodigo(){
+  ocultarError('verifyError');
+  const codigo = document.getElementById('verifyCodigo').value.trim();
+  if(!/^\d{6}$/.test(codigo)){ mostrarError('verifyError', 'Ingresa el código de 6 dígitos que te enviamos.'); return; }
+
+  const btn = document.getElementById('btnVerify');
+  btn.disabled = true; btn.textContent = 'Verificando…';
+  const r = await apiPost('verificarCodigo', { email: verifyEmailPendiente, codigo });
+  btn.disabled = false; btn.textContent = 'Verificar y continuar';
+
+  if(!r.ok){ mostrarError('verifyError', r.error || 'No se pudo verificar el código.'); return; }
+  state.user = { mode:'user', id:r.user.id, nombre:r.user.nombre, email:r.user.email, tieneNegocio:false, notif: r.user.notif || { promos:true, negocios:true, favoritos:true } };
+  await iniciarApp();
+}
+
+async function reenviarCodigo(){
+  ocultarError('verifyError');
+  const btn = document.getElementById('btnReenviar');
+  const textoOriginal = btn.textContent;
+  btn.textContent = 'Enviando…';
+  const r = await apiPost('reenviarCodigo', { email: verifyEmailPendiente });
+  btn.textContent = textoOriginal;
+
+  if(!r.ok){ mostrarError('verifyError', r.error || 'No se pudo reenviar el código.'); return; }
+  mostrarError('verifyError', 'Te enviamos un código nuevo. Revisa tu correo.');
+}
+
+// En las filas horizontales que se deslizan con el dedo (Destacados,
+// Promociones, Nuevos, Servicios recomendados), a veces el navegador
+// interpreta un toque como el inicio de un arrastre para deslizar y nunca
+// llega a disparar el evento "click" normal, así que la tarjeta parecía "no
+// responder" (aunque en Buscar, que no se desliza horizontalmente, sí
+// funcionaba). Esto detecta un toque real (sin arrastre) y abre el detalle
+// directamente, sin depender del click nativo.
+(function bindTapsEnFilasHorizontales(){
+  let inicio = null;
+  let arrastrado = false;
+  document.addEventListener('touchstart', e => {
+    const fila = e.target.closest('.hscroll');
+    if(!fila){ inicio = null; return; }
+    const t = e.touches[0];
+    inicio = { x: t.clientX, y: t.clientY };
+    arrastrado = false;
+  }, { passive:true });
+  document.addEventListener('touchmove', e => {
+    if(!inicio) return;
+    const t = e.touches[0];
+    if(Math.abs(t.clientX - inicio.x) > 8 || Math.abs(t.clientY - inicio.y) > 8) arrastrado = true;
+  }, { passive:true });
+  document.addEventListener('touchend', e => {
+    if(!inicio || arrastrado){ inicio = null; return; }
+    inicio = null;
+    const tarjeta = e.target.closest('.biz-card[data-negid]');
+    if(!tarjeta) return;
+    if(e.target.closest('.fav-btn')) return; // el corazoncito ya maneja su propio toque
+    e.preventDefault(); // evita que además se dispare el click sintético y se abra dos veces
+    verNegocio(tarjeta.dataset.negid);
+  });
+})();
+
+async function iniciarApp(){
+  document.querySelectorAll('.auth-wrap, .form-screen').forEach(el => el.classList.add('hidden'));
+  document.getElementById('mainShell').classList.remove('hidden');
+  document.getElementById('bottomnav').classList.remove('hidden');
+  const nombre = state.user.mode === 'guest' ? 'invitado' : state.user.nombre;
+  document.getElementById('greetTitulo').textContent = `Hola, ${nombre} 👋`;
+  document.getElementById('greetSub').textContent = state.user.mode === 'guest'
+    ? 'Estás explorando como invitado'
+    : 'Descubre lo mejor de tu comunidad hoy';
+  renderCategorias();
+  renderInicio();
+  renderExplorar();
+  renderBusqueda();
+  renderFavoritos();
+  renderPerfil();
+
+  // Se espera a que termine de cargar la lista real de negocios (y con ella,
+  // si la cuenta ya tiene uno publicado) antes de dar por lista la pantalla.
+  // Antes esto se disparaba sin esperar (cargarNegocios() "al aire"), así que
+  // si tardaba en responder o fallaba una vez, el botón "Personalizar" podía
+  // no aparecer hasta el siguiente refresco automático (25s) — ahora, igual
+  // que en Nexo Live/Súper Nexo, al iniciar sesión se reintenta enseguida.
+  const tareas = [cargarNegociosConReintento()];
+  if(state.user.mode === 'user'){
+    tareas.push(
+      apiPost('listarFavoritos', { email: state.user.email }).then(fr => {
+        if(fr && fr.ok && Array.isArray(fr.favoritos)) state.favoritos = new Set(fr.favoritos.map(String));
+      })
+    );
+  }
+  await Promise.all(tareas);
+  iniciarRefrescoAutomaticoNegocios();
+  renderCategorias(); renderInicio(); renderExplorar(); renderBusqueda(); renderFavoritos(); renderPerfil();
+}
+
+// Llama a cargarNegocios() y, si la primera vez falla (por ejemplo justo al
+// reabrir la app, con el backend todavía "despertando"), reintenta una vez
+// más de inmediato en vez de esperar a que llegue el siguiente refresco
+// automático — así el botón de Personalizar no se queda desaparecido.
+async function cargarNegociosConReintento(){
+  for(let intento = 1; intento <= 3; intento++){
+    const ok = await cargarNegocios();
+    if(ok) return;
+    if(intento < 3) await new Promise(res => setTimeout(res, intento * 1500));
+  }
+}
+
+/* ─────────── navegación entre pestañas de la barra inferior ─────────── */
+function mostrarTab(id){
+  document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.tab === id));
+  window.scrollTo(0,0);
+  if(id === 'tabFavoritos') renderFavoritos();
+  if(id === 'tabPerfil') renderPerfil();
+  if(id === 'tabExplorar'){ iniciarMapaSiHaceFalta(); if(mapaLeaflet) setTimeout(() => { mapaLeaflet.invalidateSize(); mapaLeaflet.setView([TRUJILLO_CENTRO.lat, TRUJILLO_CENTRO.lng], 15); }, 80); }
+}
+
+/* ─────────── tarjetas de negocio ─────────── */
+function tarjetaHorizontal(n){
+  const c = catInfo(n.categoria);
+  const esFav = state.favoritos.has(String(n.id));
+  let tag = '';
+  if(n.promo) tag = `<span class="tag tag-signal">${n.promoRank ? n.promoRank + '% OFF' : 'PROMO'}</span>`;
+  else if(n.nuevo) tag = `<span class="tag tag-green">NUEVO</span>`;
+  const coverImg = n.foto ? `<img src="${escapeHtml(n.foto)}" alt="${escapeHtml(n.nombre)}" onerror="this.remove()">` : '';
+  return `
+    <div class="biz-card" data-negid="${n.id}" onclick="verNegocio('${n.id}')">
+      <div class="cover" style="background:${c.grad}">
+        ${coverImg}
+        <svg viewBox="0 0 24 24" stroke-width="1.7"><path d="${c.icon}"/></svg>
+        ${tag}
+        <div class="fav-btn ${esFav?'is-fav':''}" onclick="event.stopPropagation();toggleFavorito('${n.id}')"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg></div>
+      </div>
+      <div class="info">
+        <h4 style="color:${n.color || '#0F1A2E'};font-size:${tamNombrePx(12.5, n.tamNombre)}px">${escapeHtml(n.nombre)}</h4>
+        <div class="meta"><span class="rt"><svg viewBox="0 0 24 24"><path d="M12 3l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7z"/></svg>${n.rating}</span>&nbsp;· ${escapeHtml(n.tipo || n.categoria)} · ${textoDistancia(n)}</div>
+      </div>
+    </div>`;
+}
+function filaVertical(n){
+  const c = catInfo(n.categoria);
+  const esFav = state.favoritos.has(String(n.id));
+  const coverImgSm = n.foto ? `<img src="${escapeHtml(n.foto)}" alt="${escapeHtml(n.nombre)}" onerror="this.remove()">` : '';
+  return `
+    <div class="biz-row" onclick="verNegocio('${n.id}')">
+      <div class="cover-sm" style="background:${c.grad}">${coverImgSm}<svg viewBox="0 0 24 24" stroke-width="1.7"><path d="${c.icon}"/></svg></div>
+      <div class="body">
+        <h4 style="color:${n.color || '#0F1A2E'};font-size:${tamNombrePx(13, n.tamNombre)}px">${escapeHtml(n.nombre)}</h4>
+        <div class="meta">
+          <span class="rt"><svg viewBox="0 0 24 24"><path d="M12 3l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7z"/></svg>${n.rating}</span>
+          <span>· ${escapeHtml(n.tipo || n.categoria)} · ${textoDistancia(n)}</span>
+          ${n.promo ? `<span style="color:var(--signal-dark);font-weight:700">· ${escapeHtml(textoPromo(n))}</span>` : ''}
+        </div>
+      </div>
+      <div class="fav-mini ${esFav?'is-fav':''}" onclick="event.stopPropagation();toggleFavorito('${n.id}')"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg></div>
+    </div>`;
+}
+async function toggleFavorito(id){
+  if(!state.user || state.user.mode === 'guest'){ mostrarAlerta('Crea una cuenta o inicia sesión para guardar favoritos.'); return; }
+  id = String(id);
+  const yaEra = state.favoritos.has(id);
+  if(yaEra) state.favoritos.delete(id); else state.favoritos.add(id);
+  renderInicio(); renderBusqueda(); renderFavoritos(); renderExplorar();
+  // Se sincroniza con Google Sheets en segundo plano; si falla, se revierte.
+  const r = await apiPost('toggleFavorito', { email: state.user.email, negocio_id: id });
+  if(!r || !r.ok){
+    if(yaEra) state.favoritos.add(id); else state.favoritos.delete(id);
+    renderInicio(); renderBusqueda(); renderFavoritos(); renderExplorar();
+  }
+}
+async function verNegocio(id){
+  id = String(id);
+  let n = NEGOCIOS.find(x => String(x.id) === id);
+  if(!n){
+    // Puede que este negocio se haya publicado hace un instante y la lista
+    // local todavía no se haya actualizado desde el servidor: antes esto
+    // hacía que el clic "no hiciera nada". Ahora se intenta recargar una vez
+    // antes de avisar que no se encontró.
+    await cargarNegocios();
+    n = NEGOCIOS.find(x => String(x.id) === id);
+  }
+  if(!n){
+    await mostrarAlerta('No se pudo encontrar este negocio. Puede que se haya eliminado o que necesites volver a cargar la app.');
+    return;
+  }
+  try{
+    // Se dibuja el detalle ANTES de ocultar la app principal: si algo falla,
+    // no se oculta nada y la persona no se queda con la pantalla en blanco.
+    renderDetalleNegocio(n);
+    state.negocioDetalleAbierto = String(n.id);
+    document.getElementById('mainShell').classList.add('hidden');
+    document.getElementById('bottomnav').classList.add('hidden');
+    mostrarPantalla('screenDetalleNegocio');
+  }catch(err){
+    document.getElementById('mainShell').classList.remove('hidden');
+    document.getElementById('bottomnav').classList.remove('hidden');
+    mostrarAlerta('No se pudo abrir este negocio. Inténtalo de nuevo.');
+  }
+}
+function volverDesdeDetalle(){
+  document.getElementById('screenDetalleNegocio').classList.add('hidden');
+  document.getElementById('mainShell').classList.remove('hidden');
+  document.getElementById('bottomnav').classList.remove('hidden');
+  state.negocioDetalleAbierto = null;
+  if(state.mapaDetalleNegocio){ try{ state.mapaDetalleNegocio.remove(); }catch(e){} state.mapaDetalleNegocio = null; }
+}
+// Dibuja el detalle de un negocio. Se separa en dos partes a propósito: si
+// la versión completa (con foto real y mini-mapa) falla por cualquier razón
+// inesperada con los datos de ESE negocio en particular, no se deja al
+// usuario sin poder ver nada — se cae automáticamente a una versión simple
+// que solo usa datos de texto (nombre, categoría, descripción, teléfono,
+// dirección) y el ícono de categoría en vez de la foto real. Así CUALQUIER
+// negocio, lo publique quien lo publique, siempre se puede abrir y ver.
+function renderDetalleNegocio(n){
+  try{
+    renderDetalleNegocioCompleto(n);
+  }catch(err){
+    renderDetalleNegocioSimple(n);
+  }
+}
+
+function renderDetalleNegocioCompleto(n){
+  const c = catInfo(n.categoria);
+  const esFav = state.favoritos.has(String(n.id));
+  const esMio = state.user && state.user.mode === 'user' && n.propietarioEmail && n.propietarioEmail.toLowerCase() === state.user.email.toLowerCase();
+  const mapsUrl = `https://www.google.com/maps?q=${n.lat},${n.lng}`;
+
+  const heroIconHtml = `<div class="hero-icon" style="background:${c.grad}"><svg viewBox="0 0 24 24" stroke-width="1.6"><path d="${c.icon}"/></svg></div>`;
+  // OJO: antes esto armaba el respaldo (ícono de categoría) como un pedazo de
+  // HTML pegado DENTRO del atributo onerror="...", pero como ese HTML también
+  // usa comillas dobles (style="...", viewBox="..."), el navegador cortaba el
+  // atributo a la mitad apenas encontraba la primera comilla — eso rompía el
+  // resto del HTML del detalle y es la razón real por la que los negocios
+  // CON foto (los que publica una persona) no se podían ver bien, mientras
+  // que los de prueba (sin foto) sí funcionaban. Ahora, si la foto falla, se
+  // reemplaza por el ícono usando JavaScript normal (sin mezclar comillas).
+  const hero = n.foto
+    ? `<img src="${escapeHtml(n.foto)}" alt="${escapeHtml(n.nombre)}" data-cat="${escapeHtml(n.categoria)}" onerror="reemplazarFotoRotaDetalle(this)">`
+    : heroIconHtml;
+
+  document.getElementById('detalleContenido').innerHTML = `
+    <div class="detail-hero">
+      ${hero}
+      <div class="hero-fav ${esFav?'is-fav':''}" onclick="toggleFavorito('${n.id}'); actualizarCorazonDetalle('${n.id}')" id="heroFav-${n.id}">
+        <svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg>
+      </div>
+      <div class="hero-tx">
+        <h2 style="color:${n.color || '#fff'};font-size:${tamNombrePx(19, n.tamNombre)}px">${escapeHtml(n.nombre)}</h2>
+        <p>★ ${n.rating} · ${escapeHtml(n.tipo || n.categoria)} · ${textoDistancia(n)}</p>
+      </div>
+    </div>
+    <div class="detail-card">
+      ${n.promo ? `<p class="desc" style="color:var(--signal-dark);font-weight:700">🔥 ${escapeHtml(textoPromo(n))}</p>` : ''}
+      <p class="desc">${escapeHtml(n.desc) || 'Este negocio todavía no agregó una descripción.'}</p>
+      ${n.telefono ? `<div class="detail-row"><div class="ic"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3-8.7A2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .3 2 .7 2.9a2 2 0 01-.4 2.1L8 10a16 16 0 006 6l1.3-1.4a2 2 0 012.1-.4c.9.4 1.9.6 2.9.7a2 2 0 011.7 2z"/></svg></div><a href="tel:${escapeHtml(n.telefono)}"><span>${escapeHtml(n.telefono)}</span></a></div>` : ''}
+      ${n.direccion ? `<div class="detail-row"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 21V9l8-6 8 6v12"/></svg></div><span>${escapeHtml(n.direccion)}</span></div>` : ''}
+      <div class="detail-row"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg></div><a href="${mapsUrl}" target="_blank" rel="noopener"><span>Ver ubicación en Google Maps</span></a></div>
+      ${Number.isFinite(n.lat) && Number.isFinite(n.lng) ? `
+      <div class="detail-map-wrap">
+        <div class="detail-map" id="detalleMapaUbicacion"><div class="picker-hint-fallback">Cargando mapa…</div></div>
+        <p class="detail-map-coord">📍 ${n.lat.toFixed(5)}, ${n.lng.toFixed(5)}</p>
+      </div>` : ''}
+    </div>
+    ${esMio ? `<button class="btn-outline" style="margin-top:14px" onclick="volverDesdeDetalle(); irARegistrarNegocio()">✏️ Editar mi negocio</button>` : ''}
+  `;
+  if(Number.isFinite(n.lat) && Number.isFinite(n.lng)){
+    setTimeout(() => iniciarMapaDetalleNegocio(n.lat, n.lng), 60);
+  }
+}
+
+// Versión mínima del detalle: solo texto (nombre, categoría, descripción,
+// teléfono, dirección) y el ícono de categoría en vez de la foto real. No
+// depende de imágenes, mini-mapa ni ningún otro dato que pueda faltar o
+// venir mal formado, así que prácticamente no puede fallar. Es el respaldo
+// que se usa si renderDetalleNegocioCompleto() lanza un error.
+function renderDetalleNegocioSimple(n){
+  const c = catInfo(n.categoria);
+  const esFav = state.favoritos.has(String(n.id));
+  document.getElementById('detalleContenido').innerHTML = `
+    <div class="detail-hero">
+      <div class="hero-icon" style="background:${c.grad}"><svg viewBox="0 0 24 24" stroke-width="1.6"><path d="${c.icon}"/></svg></div>
+      <div class="hero-fav ${esFav?'is-fav':''}" onclick="toggleFavorito('${n.id}'); actualizarCorazonDetalle('${n.id}')" id="heroFav-${n.id}">
+        <svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg>
+      </div>
+      <div class="hero-tx">
+        <h2 style="color:${n.color || '#fff'};font-size:${tamNombrePx(19, n.tamNombre)}px">${escapeHtml(n.nombre || 'Negocio')}</h2>
+        <p>${escapeHtml(n.tipo || n.categoria || '')}</p>
+      </div>
+    </div>
+    <div class="detail-card">
+      ${n.promo ? `<p class="desc" style="color:var(--signal-dark);font-weight:700">🔥 ${escapeHtml(textoPromo(n))}</p>` : ''}
+      <p class="desc">${escapeHtml(n.desc) || 'Este negocio todavía no agregó una descripción.'}</p>
+      ${n.telefono ? `<div class="detail-row"><div class="ic"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3-8.7A2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .3 2 .7 2.9a2 2 0 01-.4 2.1L8 10a16 16 0 006 6l1.3-1.4a2 2 0 012.1-.4c.9.4 1.9.6 2.9.7a2 2 0 011.7 2z"/></svg></div><a href="tel:${escapeHtml(n.telefono)}"><span>${escapeHtml(n.telefono)}</span></a></div>` : ''}
+      ${n.direccion ? `<div class="detail-row"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 21V9l8-6 8 6v12"/></svg></div><span>${escapeHtml(n.direccion)}</span></div>` : ''}
+    </div>
+  `;
+}
+
+// Mini-mapa de solo lectura que muestra la ubicación exacta (con pin) del
+// negocio abierto en el detalle, junto con sus coordenadas debajo.
+function iniciarMapaDetalleNegocio(lat, lng){
+  const dibujar = () => {
+    const contenedor = document.getElementById('detalleMapaUbicacion');
+    if(!contenedor) return; // la pantalla pudo cerrarse antes de que cargara Leaflet
+    if(state.mapaDetalleNegocio){ try{ state.mapaDetalleNegocio.remove(); }catch(e){} state.mapaDetalleNegocio = null; }
+    limpiarLeafletDeContenedor(contenedor);
+    try{
+      const mapa = L.map('detalleMapaUbicacion', { zoomControl:false, attributionControl:false, dragging:false, scrollWheelZoom:false, doubleClickZoom:false, touchZoom:false }).setView([lat, lng], 16);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(mapa);
+      L.marker([lat, lng], {
+        icon: L.divIcon({ className:'', html:pinFlechaHtml(), iconSize:[28,36], iconAnchor:[14,34] })
+      }).addTo(mapa);
+      state.mapaDetalleNegocio = mapa;
+      setTimeout(() => mapa.invalidateSize(), 80);
+    }catch(e){
+      contenedor.innerHTML = '<div class="picker-hint-fallback">No se pudo cargar el mapa interactivo.</div>';
+    }
+  };
+  cargarLeaflet(dibujar, () => {
+    const contenedor = document.getElementById('detalleMapaUbicacion');
+    if(contenedor) contenedor.innerHTML = '<div class="picker-hint-fallback">No se pudo cargar el mapa interactivo.</div>';
+  });
+}
+// Si la foto del negocio falla al cargar en el detalle, se reemplaza por el
+// ícono de su categoría construyendo el elemento con JavaScript normal (no
+// pegando HTML dentro de un atributo), para no arrastrar el problema de
+// comillas mezcladas que rompía la pantalla.
+function reemplazarFotoRotaDetalle(imgEl){
+  const c = catInfo(imgEl.getAttribute('data-cat'));
+  const wrapper = document.createElement('div');
+  wrapper.className = 'hero-icon';
+  wrapper.style.background = c.grad;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('stroke-width', '1.6');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', c.icon);
+  svg.appendChild(path);
+  wrapper.appendChild(svg);
+  imgEl.replaceWith(wrapper);
+}
+function actualizarCorazonDetalle(id){
+  const el = document.getElementById('heroFav-' + id);
+  if(el) el.classList.toggle('is-fav', state.favoritos.has(String(id)));
+}
+
+/* ─────────── INICIO ─────────── */
+function renderCategorias(){
+  document.getElementById('catGrid').innerHTML = CATEGORIAS_INFO.map(c => `
+    <div class="cat-btn ${state.categoriaActiva===c.nombre?'active':''}" onclick="filtrarCategoria('${c.nombre}')">
+      <div class="c-icon-wrap" style="background:${c.grad}"><svg viewBox="0 0 24 24" stroke-width="1.7"><path d="${c.icon}"/></svg></div>
+      <div class="c-label">${c.nombre}</div>
+    </div>`).join('');
+}
+function filtrarCategoria(c){
+  state.categoriaActiva = c;
+  mostrarTab('tabBuscar');
+  document.getElementById('inputBuscar').value = '';
+  renderBusqueda();
+}
+function renderInicio(){
+  document.getElementById('rowDestacados').innerHTML = NEGOCIOS.filter(n=>n.destacado).map(tarjetaHorizontal).join('') || vacio('No hay negocios destacados por ahora.');
+  document.getElementById('rowPromos').innerHTML = NEGOCIOS.filter(n=>n.promo).sort((a,b)=>b.promoRank-a.promoRank).map(tarjetaHorizontal).join('') || vacio('Sin promociones activas hoy.');
+  document.getElementById('rowCerca').innerHTML = [...NEGOCIOS].sort((a,b)=>distanciaKm(a)-distanciaKm(b)).slice(0,3).map(filaVertical).join('');
+  document.getElementById('rowNuevos').innerHTML = NEGOCIOS.filter(n=>n.nuevo).map(tarjetaHorizontal).join('') || vacio('Aún no hay negocios nuevos.');
+  document.getElementById('rowServicios').innerHTML = NEGOCIOS.filter(n=>n.servicioReco).map(tarjetaHorizontal).join('') || vacio('Sin recomendaciones por ahora.');
+  const banner = document.getElementById('bannerRegistrar');
+  const esDueno = state.user && state.user.mode === 'user' && state.user.tieneNegocio;
+  // El banner para publicar siempre está disponible: una cuenta puede
+  // registrar más de un negocio o servicio, uno tras otro.
+  banner.style.display = state.user ? 'flex' : 'none';
+  document.getElementById('tarjetaPersonalizar').classList.toggle('hidden', !esDueno);
+}
+function vacio(msg){ return `<p style="font-size:11.5px;color:var(--muted);padding:6px 2px">${msg}</p>`; }
+
+/* ─────────── administrar / personalizar negocio o servicio (fusionado) ───────────
+   Antes había dos pantallas separadas: "Administrar" (nombre, foto, datos)
+   y "Personalizar" (color, tamaño, promo). Ahora es UN SOLO formulario y un
+   solo botón ("Personalizar negocio o servicio"): ahí se edita todo —foto,
+   nombre, categoría/tipo, descripción, teléfono, dirección, ubicación,
+   promoción, color y tamaño de letra— y también se puede eliminar el
+   negocio. Cada negocio/servicio guarda su propio color y tamaño (columnas
+   "color" y "tam_nombre" en la hoja Negocios), así que si una cuenta tiene
+   varios, cada uno se personaliza sin afectar a los demás.
+
+   Devuelve TODOS los negocios/servicios publicados por la cuenta activa,
+   tomados de la lista NEGOCIOS que ya está cargada en memoria (se mantiene
+   fresca con cargarNegocios(), incluido un refresco automático). Así no hace
+   falta pedirle nada nuevo al servidor para saber cuántos negocios tiene el
+   usuario ni cuáles son. */
+function obtenerMisNegocios(){
+  if(!state.user || state.user.mode !== 'user') return [];
+  const email = state.user.email.toLowerCase();
+  return NEGOCIOS.filter(n => (n.propietarioEmail || '').toLowerCase() === email);
+}
+
+async function irARegistrarNegocio(){
+  if(!state.user || state.user.mode === 'guest'){
+    mostrarAlerta('Crea una cuenta para registrar tu negocio o servicio en Nexo.');
+    document.getElementById('mainShell').classList.add('hidden');
+    document.getElementById('bottomnav').classList.add('hidden');
+    mostrarPantalla('screenRegister');
+    return;
+  }
+
+  try{
+    document.getElementById('mainShell').classList.add('hidden');
+    document.getElementById('bottomnav').classList.add('hidden');
+
+    const misNegocios = obtenerMisNegocios();
+
+    if(misNegocios.length === 0){
+      mostrarPantalla('screenTipoRegistro');
+      return;
+    }
+    if(misNegocios.length === 1){
+      const n = misNegocios[0];
+      const modo = (n.tipo || n.categoria === 'Servicios') ? 'servicio' : 'negocio';
+      abrirFormularioNegocio(modo, n);
+      return;
+    }
+
+    // Dos o más negocios/servicios en la misma cuenta: hay que elegir cuál
+    // administrar antes de abrir el formulario.
+    mostrarSelectorNegocios(misNegocios, 'administrar');
+  }catch(err){
+    // Si algo falla al armar la pantalla, nunca dejamos al usuario viendo
+    // una pantalla en blanco: se avisa y se regresa a Inicio.
+    console.error('Error abriendo el formulario de negocio:', err);
+    document.getElementById('mainShell').classList.remove('hidden');
+    document.getElementById('bottomnav').classList.remove('hidden');
+    document.querySelectorAll('.form-screen').forEach(el => el.classList.add('hidden'));
+    mostrarTab('tabInicio');
+    mostrarAlerta('Ocurrió un problema al abrir tu negocio. Detalle técnico: ' + (err && err.message ? err.message : err));
+  }
+}
+
+// Punto de entrada de la tarjeta "Personalizar negocio o servicio": a
+// diferencia de irARegistrarNegocio() (que abre el formulario con los datos
+// básicos: nombre, foto, dirección, ubicación, etc.), esto SOLO abre la
+// pantalla de aspecto visual (color, tamaño de letra y promoción) del
+// negocio/servicio ya publicado.
+function irAPersonalizarNegocio(){
+  if(!state.user || state.user.mode === 'guest' || !state.user.tieneNegocio){
+    mostrarAlerta('Registra tu negocio o servicio primero para poder personalizarlo.');
+    return;
+  }
+  try{
+    document.getElementById('mainShell').classList.add('hidden');
+    document.getElementById('bottomnav').classList.add('hidden');
+
+    const misNegocios = obtenerMisNegocios();
+    if(misNegocios.length === 0){
+      document.getElementById('mainShell').classList.remove('hidden');
+      document.getElementById('bottomnav').classList.remove('hidden');
+      mostrarAlerta('Registra tu negocio o servicio primero para poder personalizarlo.');
+      return;
+    }
+    if(misNegocios.length === 1){
+      abrirFormularioPersonalizar(misNegocios[0]);
+      return;
+    }
+    // Dos o más negocios/servicios en la misma cuenta: hay que elegir cuál
+    // personalizar.
+    mostrarSelectorNegocios(misNegocios, 'personalizar');
+  }catch(err){
+    console.error('Error abriendo la personalización:', err);
+    document.getElementById('mainShell').classList.remove('hidden');
+    document.getElementById('bottomnav').classList.remove('hidden');
+    document.querySelectorAll('.form-screen').forEach(el => el.classList.add('hidden'));
+    mostrarTab('tabInicio');
+    mostrarAlerta('Ocurrió un problema al abrir la personalización. Detalle técnico: ' + (err && err.message ? err.message : err));
+  }
+}
+
+/* ─────────── Selector: "Mis negocios" (cuando la cuenta tiene 2+) ─────────── */
+
+// "destino" indica a qué pantalla llevar tras elegir un negocio:
+// 'administrar' abre el formulario de datos básicos, 'personalizar' abre
+// la pantalla de color/tamaño/promoción.
+function mostrarSelectorNegocios(lista, destino){
+  state.selectorLista = lista;
+  state.selectorModo = destino || 'administrar';
+  document.getElementById('tituloSelector').textContent = 'Mis negocios';
+  document.getElementById('subSelector').textContent = state.selectorModo === 'personalizar'
+    ? 'Tienes varios negocios o servicios publicados. Elige cuál quieres personalizar.'
+    : 'Tienes varios negocios o servicios publicados. Elige cuál quieres administrar.';
+  document.getElementById('listaSelectorNegocios').innerHTML = lista.map(filaSelectorNegocio).join('');
+  document.getElementById('btnRegistrarOtroDesdeSelector').classList.toggle('hidden', state.selectorModo === 'personalizar');
+  mostrarPantalla('screenSelectorNegocios');
+}
+
+function filaSelectorNegocio(n){
+  const sub = n.tipo || n.categoria;
+  return `
+    <div class="selector-neg-row" onclick="seleccionarDesdeSelector('${n.id}')">
+      <div class="dot" style="background:${n.color || '#D9691E'}"></div>
+      <div class="tx">
+        <h4>${escapeHtml(n.nombre)}</h4>
+        <p>${escapeHtml(sub)}${n.promo ? ` · <span class="promo-mini">🔥 ${escapeHtml(textoPromo(n))}</span>` : ''}</p>
+      </div>
+      <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+    </div>`;
+}
+
+function seleccionarDesdeSelector(id){
+  const n = (state.selectorLista || []).find(x => String(x.id) === String(id));
+  if(!n) return;
+  document.getElementById('screenSelectorNegocios').classList.add('hidden');
+  if(state.selectorModo === 'personalizar'){
+    abrirFormularioPersonalizar(n);
+    return;
+  }
+  const modoForm = (n.tipo || n.categoria === 'Servicios') ? 'servicio' : 'negocio';
+  abrirFormularioNegocio(modoForm, n);
+}
+
+// Desde el selector, permite registrar un negocio o servicio ADICIONAL sin
+// tener que volver primero al inicio.
+function registrarOtroDesdeSelector(){
+  document.getElementById('screenSelectorNegocios').classList.add('hidden');
+  mostrarPantalla('screenTipoRegistro');
+}
+
+function volverDesdeSelector(){
+  document.getElementById('screenSelectorNegocios').classList.add('hidden');
+  document.getElementById('mainShell').classList.remove('hidden');
+  document.getElementById('bottomnav').classList.remove('hidden');
+  mostrarTab('tabInicio');
+}
+
+/* ─────────── Color y tamaño de letra (dentro del formulario de negocio) ─────────── */
+
+function renderColorSwatchesPers(){
+  const cont = document.getElementById('persColorSwatches');
+  cont.innerHTML = COLORES_PERSONALIZAR.map(hex => `
+    <div class="color-swatch ${hex.toUpperCase() === (state.persColor||'').toUpperCase() ? 'active' : ''}"
+         style="background:${hex}" data-hex="${hex}" onclick="seleccionarColorPers('${hex}')">
+      <svg viewBox="0 0 24 24" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+    </div>`).join('');
+}
+
+function seleccionarColorPers(hex){
+  state.persColor = hex;
+  document.querySelectorAll('#persColorSwatches .color-swatch').forEach(el => {
+    el.classList.toggle('active', el.dataset.hex.toUpperCase() === hex.toUpperCase());
+  });
+  actualizarPreviewPersonalizar();
+}
+
+function seleccionarTamanoPers(tam, sinRender){
+  state.persTam = tam;
+  document.getElementById('chipTamSm').classList.toggle('active', tam === 'sm');
+  document.getElementById('chipTamMd').classList.toggle('active', tam === 'md');
+  document.getElementById('chipTamLg').classList.toggle('active', tam === 'lg');
+  if(!sinRender) actualizarPreviewPersonalizar();
+}
+
+// Refleja en vivo el color, tamaño y promoción que la persona está eligiendo
+// en la pantalla "Personalizar negocio o servicio", usando el nombre y la
+// categoría del negocio que se está personalizando (state.personalizando) —
+// esos datos ya no se editan aquí, solo el aspecto visual.
+function actualizarPreviewPersonalizar(){
+  const preview = document.getElementById('persPreview');
+  if(!preview || !state.personalizando) return;
+  const nombreEl = document.getElementById('persPreviewNombre');
+  nombreEl.textContent = state.personalizando.nombre || 'Mi negocio';
+  nombreEl.style.color = state.persColor;
+  nombreEl.style.fontSize = tamNombrePx(16, state.persTam) + 'px';
+
+  preview.style.background = catInfo(state.personalizando.categoria).grad;
+
+  const tienePromo = document.getElementById('negTienePromo').checked;
+  const promoTxt = document.getElementById('negPromoTxt').value.trim();
+  const promoRank = document.getElementById('negPromoRank').value;
+  const textoDescuento = `${promoRank}% de descuento` + (promoTxt ? ' · ' + promoTxt : '');
+  document.getElementById('persPreviewSub').textContent = tienePromo
+    ? ('🔥 ' + textoDescuento)
+    : 'Así se verá tu nombre en Nexo';
+
+  const textoBarra = document.getElementById('promoBarTexto');
+  if(textoBarra) textoBarra.textContent = textoDescuento;
+}
+
+// Se llama cada vez que se mueve la barrita de porcentaje: actualiza el
+// número que se muestra junto al slider y refresca la vista previa para que
+// todos vean, en el momento, el % de descuento que se está configurando.
+function actualizarPromoRankVal(){
+  const val = document.getElementById('negPromoRank').value;
+  document.getElementById('negPromoRankVal').textContent = val + '%';
+  actualizarPreviewPersonalizar();
+}
+
+// Abre la pantalla de personalización para UN negocio/servicio ya publicado:
+// precarga su color, tamaño de letra y promoción actuales.
+function abrirFormularioPersonalizar(negocio){
+  state.personalizando = negocio;
+  state.personalizandoId = negocio.id;
+  ocultarError('persError');
+  ocultarError('persSuccess');
+
+  document.getElementById('subPersonalizar').textContent = `Elige cómo se ve "${negocio.nombre}" en Nexo.`;
+
+  state.persColor = negocio.color || COLORES_PERSONALIZAR[0];
+  state.persTam = negocio.tamNombre || 'md';
+  renderColorSwatchesPers();
+  seleccionarTamanoPers(state.persTam, true);
+
+  document.getElementById('persDescripcion').value = negocio.desc || '';
+
+  const tienePromo = !!negocio.promo;
+  document.getElementById('negTienePromo').checked = tienePromo;
+  document.getElementById('negPromoTxt').value = negocio.promoTxt || '';
+  document.getElementById('campoPromoTxt').classList.toggle('hidden', !tienePromo);
+  document.getElementById('promoBarPreview').classList.toggle('hidden', !tienePromo);
+  const rank = negocio.promoRank || 20;
+  document.getElementById('negPromoRank').value = rank;
+  document.getElementById('negPromoRankVal').textContent = rank + '%';
+  document.getElementById('campoPromoRank').classList.toggle('hidden', !tienePromo);
+  document.getElementById('btnCancelarPromo').classList.toggle('hidden', !tienePromo);
+
+  actualizarPreviewPersonalizar();
+  mostrarPantalla('screenPersonalizar');
+}
+
+function volverDesdePersonalizar(){
+  document.getElementById('screenPersonalizar').classList.add('hidden');
+  document.getElementById('mainShell').classList.remove('hidden');
+  document.getElementById('bottomnav').classList.remove('hidden');
+  state.personalizando = null;
+  state.personalizandoId = null;
+  mostrarTab('tabInicio');
+}
+
+/* ─────────── Notificaciones (disponible para TODAS las cuentas) ───────────
+   A diferencia de "Personalizar" (que solo aparece si ya tienes un negocio
+   publicado), el botón "Notificaciones" en Perfil funciona para cualquier
+   cuenta con sesión iniciada, tenga o no un negocio registrado. */
+function irANotificaciones(){
+  if(!state.user || state.user.mode === 'guest'){
+    mostrarAlerta('Crea una cuenta para elegir tus notificaciones en Nexo.');
+    return;
+  }
+  const notif = state.user.notif || { promos:true, negocios:true, favoritos:true };
+  document.getElementById('notifPromos').checked = notif.promos !== false;
+  document.getElementById('notifNegocios').checked = notif.negocios !== false;
+  document.getElementById('notifFavoritos').checked = notif.favoritos !== false;
+  document.getElementById('notifGuardado').classList.add('hidden');
+
+  document.getElementById('mainShell').classList.add('hidden');
+  document.getElementById('bottomnav').classList.add('hidden');
+  mostrarPantalla('screenNotificaciones');
+}
+
+function volverDesdeNotificaciones(){
+  document.getElementById('screenNotificaciones').classList.add('hidden');
+  document.getElementById('mainShell').classList.remove('hidden');
+  document.getElementById('bottomnav').classList.remove('hidden');
+  mostrarTab('tabPerfil');
+}
+
+/* ─────────── Campanita del header: qué hay nuevo en Nexo ───────────
+   Antes este botón no tenía onclick y por eso no abría nada. Ahora muestra,
+   en vivo, las promociones activas (con su % de descuento) y los tipos de
+   negocio que ya están publicados, y desde ahí se puede ir a las
+   preferencias de notificaciones. */
+function abrirCentroNotificaciones(){
+  const promos = NEGOCIOS.filter(n => n.promo).sort((a,b) => (b.promoRank||0) - (a.promoRank||0));
+  document.getElementById('notifCentroPromos').innerHTML = promos.map(n => `
+    <div class="settings-row" onclick="abrirCentroNotifYVer('${n.id}')">
+      <div class="ic" style="background:#FCEDE0"><span style="font-size:15px">🔥</span></div>
+      <div class="sub-tx">
+        <span>${escapeHtml(n.nombre)}</span>
+        <small>${n.promoRank ? `${n.promoRank}% de descuento` : 'Promoción activa'}${n.promoTxt ? ' · ' + escapeHtml(n.promoTxt) : ''}</small>
+      </div>
+      <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+    </div>`).join('') || `<p style="font-size:11.5px;color:var(--muted);padding:14px 16px">Sin promociones activas hoy.</p>`;
+
+  const conteos = {};
+  NEGOCIOS.forEach(n => { conteos[n.categoria] = (conteos[n.categoria]||0) + 1; });
+  const catHtml = CATEGORIAS_INFO.filter(c => conteos[c.nombre]).map(c => `
+    <div class="settings-row" onclick="abrirCentroNotifYFiltrar('${c.nombre}')">
+      <div class="ic" style="background:${c.grad}"><svg viewBox="0 0 24 24" stroke-width="1.7" style="stroke:#fff"><path d="${c.icon}"/></svg></div>
+      <div class="sub-tx">
+        <span>${c.nombre}</span>
+        <small>${conteos[c.nombre]} negocio${conteos[c.nombre]===1?'':'s'} publicado${conteos[c.nombre]===1?'':'s'}</small>
+      </div>
+      <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+    </div>`).join('');
+  document.getElementById('notifCentroCategorias').innerHTML = catHtml || `<p style="font-size:11.5px;color:var(--muted);padding:14px 16px">Aún no hay negocios publicados.</p>`;
+
+  const badge = document.getElementById('notifBadgeDot');
+  if(badge) badge.classList.toggle('hidden', promos.length === 0);
+
+  document.getElementById('mainShell').classList.add('hidden');
+  document.getElementById('bottomnav').classList.add('hidden');
+  mostrarPantalla('screenNotifCentro');
+}
+function abrirCentroNotifYVer(id){ volverDesdeNotifCentro(); verNegocio(id); }
+function abrirCentroNotifYFiltrar(cat){ volverDesdeNotifCentro(); filtrarCategoria(cat); }
+function volverDesdeNotifCentro(){
+  document.getElementById('screenNotifCentro').classList.add('hidden');
+  document.getElementById('mainShell').classList.remove('hidden');
+  document.getElementById('bottomnav').classList.remove('hidden');
+  mostrarTab('tabInicio');
+}
+
+// Se guarda al instante cada vez que la persona toca un switch, sin
+// necesidad de un botón "Guardar" aparte.
+async function guardarNotificaciones(){
+  if(!state.user || state.user.mode === 'guest') return;
+
+  const promos = document.getElementById('notifPromos').checked;
+  const negocios = document.getElementById('notifNegocios').checked;
+  const favoritos = document.getElementById('notifFavoritos').checked;
+
+  state.user.notif = { promos, negocios, favoritos };
+  document.getElementById('notifGuardado').classList.add('hidden');
+
+  const r = await apiPost('actualizarNotificaciones', { email: state.user.email, promos, negocios, favoritos });
+  if(!r.ok){ mostrarAlerta(r.error || 'No se pudieron guardar tus notificaciones.'); return; }
+
+  document.getElementById('notifGuardado').classList.remove('hidden');
+}
+
+// Guarda SOLO el aspecto visual (color, tamaño, promoción) del negocio que se
+// está personalizando — no toca nombre, foto, dirección ni ubicación.
+async function guardarPersonalizacion(){
+  ocultarError('persError');
+  ocultarError('persSuccess');
+  if(!state.personalizandoId){ mostrarError('persError', 'No se encontró el negocio a personalizar.'); return; }
+
+  const tienePromo = document.getElementById('negTienePromo').checked;
+  const promoTxt = document.getElementById('negPromoTxt').value.trim();
+  const promoRank = parseInt(document.getElementById('negPromoRank').value, 10) || 20;
+  const descripcion = document.getElementById('persDescripcion').value.trim();
+
+  const payload = {
+    id: state.personalizandoId,
+    propietario_email: state.user.email,
+    color: state.persColor,
+    tam_nombre: state.persTam,
+    descripcion: descripcion,
+    promo: tienePromo,
+    promo_txt: tienePromo ? promoTxt : '',
+    promo_rank: tienePromo ? promoRank : ''
+  };
+
+  const btn = document.getElementById('btnGuardarPers');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  const r = await apiPost('actualizarNegocio', payload);
+  btn.disabled = false; btn.textContent = 'Guardar personalización';
+
+  if(!r.ok){ mostrarError('persError', r.error || 'No se pudo guardar la personalización.'); return; }
+
+  // Actualiza el negocio en memoria de inmediato (sin esperar la recarga del
+  // servidor) para que el color/tamaño/promoción se vean al instante en
+  // Inicio, Explorar, Buscar y el detalle.
+  const idx = NEGOCIOS.findIndex(n => String(n.id) === String(state.personalizandoId));
+  if(idx !== -1){
+    NEGOCIOS[idx] = Object.assign({}, NEGOCIOS[idx], {
+      color: state.persColor, tamNombre: state.persTam, desc: descripcion,
+      promo: tienePromo, promoTxt: tienePromo ? promoTxt : '',
+      promoRank: tienePromo ? promoRank : 20
+    });
+    state.personalizando = NEGOCIOS[idx];
+  }
+  renderCategorias(); renderInicio(); renderExplorar(); renderBusqueda(); renderFavoritos(); renderPerfil();
+  const badgeDot = document.getElementById('notifBadgeDot');
+  if(badgeDot) badgeDot.classList.toggle('hidden', !NEGOCIOS.some(n => n.promo));
+
+  mostrarExito('persSuccess', tienePromo ? 'Personalización guardada ✅' : 'Promoción cancelada ✅');
+  cargarNegocios();
+}
+
+// Punto de entrada del banner "Registrar mi negocio o servicio": a diferencia
+// de irARegistrarNegocio() (que abre a EDITAR el negocio que ya tienes),
+// esta función siempre lleva a publicar uno NUEVO, sin importar cuántos ya
+// tengas registrados.
+function registrarNuevoNegocio(){
+  if(!state.user || state.user.mode === 'guest'){
+    mostrarAlerta('Crea una cuenta para registrar tu negocio o servicio en Nexo.');
+    document.getElementById('mainShell').classList.add('hidden');
+    document.getElementById('bottomnav').classList.add('hidden');
+    mostrarPantalla('screenRegister');
+    return;
+  }
+  document.getElementById('mainShell').classList.add('hidden');
+  document.getElementById('bottomnav').classList.add('hidden');
+  mostrarPantalla('screenTipoRegistro');
+}
+
+function volverDesdeTipoRegistro(){
+  document.getElementById('screenTipoRegistro').classList.add('hidden');
+  document.getElementById('mainShell').classList.remove('hidden');
+  document.getElementById('bottomnav').classList.remove('hidden');
+}
+
+function elegirTipoRegistro(modo){
+  abrirFormularioNegocio(modo, null);
+}
+
+// Configura y muestra el formulario de publicación, ya sea para un
+// "negocio" (con local) o un "servicio" (independiente), y precarga los
+// datos si se está editando uno existente.
+function abrirFormularioNegocio(modo, negocioExistente){
+ try{
+  state.modoRegistro = modo;
+  ocultarError('negError');
+  ocultarError('negSuccess');
+
+  // Poblamos el desplegable de tipos de servicio una sola vez.
+  const selectTipoServicio = document.getElementById('negTipoServicio');
+  if(!selectTipoServicio.options.length){
+    selectTipoServicio.innerHTML = SERVICIOS_TIPOS.map(t => `<option value="${t}">${t}</option>`).join('');
+  }
+
+  document.getElementById('campoCategoriaNegocio').classList.toggle('hidden', modo === 'servicio');
+  document.getElementById('campoTipoServicio').classList.toggle('hidden', modo !== 'servicio');
+  document.getElementById('lblNombreNegocio').textContent = modo === 'servicio' ? 'Nombre del servicio' : 'Nombre del negocio';
+  document.getElementById('negNombre').placeholder = modo === 'servicio' ? 'Ej. Gasfitero Torres' : 'Ej. Panadería San José';
+
+  mostrarPantalla('screenNegocio');
+
+  // Reinicio de campos y del estado de edición/foto/ubicación.
+  state.editandoNegocioId = null;
+  state.negFotoBase64 = null;
+  state.negLat = null;
+  state.negLng = null;
+  document.getElementById('negFotoPreview').classList.add('hidden');
+  document.getElementById('negFotoPlaceholder').classList.remove('hidden');
+  document.getElementById('negFotoEditarTag').classList.add('hidden');
+  document.getElementById('negFotoInput').value = '';
+  document.getElementById('negNombre').value = '';
+  document.getElementById('negCategoria').value = 'Comida';
+  document.getElementById('negTipoServicio').value = SERVICIOS_TIPOS[0];
+  document.getElementById('negDescripcion').value = '';
+  document.getElementById('negTelefono').value = '';
+  document.getElementById('negDireccion').value = '';
+  document.getElementById('btnEliminarNegocio').classList.add('hidden');
+
+  const titulo = document.getElementById('tituloNegocio');
+  const sub = document.getElementById('subNegocio');
+  const btn = document.getElementById('btnNegocio');
+  let latInicial = TRUJILLO_CENTRO.lat, lngInicial = TRUJILLO_CENTRO.lng;
+
+  if(negocioExistente){
+    state.editandoNegocioId = negocioExistente.id;
+    titulo.textContent = modo === 'servicio' ? 'Administrar servicio' : 'Administrar negocio';
+    sub.textContent = 'Actualiza los datos cuando quieras.';
+    btn.textContent = 'Guardar cambios';
+    document.getElementById('negNombre').value = negocioExistente.nombre || '';
+    document.getElementById('negCategoria').value = negocioExistente.categoria || 'Comida';
+    if(negocioExistente.tipo) document.getElementById('negTipoServicio').value = negocioExistente.tipo;
+    document.getElementById('negDescripcion').value = negocioExistente.desc || '';
+    document.getElementById('negTelefono').value = negocioExistente.telefono || '';
+    document.getElementById('negDireccion').value = negocioExistente.direccion || '';
+    document.getElementById('btnEliminarNegocio').classList.remove('hidden');
+    if(negocioExistente.foto){
+      document.getElementById('negFotoPreview').src = negocioExistente.foto;
+      document.getElementById('negFotoPreview').classList.remove('hidden');
+      document.getElementById('negFotoPlaceholder').classList.add('hidden');
+      document.getElementById('negFotoEditarTag').classList.remove('hidden');
+    }
+    if(negocioExistente.lat && negocioExistente.lng){
+      latInicial = negocioExistente.lat; lngInicial = negocioExistente.lng;
+    }
+  }else{
+    titulo.textContent = modo === 'servicio' ? 'Registrar servicio' : 'Registrar negocio';
+    sub.textContent = modo === 'servicio'
+      ? 'Completa los datos de tu servicio para que aparezca en Nexo.'
+      : 'Completa los datos de tu negocio para que aparezca en Nexo.';
+    btn.textContent = modo === 'servicio' ? 'Publicar servicio' : 'Publicar negocio';
+  }
+
+  state.negLat = latInicial; state.negLng = lngInicial;
+  setTimeout(() => {
+    try{ iniciarMapaPickerNegocio(latInicial, lngInicial); }
+    catch(mapErr){ console.error('Error al iniciar el mapa del formulario:', mapErr); }
+  }, 60);
+ }catch(err){
+  console.error('Error abriendo el formulario de negocio:', err);
+  document.querySelectorAll('.form-screen').forEach(el => el.classList.add('hidden'));
+  document.getElementById('mainShell').classList.remove('hidden');
+  document.getElementById('bottomnav').classList.remove('hidden');
+  mostrarTab('tabInicio');
+  mostrarAlerta('Ocurrió un problema al abrir tu negocio. Detalle técnico: ' + (err && err.message ? err.message : err));
+ }
+}
+// Se usa tanto en la pantalla de registro/administrar (que ya no tiene el
+// campo de promoción) como en la de Personalizar (que sí lo tiene), así que
+// se protege por si el checkbox no existe en la pantalla activa.
+function togglePromoNegocio(){
+  const chk = document.getElementById('negTienePromo');
+  if(!chk) return;
+  document.getElementById('campoPromoTxt').classList.toggle('hidden', !chk.checked);
+  const campoRank = document.getElementById('campoPromoRank');
+  if(campoRank) campoRank.classList.toggle('hidden', !chk.checked);
+  const barra = document.getElementById('promoBarPreview');
+  if(barra) barra.classList.toggle('hidden', !chk.checked);
+  const btnCancelar = document.getElementById('btnCancelarPromo');
+  if(btnCancelar) btnCancelar.classList.toggle('hidden', !chk.checked);
+  actualizarPreviewPersonalizar();
+}
+
+// Botón de emergencia para cuando la promoción ya terminó: en un solo toque
+// desmarca "Tengo una promoción activa" y guarda de inmediato, para que la
+// promoción no se quede mostrada para siempre en las tarjetas de todos.
+async function cancelarPromocion(){
+  const chk = document.getElementById('negTienePromo');
+  if(!chk) return;
+  chk.checked = false;
+  togglePromoNegocio();
+  await guardarPersonalizacion();
+}
+
+function volverDesdeNegocio(){
+  document.getElementById('screenNegocio').classList.add('hidden');
+  document.getElementById('mainShell').classList.remove('hidden');
+  document.getElementById('bottomnav').classList.remove('hidden');
+  if(state.mapaPickerNegocio){ state.mapaPickerNegocio.remove(); state.mapaPickerNegocio = null; }
+}
+
+// Convierte la foto elegida a una imagen más liviana (máx. 900px, JPEG) antes
+// de enviarla, para que la carga sea rápida y no pese demasiado.
+function previsualizarFotoNegocio(event){
+  const file = event.target.files && event.target.files[0];
+  if(!file) return;
+  const lector = new FileReader();
+  lector.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      const maxLado = 900;
+      const escala = Math.min(1, maxLado / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width * escala;
+      canvas.height = img.height * escala;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      const base64 = canvas.toDataURL('image/jpeg', 0.8);
+      state.negFotoBase64 = base64;
+      const preview = document.getElementById('negFotoPreview');
+      preview.src = base64;
+      preview.classList.remove('hidden');
+      document.getElementById('negFotoPlaceholder').classList.add('hidden');
+      document.getElementById('negFotoEditarTag').classList.remove('hidden');
+    };
+    img.src = ev.target.result;
+  };
+  lector.readAsDataURL(file);
+}
+
+// Mapa interactivo (Leaflet) con un pin que se puede arrastrar o tocar para
+// marcar la ubicación exacta del negocio.
+function iniciarMapaPickerNegocio(lat, lng){
+  const dibujar = () => {
+    const contenedor = document.getElementById('negMapPicker');
+    if(!contenedor) return;
+    if(state.mapaPickerNegocio){ try{ state.mapaPickerNegocio.remove(); }catch(e){} state.mapaPickerNegocio = null; }
+    limpiarLeafletDeContenedor(contenedor);
+
+    try{
+      contenedor.innerHTML = '<div class="picker-hint">Toca o arrastra el pin 📍</div>';
+      const mapa = L.map('negMapPicker', { zoomControl:false, attributionControl:false }).setView([lat, lng], 16);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(mapa);
+      // Se usa un pin/flecha propio (SVG en línea) en vez del ícono azul por
+      // defecto de Leaflet: así siempre se ve, sin depender de que carguen
+      // las imágenes marker-icon.png/marker-shadow.png del CDN.
+      const marcador = L.marker([lat, lng], {
+        draggable:true,
+        icon: L.divIcon({ className:'', html:pinFlechaHtml(), iconSize:[28,36], iconAnchor:[14,34] })
+      }).addTo(mapa);
+
+      const actualizarTexto = (la, ln) => {
+        document.getElementById('negCoordTxt').textContent = `📍 ${la.toFixed(5)}, ${ln.toFixed(5)}`;
+        state.negLat = la; state.negLng = ln;
+      };
+      actualizarTexto(lat, lng);
+
+      marcador.on('dragend', () => { const p = marcador.getLatLng(); actualizarTexto(p.lat, p.lng); });
+      mapa.on('click', e => { marcador.setLatLng(e.latlng); actualizarTexto(e.latlng.lat, e.latlng.lng); });
+
+      state.mapaPickerNegocio = mapa;
+      state.marcadorPickerNegocio = marcador;
+      setTimeout(() => mapa.invalidateSize(), 100);
+    }catch(e){
+      // Si algo falla al crear el mapa (contenedor reciclado, red, etc.), se
+      // cae al modo de ubicación aproximada en vez de dejar la pantalla rota.
+      document.getElementById('negMapPicker').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:11px;color:var(--muted);text-align:center;padding:0 16px">No se pudo cargar el mapa interactivo. Se usará la última ubicación marcada.</div>';
+      document.getElementById('negCoordTxt').textContent = `📍 ${lat.toFixed(5)}, ${lng.toFixed(5)} (aproximado)`;
+      state.negLat = lat; state.negLng = lng;
+    }
+  };
+
+  cargarLeaflet(dibujar, () => {
+    // Si Leaflet no carga (red bloqueada), igual dejamos guardar con las
+    // coordenadas iniciales cerca de la Plaza de Armas.
+    document.getElementById('negMapPicker').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:11px;color:var(--muted);text-align:center;padding:0 16px">No se pudo cargar el mapa interactivo. Se usará una ubicación aproximada cerca de la Plaza de Armas.</div>';
+    document.getElementById('negCoordTxt').textContent = `📍 ${lat.toFixed(5)}, ${lng.toFixed(5)} (aproximado)`;
+    state.negLat = lat; state.negLng = lng;
+  });
+}
+
+async function publicarNegocio(){
+  ocultarError('negError');
+  ocultarError('negSuccess');
+  const modo = state.modoRegistro || 'negocio';
+  const nombre = document.getElementById('negNombre').value.trim();
+  const categoria = modo === 'servicio' ? 'Servicios' : document.getElementById('negCategoria').value;
+  const tipo = modo === 'servicio' ? document.getElementById('negTipoServicio').value : '';
+  const descripcion = document.getElementById('negDescripcion').value.trim();
+  const telefono = document.getElementById('negTelefono').value.trim();
+  const direccion = document.getElementById('negDireccion').value.trim();
+
+  if(!nombre){ mostrarError('negError', modo === 'servicio' ? 'Ingresa el nombre de tu servicio.' : 'Ingresa el nombre de tu negocio.'); return; }
+  if(!state.user || state.user.mode !== 'user'){ mostrarError('negError', 'Debes iniciar sesión para publicar.'); return; }
+
+  // Color, tamaño de letra y promoción se editan aparte, en la pantalla
+  // "Personalizar negocio o servicio" — este formulario no los toca. Al
+  // crear un negocio nuevo, el backend le pone los valores por defecto
+  // (color #D9691E, tamaño mediano, sin promoción); al editar uno existente
+  // no se envían estos campos, así que el backend los deja como estaban.
+  const payload = {
+    propietario_email: state.user.email, nombre, categoria, tipo, descripcion, telefono, direccion,
+    lat: state.negLat, lng: state.negLng
+  };
+  if(state.negFotoBase64) payload.foto_base64 = state.negFotoBase64;
+
+  const editando = !!state.editandoNegocioId;
+  if(editando) payload.id = state.editandoNegocioId;
+
+  const btn = document.getElementById('btnNegocio');
+  const textoPublicar = modo === 'servicio' ? 'Publicar servicio' : 'Publicar negocio';
+  btn.disabled = true; btn.textContent = editando ? 'Guardando…' : (modo === 'servicio' ? 'Publicando servicio…' : 'Publicando…');
+  const r = await apiPost(editando ? 'actualizarNegocio' : 'crearNegocio', payload);
+  btn.disabled = false; btn.textContent = editando ? 'Guardar cambios' : textoPublicar;
+
+  if(!r.ok){ mostrarError('negError', r.error || 'No se pudo guardar la publicación.'); return; }
+
+  const idPublicado = r.negocio && r.negocio.id ? String(r.negocio.id) : state.editandoNegocioId;
+
+  // Al editar, el dueño real del negocio (propietarioEmail) NO cambia, aunque
+  // quien guarde los cambios sea un administrador editando el negocio de otra
+  // persona. Solo se marca "tieneNegocio" en la cuenta que realmente es dueña.
+  const negocioPrevio = editando ? NEGOCIOS.find(n => String(n.id) === idPublicado) : null;
+  const propietarioReal = negocioPrevio ? negocioPrevio.propietarioEmail : state.user.email;
+  if(propietarioReal.toLowerCase() === state.user.email.toLowerCase()) state.user.tieneNegocio = true;
+
+  // Se arma de inmediato el negocio/servicio recién guardado con los datos
+  // que la persona acaba de escribir (en vez de esperar a que el backend
+  // vuelva a responder). Así aparece al instante en el inicio, el mapa y el
+  // detalle, sin depender de que "cargarNegocios()" llegue a tiempo — antes,
+  // si esa recarga se demoraba o fallaba, el negocio recién publicado no
+  // estaba todavía en la lista y al tocarlo no pasaba nada.
+  const negocioLocal = {
+    id: idPublicado, nombre, categoria, tipo, desc: descripcion, telefono, direccion,
+    lat: Number(state.negLat), lng: Number(state.negLng),
+    rating: 4.5, distancia: 0.4, destacado: false,
+    // La promoción, el color y el tamaño de letra no se tocan desde este
+    // formulario: si ya existía el negocio, se conservan sus valores; si es
+    // nuevo, se usan los mismos valores por defecto que pone el backend.
+    promo: negocioPrevio ? negocioPrevio.promo : false,
+    promoTxt: negocioPrevio ? negocioPrevio.promoTxt : '',
+    promoRank: negocioPrevio ? negocioPrevio.promoRank : 20,
+    nuevo: !editando, servicioReco: false,
+    foto: state.negFotoBase64 || (negocioPrevio ? negocioPrevio.foto || '' : ''),
+    propietarioEmail: propietarioReal,
+    color: negocioPrevio ? negocioPrevio.color : COLORES_PERSONALIZAR[0],
+    tamNombre: negocioPrevio ? negocioPrevio.tamNombre : 'md'
+  };
+  const idx = NEGOCIOS.findIndex(n => String(n.id) === idPublicado);
+  if(idx !== -1) NEGOCIOS[idx] = negocioLocal; else NEGOCIOS.unshift(negocioLocal);
+  renderCategorias(); renderInicio(); renderExplorar(); renderBusqueda(); renderFavoritos(); renderPerfil();
+
+  if(state.negFotoBase64) fotosRecientes[idPublicado] = state.negFotoBase64;
+  state.negFotoBase64 = null;
+
+  if(editando){
+    mostrarExito('negSuccess', 'Datos actualizados ✅');
+    // Se refresca en segundo plano para traer la URL definitiva de la foto
+    // (la de Google Drive) sin bloquear ni interrumpir a la persona.
+    cargarNegocios();
+    return;
+  }
+
+  // Al PUBLICAR uno nuevo (no al editar), el formulario se limpia por
+  // completo y se queda en la misma pantalla, lista para registrar otro
+  // negocio o servicio de inmediato.
+  mostrarExito('negSuccess', modo === 'servicio' ? 'Servicio publicado 🎉' : 'Negocio publicado 🎉');
+  resetearCamposFormularioNegocio();
+  cargarNegocios();
+}
+
+// Limpia únicamente los campos del formulario (sin cambiar de pantalla) para
+// que la persona pueda publicar otro negocio o servicio de inmediato.
+function resetearCamposFormularioNegocio(){
+  state.editandoNegocioId = null;
+  state.negFotoBase64 = null;
+  document.getElementById('negFotoPreview').classList.add('hidden');
+  document.getElementById('negFotoPreview').removeAttribute('src');
+  document.getElementById('negFotoPlaceholder').classList.remove('hidden');
+  document.getElementById('negFotoEditarTag').classList.add('hidden');
+  document.getElementById('negFotoInput').value = '';
+  document.getElementById('negNombre').value = '';
+  document.getElementById('negCategoria').value = 'Comida';
+  document.getElementById('negTipoServicio').value = SERVICIOS_TIPOS[0];
+  document.getElementById('negDescripcion').value = '';
+  document.getElementById('negTelefono').value = '';
+  document.getElementById('negDireccion').value = '';
+  document.getElementById('btnEliminarNegocio').classList.add('hidden');
+  document.getElementById('tituloNegocio').textContent = state.modoRegistro === 'servicio' ? 'Registrar servicio' : 'Registrar negocio';
+  document.getElementById('subNegocio').textContent = state.modoRegistro === 'servicio'
+    ? 'Completa los datos de tu servicio para que aparezca en Nexo.'
+    : 'Completa los datos de tu negocio para que aparezca en Nexo.';
+  document.getElementById('btnNegocio').textContent = state.modoRegistro === 'servicio' ? 'Publicar servicio' : 'Publicar negocio';
+  state.negLat = TRUJILLO_CENTRO.lat; state.negLng = TRUJILLO_CENTRO.lng;
+  iniciarMapaPickerNegocio(state.negLat, state.negLng);
+  document.getElementById('negNombre').focus();
+}
+
+function mostrarExito(id, msg){
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  clearTimeout(el._timeoutOcultar);
+  el._timeoutOcultar = setTimeout(() => el.classList.add('hidden'), 5000);
+}
+
+async function eliminarNegocioActual(){
+  if(!state.editandoNegocioId) return;
+  const confirmado = await mostrarConfirmacion('¿Seguro que quieres eliminar este negocio de Nexo? Esta acción no se puede deshacer.', 'Eliminar');
+  if(!confirmado) return;
+
+  const idAEliminar = state.editandoNegocioId;
+  // Se guarda ANTES de borrar para saber si el negocio eliminado era tuyo
+  // (y no el de otra persona que estás editando como administrador).
+  const negocioBorrado = NEGOCIOS.find(n => String(n.id) === String(idAEliminar));
+  const btn = document.getElementById('btnEliminarNegocio');
+  btn.disabled = true; btn.textContent = 'Eliminando…';
+  const r = await apiPost('eliminarNegocio', { id: idAEliminar, propietario_email: state.user.email });
+  btn.disabled = false; btn.textContent = 'Eliminar mi negocio';
+
+  if(!r.ok){ mostrarError('negError', r.error || 'No se pudo eliminar el negocio.'); return; }
+
+  // Se saca de inmediato de la lista local para que desaparezca al instante
+  // de Inicio, Explorar, Buscar y Favoritos, sin esperar a que termine de
+  // llegar la recarga desde el servidor (que antes podía demorarse y hacer
+  // parecer que "no se había borrado").
+  NEGOCIOS = NEGOCIOS.filter(n => String(n.id) !== String(idAEliminar));
+  state.favoritos.delete(String(idAEliminar));
+  delete fotosRecientes[String(idAEliminar)];
+  // Solo se recalcula "tieneNegocio" si lo que se borró era TUYO. Antes esto
+  // se decidía mirando si eras administrador (lo cual dejaba mal el estado
+  // cuando el propio administrador borraba su negocio real: como es admin,
+  // nunca se actualizaba y el botón "Personalizar" se quedaba visible aunque
+  // ya no tuviera ningún negocio).
+  const eraTuyo = negocioBorrado && (negocioBorrado.propietarioEmail || '').toLowerCase() === state.user.email.toLowerCase();
+  if(eraTuyo){
+    state.user.tieneNegocio = NEGOCIOS.some(n => (n.propietarioEmail||'').toLowerCase() === state.user.email.toLowerCase());
+  }
+  renderCategorias(); renderInicio(); renderExplorar(); renderBusqueda(); renderFavoritos(); renderPerfil();
+
+  volverDesdeNegocio();
+  mostrarTab('tabPerfil');
+  mostrarAlerta('Negocio eliminado.');
+  cargarNegocios();
+}
+
+/* ─────────── EXPLORAR (mapa ilustrado, 100% local — sin Leaflet ni red externa) ─────────── */
+// El mapa ya no depende de servicios externos (Leaflet/OpenStreetMap), que en algunos
+// entornos bloquean las peticiones de red o el uso de iframes. En su lugar dibujamos
+// un mapa esquemático local, ubicando cada negocio según su lat/lng relativa al
+// centro (Plaza de Armas de Trujillo, La Libertad, Perú).
+function renderMapaEstatico(){
+  const contenedor = document.getElementById('realMap');
+  if(!contenedor) return;
+
+  // Rango de coordenadas a mostrar alrededor del centro (en grados).
+  const RANGO = 0.009;
+  const clamp = (v,min,max) => Math.max(min, Math.min(max, v));
+  const posPct = (lat, lng) => {
+    const x = clamp(50 + ((lng - TRUJILLO_CENTRO.lng) / RANGO) * 42, 6, 94);
+    const y = clamp(50 - ((lat - TRUJILLO_CENTRO.lat) / RANGO) * 42, 6, 94);
+    return { x, y };
+  };
+
+  const pinesHtml = NEGOCIOS.map(n => {
+    const c = catInfo(n.categoria);
+    const { x, y } = posPct(n.lat, n.lng);
+    return `<div class="map-pin" style="left:${x}%; top:${y}%" onclick="verNegocio('${n.id}')">
+      <div class="map-pin-tip"><b>${escapeHtml(n.nombre)}</b><br>${escapeHtml(n.tipo || n.categoria)} · ★${n.rating}</div>
+      <div class="biz-pin" style="background:${c.grad}"><svg viewBox="0 0 24 24" stroke="#fff" stroke-width="1.8" fill="none"><path d="${c.icon}"/></svg></div>
+    </div>`;
+  }).join('');
+
+  contenedor.innerHTML = `
+    <div class="map-label-city">📍 Trujillo, La Libertad</div>
+    <div class="map-plaza"></div>
+    <div class="you-marker-wrap"><div class="you-marker"></div><div class="you-label">Estás aquí</div></div>
+    ${pinesHtml}
+  `;
+}
+
+// Mapa real e interactivo (Leaflet + OpenStreetMap): se puede arrastrar, hacer
+// zoom, etc. Se carga en tiempo de ejecución (en vez de un <script src> fijo en
+// el <head>) para no romper la app si el entorno bloquea el script o los tiles:
+// en ese caso, cae automáticamente al mapa ilustrado local (renderMapaEstatico).
+let mapaLeaflet = null;
+let capaMarcadores = null;
+let leafletEstado = 'sin-cargar'; // 'sin-cargar' | 'cargando' | 'listo' | 'error'
+
+// Si un contenedor ya tuvo un mapa de Leaflet antes (por ejemplo, se abrió y
+// cerró el formulario varias veces), Leaflet deja una marca interna en el
+// elemento del DOM. Si se intenta crear OTRO mapa sobre el mismo contenedor
+// sin limpiar esa marca, Leaflet lanza el error "Map container is already
+// initialized" y la pantalla se queda en blanco. Esto lo evita.
+function limpiarLeafletDeContenedor(el){
+  if(el && el._leaflet_id){ el._leaflet_id = null; }
+}
+
+// Pin/flecha de ubicación reutilizable (formulario de ubicación y detalle de
+// negocio), como SVG en línea para que siempre se vea, sin depender de las
+// imágenes por defecto de Leaflet (que a veces no cargan bien desde un CDN).
+function pinFlechaHtml(color){
+  return `<div style="filter:drop-shadow(0 3px 6px rgba(15,26,46,.4))">
+    <svg viewBox="0 0 24 24" width="28" height="36">
+      <path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7z" fill="${color || 'var(--primary)'}" stroke="#fff" stroke-width="1"/>
+      <circle cx="12" cy="9" r="3" fill="#fff"/>
+    </svg>
+  </div>`;
+}
+
+function cargarLeaflet(onListo, onError){
+  if(typeof L !== 'undefined'){ onListo(); return; }
+  if(leafletEstado === 'cargando'){
+    setTimeout(() => cargarLeaflet(onListo, onError), 200);
+    return;
+  }
+  leafletEstado = 'cargando';
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js';
+  const timeout = setTimeout(() => { if(leafletEstado !== 'listo'){ leafletEstado = 'error'; onError(); } }, 4000);
+  script.onload = () => { clearTimeout(timeout); leafletEstado = 'listo'; onListo(); };
+  script.onerror = () => { clearTimeout(timeout); leafletEstado = 'error'; onError(); };
+  document.head.appendChild(script);
+}
+
+function iniciarMapaSiHaceFalta(){
+  if(mapaLeaflet) return;
+  if(leafletEstado === 'error'){ renderMapaEstatico(); return; }
+  cargarLeaflet(construirMapaLeaflet, () => { leafletEstado = 'error'; renderMapaEstatico(); });
+}
+
+function construirMapaLeaflet(){
+  if(mapaLeaflet) return;
+  const contenedor = document.getElementById('realMap');
+  if(!contenedor) return;
+  try{
+    contenedor.innerHTML = '';
+    limpiarLeafletDeContenedor(contenedor);
+    mapaLeaflet = L.map('realMap', { zoomControl:true, attributionControl:true })
+      .setView([TRUJILLO_CENTRO.lat, TRUJILLO_CENTRO.lng], 15);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom:19
+    }).addTo(mapaLeaflet);
+
+    L.marker([TRUJILLO_CENTRO.lat, TRUJILLO_CENTRO.lng], {
+      icon: L.divIcon({ className:'', html:'<div class="you-marker" style="background:var(--muted-2)"></div>', iconSize:[16,16], iconAnchor:[8,8] })
+    }).addTo(mapaLeaflet).bindPopup('<b>Plaza de Armas</b><br>Centro de Trujillo');
+
+    capaMarcadores = L.layerGroup().addTo(mapaLeaflet);
+    pintarMarcadoresNegocios();
+    if(state.miUbicacion){
+      dibujarMiUbicacionEnMapa({ latitude: state.miUbicacion.lat, longitude: state.miUbicacion.lng, accuracy: 30 });
+    }
+    setTimeout(() => mapaLeaflet.invalidateSize(), 80);
+  }catch(e){
+    mapaLeaflet = null;
+    state.marcadorMiUbicacion = null;
+    state.circuloMiUbicacion = null;
+    renderMapaEstatico();
+  }
+}
+
+// Vuelve a dibujar los pines de negocios sobre el mapa ya creado, sin
+// recrear el mapa entero. Se llama cada vez que NEGOCIOS cambia (por
+// ejemplo, justo después de publicar un negocio o servicio nuevo), para
+// que aparezca de inmediato en su ubicación sin recargar la página.
+function pintarMarcadoresNegocios(){
+  if(!mapaLeaflet || !capaMarcadores) return;
+  capaMarcadores.clearLayers();
+  NEGOCIOS.forEach(n => {
+    if(!Number.isFinite(n.lat) || !Number.isFinite(n.lng)) return;
+    const c = catInfo(n.categoria);
+    const pinHtml = `<div class="biz-pin" style="background:${c.grad}"><svg viewBox="0 0 24 24" stroke="#fff" stroke-width="1.8" fill="none"><path d="${c.icon}"/></svg></div>`;
+    const marker = L.marker([n.lat, n.lng], {
+      icon: L.divIcon({ className:'', html:pinHtml, iconSize:[30,30], iconAnchor:[15,30] })
+    }).addTo(capaMarcadores);
+    marker.bindPopup(`<b>${escapeHtml(n.nombre)}</b><br>${escapeHtml(n.tipo || n.categoria)} · ★${n.rating} · ${textoDistancia(n)}${n.promo ? '<br>🔥 '+escapeHtml(textoPromo(n)) : ''}`);
+    marker.on('click', () => verNegocio(n.id));
+  });
+}
+
+/* ─────────── Ubicación en tiempo real ───────────
+   "Mi ubicación" usa la API estándar del navegador (navigator.geolocation).
+   Funciona en cualquier página servida por HTTPS — incluida la Web App de
+   Apps Script — pero el navegador SIEMPRE pide permiso primero. Si esta
+   página está embebida dentro de un iframe (como suele pasar al insertarla
+   en Google Sites), algunos navegadores bloquean ese permiso salvo que el
+   iframe lo autorice explícitamente; por eso más abajo detectamos ese caso
+   y sugerimos abrir la app en una pestaña aparte.
+   Distancia real: cada negocio ya tiene lat/lng guardados. En vez de tocar
+   ese dato, calculamos la distancia "al vuelo" con la fórmula de Haversine
+   cada vez que se necesita, así nunca se pierde el valor original. */
+function haversineKm(lat1, lng1, lat2, lng2){
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) ** 2 +
+            Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.sin(dLng/2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+function distanciaKm(n){
+  if(state.miUbicacion && Number.isFinite(n.lat) && Number.isFinite(n.lng)){
+    return haversineKm(state.miUbicacion.lat, state.miUbicacion.lng, n.lat, n.lng);
+  }
+  return n.distancia;
+}
+function textoDistancia(n){
+  const d = distanciaKm(n);
+  return (d < 1 ? Math.round(d * 1000) + ' m' : d.toFixed(1) + ' km');
+}
+
+function toggleMiUbicacion(){
+  if(state.geoWatchId){ pararMiUbicacion(); } else { activarMiUbicacion(); }
+}
+
+function activarMiUbicacion(){
+  if(!('geolocation' in navigator)){
+    mostrarAlerta('Este navegador no permite compartir tu ubicación en tiempo real.');
+    return;
+  }
+  const btn = document.getElementById('btnMiUbicacion');
+  const txt = document.getElementById('btnMiUbicacionTxt');
+  txt.textContent = 'Ubicando…';
+
+  state.geoWatchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      state.miUbicacion = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      btn.classList.add('activa');
+      txt.textContent = 'Ubicación activa';
+      dibujarMiUbicacionEnMapa(pos.coords);
+      renderInicio(); renderExplorar(); renderBusqueda();
+    },
+    (err) => {
+      pararMiUbicacion();
+      manejarErrorUbicacion(err);
+    },
+    { enableHighAccuracy:true, maximumAge:5000, timeout:15000 }
+  );
+}
+
+function pararMiUbicacion(){
+  if(state.geoWatchId !== null){ navigator.geolocation.clearWatch(state.geoWatchId); }
+  state.geoWatchId = null;
+  state.miUbicacion = null;
+  const btn = document.getElementById('btnMiUbicacion');
+  const txt = document.getElementById('btnMiUbicacionTxt');
+  if(btn) btn.classList.remove('activa');
+  if(txt) txt.textContent = 'Mi ubicación';
+  if(mapaLeaflet){
+    if(state.marcadorMiUbicacion){ mapaLeaflet.removeLayer(state.marcadorMiUbicacion); state.marcadorMiUbicacion = null; }
+    if(state.circuloMiUbicacion){ mapaLeaflet.removeLayer(state.circuloMiUbicacion); state.circuloMiUbicacion = null; }
+  }
+  renderInicio(); renderExplorar(); renderBusqueda();
+}
+
+function dibujarMiUbicacionEnMapa(coords){
+  if(!mapaLeaflet) return;
+  const { latitude:lat, longitude:lng, accuracy } = coords;
+  if(!state.marcadorMiUbicacion){
+    state.marcadorMiUbicacion = L.marker([lat, lng], {
+      icon: L.divIcon({ className:'', html:'<div class="you-marker"></div>', iconSize:[16,16], iconAnchor:[8,8] }),
+      zIndexOffset: 1000
+    }).addTo(mapaLeaflet).bindPopup('<b>Tu ubicación</b>');
+    mapaLeaflet.setView([lat, lng], 16);
+  }else{
+    state.marcadorMiUbicacion.setLatLng([lat, lng]);
+  }
+  if(!state.circuloMiUbicacion){
+    state.circuloMiUbicacion = L.circle([lat, lng], { radius: accuracy || 30, color:'#1C4A87', fillColor:'#1C4A87', fillOpacity:0.12, weight:1 }).addTo(mapaLeaflet);
+  }else{
+    state.circuloMiUbicacion.setLatLng([lat, lng]);
+    state.circuloMiUbicacion.setRadius(accuracy || 30);
+  }
+}
+
+function manejarErrorUbicacion(err){
+  const enIframe = window.self !== window.top;
+  if(err.code === err.PERMISSION_DENIED){
+    if(enIframe){
+      mostrarAlerta('El navegador bloqueó el permiso de ubicación porque Nexo está embebido dentro de otra página (por ejemplo, Google Sites). Abre Nexo en una pestaña aparte y vuelve a intentarlo, o revisa el ícono 🔒 junto a la barra de direcciones para permitir "Ubicación".');
+    }else{
+      mostrarAlerta('Bloqueaste el permiso de ubicación. Tócalo el ícono 🔒 o "ⓘ" junto a la barra de direcciones, activa "Ubicación" y vuelve a intentarlo.');
+    }
+  }else if(err.code === err.POSITION_UNAVAILABLE){
+    mostrarAlerta('No se pudo determinar tu ubicación en este momento. Revisa que el GPS o la ubicación del dispositivo estén activados.');
+  }else{
+    mostrarAlerta('La búsqueda de tu ubicación tardó demasiado. Inténtalo de nuevo.');
+  }
+}
+
+function renderExplorar(){
+  iniciarMapaSiHaceFalta();
+  if(mapaLeaflet){ pintarMarcadoresNegocios(); setTimeout(() => mapaLeaflet.invalidateSize(), 80); }
+  document.getElementById('rowExplorarLista').innerHTML = [...NEGOCIOS].sort((a,b)=>distanciaKm(a)-distanciaKm(b)).map(filaVertical).join('');
+}
+function toggleListaExplorar(){
+  const lista = document.getElementById('rowExplorarLista');
+  const txt = document.getElementById('mapToggleTxt');
+  const oculto = lista.style.display === 'none';
+  lista.style.display = oculto ? 'block' : 'none';
+  txt.textContent = oculto ? 'Lista' : 'Mapa';
+  if(oculto && mapaLeaflet) setTimeout(() => mapaLeaflet.invalidateSize(), 60);
+}
+
+/* ─────────── BUSCAR ─────────── */
+function renderChipsBuscar(){
+  document.getElementById('chipsBuscar').innerHTML = CATEGORIAS.map(c => `<div class="chip ${c===state.categoriaActiva?'active':''}" onclick="filtrarCategoriaEnBuscar('${c}')">${c}</div>`).join('');
+}
+function filtrarCategoriaEnBuscar(c){ state.categoriaActiva = c; renderBusqueda(); }
+function renderBusqueda(){
+  renderChipsBuscar();
+  const q = (document.getElementById('inputBuscar').value || '').toLowerCase().trim();
+  const resultados = NEGOCIOS.filter(n => {
+    const coincideTexto = !q || n.nombre.toLowerCase().includes(q) || n.categoria.toLowerCase().includes(q) || (n.tipo && n.tipo.toLowerCase().includes(q));
+    const coincideCat = state.categoriaActiva === 'Todos' || n.categoria === state.categoriaActiva;
+    return coincideTexto && coincideCat;
+  });
+  document.getElementById('rowResultados').innerHTML = resultados.length ? resultados.map(filaVertical).join('') : vacioBig('Sin resultados', 'Prueba con otro nombre, categoría o servicio.');
+}
+
+/* ─────────── FAVORITOS ─────────── */
+function renderFavoritos(){
+  const el = document.getElementById('rowFavoritos');
+  if(!state.user || state.user.mode === 'guest'){
+    el.innerHTML = vacioBig('Inicia sesión para guardar favoritos', 'Como invitado puedes explorar, pero necesitas una cuenta para guardar negocios.');
+    return;
+  }
+  const favs = NEGOCIOS.filter(n => state.favoritos.has(n.id));
+  el.innerHTML = favs.length ? favs.map(filaVertical).join('') : vacioBig('Aún no tienes favoritos', 'Toca el ❤️ en cualquier negocio para guardarlo aquí.');
+}
+function vacioBig(titulo, texto){ return `<div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><h4>${titulo}</h4><p>${texto}</p></div>`; }
+
+/* ─────────── PERFIL ─────────── */
+function renderPerfil(){
+  const el = document.getElementById('perfilContenido');
+  if(!state.user || state.user.mode === 'guest'){
+    el.innerHTML = `
+      <div class="profile-card">
+        <div class="avatar-big"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-4 3-6.5 7-6.5s7 2.5 7 6.5"/></svg></div>
+        <h3>Estás como invitado</h3>
+        <p>Crea una cuenta para guardar favoritos y registrar tu negocio.</p>
+        <button class="btn-primary" onclick="cerrarSesionYMostrar('screenRegister')">Crear cuenta</button>
+        <button class="btn-ghost" onclick="cerrarSesionYMostrar('screenLogin')">Ya tengo cuenta</button>
+      </div>
+      <p class="sec-label-p">GENERAL</p>
+      <div class="settings-list">
+        <div class="settings-row"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg></div><span>Ayuda y soporte</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+        <div class="settings-row"><div class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></div><span>Acerca de Nexo</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+      </div>`;
+    return;
+  }
+  // Solo la cuenta cuyo correo coincide EXACTAMENTE con ADMIN_EMAIL (ver
+  // Code.gs) ve el Panel de administrador. ADMIN_EMAIL vacío desactiva el
+  // panel para todos, igual que en el backend.
+  const esAdminActual = !!ADMIN_EMAIL && state.user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
+  el.innerHTML = `
+    <div class="profile-card">
+      <div class="avatar-big"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-4 3-6.5 7-6.5s7 2.5 7 6.5"/></svg></div>
+      <h3>${escapeHtml(state.user.nombre)}</h3>
+      <p>${escapeHtml(state.user.email)}</p>
+    </div>
+    <p class="sec-label-p">MI CUENTA</p>
+    <div class="settings-list">
+      <div class="settings-row"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg></div><span>Mis datos</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="settings-row" onclick="irANotificaciones()"><div class="ic"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></div><span>Notificaciones</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="settings-row" onclick="mostrarTab('tabFavoritos')"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg></div><span>Mis favoritos (${state.favoritos.size})</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+    </div>
+    ${esAdminActual ? `
+    <p class="sec-label-p">PANEL DE ADMINISTRADOR</p>
+    <p style="font-size:11px;color:var(--muted);margin:-6px 0 12px;line-height:1.5">Ves y administras los negocios y servicios de TODAS las cuentas, no solo el tuyo.</p>
+    <div class="field" style="margin-bottom:12px">
+      <div class="inp-wrap">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="adminBusqueda" type="text" placeholder="Buscar por nombre o correo del dueño…" oninput="renderAdminListaNegocios()">
+      </div>
+    </div>
+    <div class="admin-neg-list" id="adminNegList"></div>
+    ` : ''}
+    <p class="sec-label-p">GENERAL</p>
+    <div class="settings-list">
+      <div class="settings-row"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg></div><span>Ayuda y soporte</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="settings-row danger" onclick="cerrarSesion()"><div class="ic"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></div><span>Cerrar sesión</span></div>
+    </div>`;
+
+  if(esAdminActual) renderAdminListaNegocios();
+}
+
+/* ─────────── Panel de administrador ───────────
+   Solo visible para ADMIN_EMAIL. Lista TODOS los negocios/servicios
+   publicados (de cualquier cuenta) con botones para editarlos o
+   eliminarlos, reutilizando exactamente el mismo formulario y la misma
+   acción de borrado que usa el dueño para su propio negocio — el backend
+   ya permite esto para ADMIN_EMAIL (ver esAdmin() en Code.gs). */
+function filaAdminNegocio(n){
+  const sub = n.tipo || n.categoria;
+  return `
+    <div class="admin-neg-row">
+      <div class="body">
+        <h4>${escapeHtml(n.nombre)}</h4>
+        <p>${escapeHtml(n.propietarioEmail || 'Sin dueño registrado')} · ${escapeHtml(sub)}</p>
+      </div>
+      <div class="acciones">
+        <button onclick="adminEditarNegocio('${n.id}')" title="Editar">✏️</button>
+        <button onclick="adminEliminarNegocio('${n.id}')" title="Eliminar">🗑️</button>
+      </div>
+    </div>`;
+}
+
+function renderAdminListaNegocios(){
+  const cont = document.getElementById('adminNegList');
+  if(!cont) return;
+  const inputEl = document.getElementById('adminBusqueda');
+  const q = (inputEl ? inputEl.value : '').toLowerCase().trim();
+  const lista = [...NEGOCIOS]
+    .filter(n => !q || n.nombre.toLowerCase().includes(q) || (n.propietarioEmail || '').toLowerCase().includes(q))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
+  cont.innerHTML = lista.length
+    ? lista.map(filaAdminNegocio).join('')
+    : '<p style="font-size:11.5px;color:var(--muted);padding:6px 2px">Sin negocios que coincidan con la búsqueda.</p>';
+}
+
+// Abre el formulario completo de datos básicos para CUALQUIER negocio,
+// aunque no seas su dueño. Al volver, como mostrarTab() no se llama aquí,
+// la pestaña activa sigue siendo "Perfil" tal como estaba.
+function adminEditarNegocio(id){
+  const n = NEGOCIOS.find(x => String(x.id) === String(id));
+  if(!n){ mostrarAlerta('Ese negocio ya no existe.'); return; }
+  document.getElementById('mainShell').classList.add('hidden');
+  document.getElementById('bottomnav').classList.add('hidden');
+  const modo = (n.tipo || n.categoria === 'Servicios') ? 'servicio' : 'negocio';
+  abrirFormularioNegocio(modo, n);
+}
+
+// Elimina cualquier negocio directamente desde la lista del panel, sin
+// necesidad de abrir primero su formulario.
+async function adminEliminarNegocio(id){
+  const n = NEGOCIOS.find(x => String(x.id) === String(id));
+  if(!n) return;
+  const confirmado = await mostrarConfirmacion(`¿Seguro que quieres eliminar "${n.nombre}" de Nexo? Esta acción no se puede deshacer.`, 'Eliminar');
+  if(!confirmado) return;
+
+  const r = await apiPost('eliminarNegocio', { id: String(id), propietario_email: state.user.email });
+  if(!r.ok){ mostrarAlerta(r.error || 'No se pudo eliminar el negocio.'); return; }
+
+  NEGOCIOS = NEGOCIOS.filter(x => String(x.id) !== String(id));
+  state.favoritos.delete(String(id));
+  delete fotosRecientes[String(id)];
+  // Por si el administrador elimina su PROPIO negocio desde este panel (y no
+  // el de otra persona): recalcula si le sigue quedando alguno propio, para
+  // que "Personalizar negocio o servicio" desaparezca si ya no le queda ninguno.
+  const eraSuyo = (n.propietarioEmail || '').toLowerCase() === state.user.email.toLowerCase();
+  if(eraSuyo){
+    state.user.tieneNegocio = NEGOCIOS.some(x => (x.propietarioEmail||'').toLowerCase() === state.user.email.toLowerCase());
+  }
+  renderCategorias(); renderInicio(); renderExplorar(); renderBusqueda(); renderFavoritos(); renderPerfil();
+  mostrarAlerta(`"${n.nombre}" fue eliminado.`);
+  cargarNegocios();
+}
+
+function cerrarSesion(){
+  state.user = null; state.favoritos = new Set();
+  detenerRefrescoAutomaticoNegocios();
+  document.getElementById('mainShell').classList.add('hidden');
+  document.getElementById('bottomnav').classList.add('hidden');
+  mostrarPantalla('screenWelcome');
+}
+function cerrarSesionYMostrar(pantalla){
+  document.getElementById('mainShell').classList.add('hidden');
+  document.getElementById('bottomnav').classList.add('hidden');
+  mostrarPantalla(pantalla);
+}
+</script>
+</body>
+</html>
