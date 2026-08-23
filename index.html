@@ -445,6 +445,10 @@
   .detail-card{ background:var(--surface); border-radius:18px; padding:18px; margin-top:14px; box-shadow:var(--shadow); }
   .detail-card p.desc{ font-size:13px; color:var(--ink-2); line-height:1.6; margin-bottom:14px; }
   .detail-row{ display:flex; align-items:center; gap:11px; padding:11px 0; border-top:1px solid var(--line); }
+  .detail-tags{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+  .detail-tag{ background:var(--paper); border:1px solid var(--line); color:var(--ink-2); font-size:10.5px; font-weight:700; padding:4px 10px; border-radius:100px; }
+  .card-tags{ display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+  .card-tag{ background:var(--paper); border:1px solid var(--line); color:var(--muted); font-size:9px; font-weight:700; padding:2px 7px; border-radius:100px; }
   .detail-row:first-of-type{ border-top:none; }
   .detail-row .ic{ width:32px; height:32px; border-radius:9px; background:#E9EFF7; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
   .detail-row .ic svg{ width:15px; height:15px; stroke:var(--primary); }
@@ -744,6 +748,20 @@
       <div class="field" style="margin-bottom:0">
         <div class="inp-wrap"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><input id="persDescripcion" type="text" placeholder="Cuéntanos qué ofreces" oninput="actualizarPreviewPersonalizar()"></div>
       </div>
+
+      <p class="pers-sec-label" style="margin-top:20px">Horario de atención</p>
+      <div class="field" style="margin-bottom:0">
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><input id="persHorario" type="text" placeholder="Ej. Lun a Sáb, 9:00am - 8:00pm" maxlength="60"></div>
+      </div>
+
+      <p class="pers-sec-label" style="margin-top:16px">WhatsApp de contacto (opcional)</p>
+      <div class="field" style="margin-bottom:0">
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 01-8.9 8.4 8.5 8.5 0 01-4-1L3 20l1.2-5a8.4 8.4 0 1116.8-3.5z"/></svg><input id="persWhatsapp" type="tel" placeholder="Ej. 51987654321 (con código de país)" maxlength="15"></div>
+      </div>
+      <p style="font-size:10.5px;color:var(--muted);margin-top:4px;line-height:1.4">Si lo agregas, en tu negocio aparecerá un botón para que te escriban directo por WhatsApp.</p>
+
+      <p class="pers-sec-label" style="margin-top:16px">Etiquetas (elige hasta 3)</p>
+      <div class="tam-chips" id="persEtiquetasChips" style="flex-wrap:wrap"></div>
 
       <div class="field" style="margin-top:20px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
@@ -1101,9 +1119,17 @@ function normalizarNegocio(n){
     // él rompe toda la pantalla. String(...) lo convierte a texto siempre.
     propietarioEmail: String(n.propietario_email || '').trim(),
     color: n.color || '#D9691E',
-    tamNombre: (n.tam_nombre === 'sm' || n.tam_nombre === 'lg') ? n.tam_nombre : 'md'
+    tamNombre: (n.tam_nombre === 'sm' || n.tam_nombre === 'lg') ? n.tam_nombre : 'md',
+    horario: String(n.horario || ''),
+    whatsapp: String(n.whatsapp || '').replace(/\D/g, ''),
+    etiquetas: String(n.etiquetas || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean).slice(0, 3)
   };
 }
+
+// Etiquetas/distintivos disponibles en "Personalizar negocio o servicio".
+// Cada negocio puede elegir hasta 3, y se muestran como chips en su tarjeta
+// y en su detalle.
+const ETIQUETAS_DISPONIBLES = ['Delivery', 'Acepta tarjeta', 'Atención rápida', 'Precios accesibles', 'Recomendado', 'Recién abierto'];
 
 // Paleta de colores disponible en "Personalizar negocio o servicio". Cada
 // negocio guarda el suyo por separado (columna "color" en la hoja), así que
@@ -1261,7 +1287,7 @@ const state = {
   editandoNegocioId:null, negFotoBase64:null, negLat:null, negLng:null,
   mapaPickerNegocio:null, marcadorPickerNegocio:null, mapaDetalleNegocio:null,
   negocioDetalleAbierto:null,
-  personalizandoId:null, persColor:COLORES_PERSONALIZAR[0], persTam:'md',
+  personalizandoId:null, persColor:COLORES_PERSONALIZAR[0], persTam:'md', persEtiquetas:[],
   selectorModo:null, selectorLista:[], vinoDelSelector:false,
   miUbicacion:null, geoWatchId:null, marcadorMiUbicacion:null, circuloMiUbicacion:null
 };
@@ -1568,6 +1594,7 @@ function tarjetaHorizontal(n){
       <div class="info">
         <h4 style="color:${n.color || '#0F1A2E'};font-size:${tamNombrePx(12.5, n.tamNombre)}px">${escapeHtml(n.nombre)}</h4>
         <div class="meta"><span class="rt"><svg viewBox="0 0 24 24"><path d="M12 3l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7z"/></svg>${n.rating}</span>&nbsp;· ${escapeHtml(n.tipo || n.categoria)} · ${textoDistancia(n)}</div>
+        ${Array.isArray(n.etiquetas) && n.etiquetas.length ? `<div class="card-tags">${n.etiquetas.slice(0,2).map(t => `<span class="card-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
       </div>
     </div>`;
 }
@@ -1685,7 +1712,9 @@ function renderDetalleNegocioCompleto(n){
     </div>
     <div class="detail-card">
       ${n.promo ? `<p class="desc" style="color:var(--signal-dark);font-weight:700">🔥 ${escapeHtml(textoPromo(n))}</p>` : ''}
+      ${Array.isArray(n.etiquetas) && n.etiquetas.length ? `<div class="detail-tags">${n.etiquetas.map(t => `<span class="detail-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
       <p class="desc">${escapeHtml(n.desc) || 'Este negocio todavía no agregó una descripción.'}</p>
+      ${n.horario ? `<div class="detail-row"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div><span>${escapeHtml(n.horario)}</span></div>` : ''}
       ${n.telefono ? `<div class="detail-row"><div class="ic"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3-8.7A2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .3 2 .7 2.9a2 2 0 01-.4 2.1L8 10a16 16 0 006 6l1.3-1.4a2 2 0 012.1-.4c.9.4 1.9.6 2.9.7a2 2 0 011.7 2z"/></svg></div><a href="tel:${escapeHtml(n.telefono)}"><span>${escapeHtml(n.telefono)}</span></a></div>` : ''}
       ${n.direccion ? `<div class="detail-row"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 21V9l8-6 8 6v12"/></svg></div><span>${escapeHtml(n.direccion)}</span></div>` : ''}
       <div class="detail-row"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg></div><a href="${mapsUrl}" target="_blank" rel="noopener"><span>Ver ubicación en Google Maps</span></a></div>
@@ -1695,6 +1724,7 @@ function renderDetalleNegocioCompleto(n){
         <p class="detail-map-coord">📍 ${n.lat.toFixed(5)}, ${n.lng.toFixed(5)}</p>
       </div>` : ''}
     </div>
+    ${n.whatsapp ? `<a class="btn-primary" style="background:#25D366;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;margin-top:14px" href="https://wa.me/${escapeHtml(n.whatsapp)}?text=${encodeURIComponent('Hola, te escribo desde Nexo por "' + n.nombre + '"')}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="18" height="18" fill="#fff"><path d="M21 11.5a8.4 8.4 0 01-8.9 8.4 8.5 8.5 0 01-4-1L3 20l1.2-5a8.4 8.4 0 1116.8-3.5z" fill="none" stroke="#fff" stroke-width="1.8"/></svg>Escríbenos por WhatsApp</a>` : ''}
     ${esMio ? `<button class="btn-outline" style="margin-top:14px" onclick="volverDesdeDetalle(); irARegistrarNegocio()">✏️ Editar mi negocio</button>` : ''}
   `;
   if(Number.isFinite(n.lat) && Number.isFinite(n.lng)){
@@ -1990,6 +2020,26 @@ function seleccionarTamanoPers(tam, sinRender){
   if(!sinRender) actualizarPreviewPersonalizar();
 }
 
+// Etiquetas/distintivos: se puede elegir hasta 3. Al tocar una ya elegida se
+// quita; si ya hay 3 elegidas y se toca una cuarta, se avisa en vez de
+// reemplazar en silencio una de las anteriores.
+function renderEtiquetasChipsPers(){
+  const cont = document.getElementById('persEtiquetasChips');
+  cont.innerHTML = ETIQUETAS_DISPONIBLES.map(tag => `
+    <div class="tam-chip ${state.persEtiquetas.includes(tag) ? 'active' : ''}" style="padding:8px 14px" onclick="toggleEtiquetaPers('${tag}')">${escapeHtml(tag)}</div>
+  `).join('');
+}
+function toggleEtiquetaPers(tag){
+  const yaElegida = state.persEtiquetas.includes(tag);
+  if(!yaElegida && state.persEtiquetas.length >= 3){
+    mostrarAlerta('Ya elegiste 3 etiquetas. Quita una para elegir otra.');
+    return;
+  }
+  if(yaElegida) state.persEtiquetas = state.persEtiquetas.filter(t => t !== tag);
+  else state.persEtiquetas.push(tag);
+  renderEtiquetasChipsPers();
+}
+
 // Refleja en vivo el color, tamaño y promoción que la persona está eligiendo
 // en la pantalla "Personalizar negocio o servicio", usando el nombre y la
 // categoría del negocio que se está personalizando (state.personalizando) —
@@ -2041,6 +2091,10 @@ function abrirFormularioPersonalizar(negocio){
   seleccionarTamanoPers(state.persTam, true);
 
   document.getElementById('persDescripcion').value = negocio.desc || '';
+  document.getElementById('persHorario').value = negocio.horario || '';
+  document.getElementById('persWhatsapp').value = negocio.whatsapp || '';
+  state.persEtiquetas = Array.isArray(negocio.etiquetas) ? negocio.etiquetas.slice(0, 3) : [];
+  renderEtiquetasChipsPers();
 
   const tienePromo = !!negocio.promo;
   document.getElementById('negTienePromo').checked = tienePromo;
@@ -2168,6 +2222,14 @@ async function guardarPersonalizacion(){
   const promoTxt = document.getElementById('negPromoTxt').value.trim();
   const promoRank = parseInt(document.getElementById('negPromoRank').value, 10) || 20;
   const descripcion = document.getElementById('persDescripcion').value.trim();
+  const horario = document.getElementById('persHorario').value.trim();
+  const whatsapp = document.getElementById('persWhatsapp').value.replace(/\D/g, '');
+  const etiquetas = state.persEtiquetas.join(', ');
+
+  if(whatsapp && (whatsapp.length < 9 || whatsapp.length > 15)){
+    mostrarError('persError', 'El número de WhatsApp no parece válido. Inclúyelo con el código de país (ej. 51987654321).');
+    return;
+  }
 
   const payload = {
     id: state.personalizandoId,
@@ -2175,6 +2237,9 @@ async function guardarPersonalizacion(){
     color: state.persColor,
     tam_nombre: state.persTam,
     descripcion: descripcion,
+    horario: horario,
+    whatsapp: whatsapp,
+    etiquetas: etiquetas,
     promo: tienePromo,
     promo_txt: tienePromo ? promoTxt : '',
     promo_rank: tienePromo ? promoRank : ''
@@ -2194,6 +2259,7 @@ async function guardarPersonalizacion(){
   if(idx !== -1){
     NEGOCIOS[idx] = Object.assign({}, NEGOCIOS[idx], {
       color: state.persColor, tamNombre: state.persTam, desc: descripcion,
+      horario: horario, whatsapp: whatsapp, etiquetas: state.persEtiquetas.slice(0, 3),
       promo: tienePromo, promoTxt: tienePromo ? promoTxt : '',
       promoRank: tienePromo ? promoRank : 20
     });
