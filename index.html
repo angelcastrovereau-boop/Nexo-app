@@ -872,18 +872,27 @@
   </div>
 
   <!-- ═══════════════════ CENTRO DE NOTIFICACIONES ═══════════════════
-       Esto es lo que abre la campanita del header: un resumen en vivo de
-       qué tipos de negocios ya están publicados en Nexo y qué promociones
-       (con su % de descuento) están activas ahora mismo. -->
+       Esto es lo que abre la campanita del header: primero lo NUEVO desde
+       la última vez que la persona lo abrió (promociones recién puestas y
+       negocios/servicios recién publicados, respetando lo que activó o
+       desactivó en Preferencias), y abajo un resumen de todo lo activo
+       para explorar. Al abrir esta pantalla, todo lo "nuevo" se marca
+       como visto y el punto de la campanita se apaga. -->
   <div class="form-screen hidden" id="screenNotifCentro">
     <div class="form-top">
       <div class="back-circle" onclick="volverDesdeNotifCentro()"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
       <h2>Notificaciones</h2>
     </div>
     <div class="form-card">
-      <p class="sub">Esto es lo nuevo en Nexo ahora mismo.</p>
+      <p class="sub">Esto es lo nuevo en Nexo desde tu última visita.</p>
 
-      <p class="pers-sec-label">Promociones activas</p>
+      <p class="pers-sec-label">Promociones nuevas</p>
+      <div class="settings-list" id="notifCentroPromosNuevas"></div>
+
+      <p class="pers-sec-label">Negocios y servicios nuevos</p>
+      <div class="settings-list" id="notifCentroNegociosNuevos"></div>
+
+      <p class="pers-sec-label" style="margin-top:18px">Todas las promociones activas</p>
       <div class="settings-list" id="notifCentroPromos"></div>
 
       <p class="pers-sec-label">Tipos de negocios publicados</p>
@@ -1264,8 +1273,7 @@ async function cargarNegocios(){
       state.user.tieneNegocio = !!propio;
     }
     renderCategorias(); renderInicio(); renderExplorar(); renderBusqueda(); renderFavoritos(); renderPerfil();
-    const badgeDot = document.getElementById('notifBadgeDot');
-    if(badgeDot) badgeDot.classList.toggle('hidden', !NEGOCIOS.some(n => n.promo));
+    actualizarBadgeNotificaciones();
     // Si justo estás viendo el detalle de un negocio que alguien (o tú mismo
     // desde la Sheet) acaba de eliminar, esta recarga automática ya lo quitó
     // de todas las listas — pero si te quedas parado en su pantalla de
@@ -1425,6 +1433,59 @@ function leerSesionGuardada(){
 }
 function borrarSesionGuardada(){
   try{ localStorage.removeItem(SESION_KEY); }catch(e){}
+}
+
+/* ─────────── Qué hay "nuevo" desde la última vez que la persona abrió
+   la campanita — se guarda en este dispositivo (no en la cuenta), así
+   que si abre Nexo en otro celular vuelve a ver todo como nuevo una vez.
+   La primera vez que corre esta función en un dispositivo NO marca nada
+   como nuevo retroactivamente: solo guarda el punto de partida. ─────────── */
+const VISTOS_KEY = 'nexo_vistos';
+function leerVistos(){
+  try{ const raw = localStorage.getItem(VISTOS_KEY); return raw ? JSON.parse(raw) : null; }catch(e){ return null; }
+}
+function guardarVistosSnapshot(){
+  try{
+    const promos = {};
+    NEGOCIOS.forEach(n => { if(n.promo) promos[String(n.id)] = promoFirma(n); });
+    localStorage.setItem(VISTOS_KEY, JSON.stringify({ ids: NEGOCIOS.map(n => String(n.id)), promos }));
+  }catch(e){ /* localStorage no disponible: la app sigue, solo sin marcar novedades */ }
+}
+function promoFirma(n){ return [n.promoTxt||'', n.promoRank||''].join('|'); }
+
+// Compara los negocios actuales contra el último "visto" guardado en este
+// dispositivo y devuelve los que son realmente nuevos o cuya promoción
+// cambió desde entonces.
+function calcularNovedades(){
+  const vistos = leerVistos();
+  if(!vistos) return { negociosNuevos: [], promosNuevas: [] };
+  const idsVistos = new Set(vistos.ids || []);
+  const negociosNuevos = NEGOCIOS.filter(n => !idsVistos.has(String(n.id)));
+  const promosNuevas = NEGOCIOS.filter(n => n.promo && vistos.promos[String(n.id)] !== promoFirma(n));
+  return { negociosNuevos, promosNuevas };
+}
+
+// Preferencias de notificaciones activas para el punto de la campanita.
+// Un invitado (sin cuenta) no tiene preferencias guardadas, así que ve
+// ambos tipos de aviso activados por defecto.
+function prefsNotifActuales(){
+  if(state.user && state.user.mode === 'user' && state.user.notif){
+    return { negocios: state.user.notif.negocios !== false, promos: state.user.notif.promos !== false };
+  }
+  return { negocios: true, promos: true };
+}
+
+// Se llama cada vez que se recarga la lista de negocios. Actualiza el
+// punto rojo de la campanita según lo que sea realmente nuevo Y lo que
+// la persona tenga activado en sus preferencias de notificaciones.
+function actualizarBadgeNotificaciones(){
+  const badge = document.getElementById('notifBadgeDot');
+  if(!badge) return;
+  if(!leerVistos()){ guardarVistosSnapshot(); badge.classList.add('hidden'); return; }
+  const { negociosNuevos, promosNuevas } = calcularNovedades();
+  const prefs = prefsNotifActuales();
+  const hayAlgoQueAvisar = (prefs.negocios && negociosNuevos.length > 0) || (prefs.promos && promosNuevas.length > 0);
+  badge.classList.toggle('hidden', !hayAlgoQueAvisar);
 }
 
 function entrarComoInvitado(){ state.user = { mode:'guest' }; iniciarApp(); }
@@ -2240,13 +2301,17 @@ async function guardarMisDatos(){
 }
 
 /* ─────────── Campanita del header: qué hay nuevo en Nexo ───────────
-   Antes este botón no tenía onclick y por eso no abría nada. Ahora muestra,
-   en vivo, las promociones activas (con su % de descuento) y los tipos de
-   negocio que ya están publicados, y desde ahí se puede ir a las
-   preferencias de notificaciones. */
+   Muestra primero lo que es realmente NUEVO desde la última vez que la
+   persona abrió esta pantalla (promociones recién puestas, negocios o
+   servicios recién publicados), respetando lo que tenga activado en sus
+   preferencias de notificaciones, y abajo un resumen de todo lo activo
+   para explorar. Al abrir esta pantalla se marca todo como visto y el
+   punto rojo de la campanita se apaga. */
 function abrirCentroNotificaciones(){
-  const promos = NEGOCIOS.filter(n => n.promo).sort((a,b) => (b.promoRank||0) - (a.promoRank||0));
-  document.getElementById('notifCentroPromos').innerHTML = promos.map(n => `
+  const { negociosNuevos, promosNuevas } = calcularNovedades();
+  const prefs = prefsNotifActuales();
+
+  const filaPromo = n => `
     <div class="settings-row" onclick="abrirCentroNotifYVer('${n.id}')">
       <div class="ic" style="background:#FCEDE0"><span style="font-size:15px">🔥</span></div>
       <div class="sub-tx">
@@ -2254,7 +2319,27 @@ function abrirCentroNotificaciones(){
         <small>${n.promoRank ? `${n.promoRank}% de descuento` : 'Promoción activa'}${n.promoTxt ? ' · ' + escapeHtml(n.promoTxt) : ''}</small>
       </div>
       <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
-    </div>`).join('') || `<p style="font-size:11.5px;color:var(--muted);padding:14px 16px">Sin promociones activas hoy.</p>`;
+    </div>`;
+  const filaNegocio = n => `
+    <div class="settings-row" onclick="abrirCentroNotifYVer('${n.id}')">
+      <div class="ic" style="background:#E4EEFA"><span style="font-size:15px">🆕</span></div>
+      <div class="sub-tx">
+        <span>${escapeHtml(n.nombre)}</span>
+        <small>${escapeHtml(n.categoria)}${n.tipo ? ' · ' + escapeHtml(n.tipo) : ''}</small>
+      </div>
+      <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+    </div>`;
+
+  document.getElementById('notifCentroPromosNuevas').innerHTML = !prefs.promos
+    ? `<p style="font-size:11.5px;color:var(--muted);padding:14px 16px">Tienes desactivado este aviso en Preferencias.</p>`
+    : (promosNuevas.map(filaPromo).join('') || `<p style="font-size:11.5px;color:var(--muted);padding:14px 16px">Ninguna promoción nueva desde tu última visita.</p>`);
+
+  document.getElementById('notifCentroNegociosNuevos').innerHTML = !prefs.negocios
+    ? `<p style="font-size:11.5px;color:var(--muted);padding:14px 16px">Tienes desactivado este aviso en Preferencias.</p>`
+    : (negociosNuevos.map(filaNegocio).join('') || `<p style="font-size:11.5px;color:var(--muted);padding:14px 16px">Ningún negocio o servicio nuevo desde tu última visita.</p>`);
+
+  const promos = NEGOCIOS.filter(n => n.promo).sort((a,b) => (b.promoRank||0) - (a.promoRank||0));
+  document.getElementById('notifCentroPromos').innerHTML = promos.map(filaPromo).join('') || `<p style="font-size:11.5px;color:var(--muted);padding:14px 16px">Sin promociones activas hoy.</p>`;
 
   const conteos = {};
   NEGOCIOS.forEach(n => { conteos[n.categoria] = (conteos[n.categoria]||0) + 1; });
@@ -2269,8 +2354,11 @@ function abrirCentroNotificaciones(){
     </div>`).join('');
   document.getElementById('notifCentroCategorias').innerHTML = catHtml || `<p style="font-size:11.5px;color:var(--muted);padding:14px 16px">Aún no hay negocios publicados.</p>`;
 
+  // Ya se mostró lo nuevo: se marca como visto para este dispositivo y se
+  // apaga el punto rojo.
+  guardarVistosSnapshot();
   const badge = document.getElementById('notifBadgeDot');
-  if(badge) badge.classList.toggle('hidden', promos.length === 0);
+  if(badge) badge.classList.add('hidden');
 
   document.getElementById('mainShell').classList.add('hidden');
   document.getElementById('bottomnav').classList.add('hidden');
@@ -2301,6 +2389,7 @@ async function guardarNotificaciones(){
   if(!r.ok){ mostrarAlerta(r.error || 'No se pudieron guardar tus notificaciones.'); return; }
 
   document.getElementById('notifGuardado').classList.remove('hidden');
+  actualizarBadgeNotificaciones();
 }
 
 // Guarda SOLO el aspecto visual (color, tamaño, promoción) del negocio que se
@@ -2358,8 +2447,7 @@ async function guardarPersonalizacion(){
     state.personalizando = NEGOCIOS[idx];
   }
   renderCategorias(); renderInicio(); renderExplorar(); renderBusqueda(); renderFavoritos(); renderPerfil();
-  const badgeDot = document.getElementById('notifBadgeDot');
-  if(badgeDot) badgeDot.classList.toggle('hidden', !NEGOCIOS.some(n => n.promo));
+  actualizarBadgeNotificaciones();
 
   mostrarExito('persSuccess', tienePromo ? 'Personalización guardada ✅' : 'Promoción cancelada ✅');
   cargarNegocios();
