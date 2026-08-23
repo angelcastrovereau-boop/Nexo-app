@@ -988,6 +988,7 @@
           <div class="hscroll" id="rowPromos"></div>
 
           <div class="sec-title"><span class="lft">📍 Negocios cerca de mí</span><span class="verall" onclick="mostrarTab('tabExplorar')">Ver mapa</span></div>
+          <div class="chips-row" id="chipsRadioCerca"></div>
           <div id="rowCerca"></div>
 
           <div class="sec-title"><span class="lft">🆕 Negocios nuevos</span><span class="verall" onclick="mostrarTab('tabBuscar')">Ver todos</span></div>
@@ -1334,7 +1335,8 @@ const state = {
   negocioDetalleAbierto:null,
   personalizandoId:null, persColor:COLORES_PERSONALIZAR[0], persTam:'md', persEtiquetas:[],
   selectorModo:null, selectorLista:[], vinoDelSelector:false,
-  miUbicacion:null, geoWatchId:null, marcadorMiUbicacion:null, circuloMiUbicacion:null
+  miUbicacion:null, geoWatchId:null, marcadorMiUbicacion:null, circuloMiUbicacion:null,
+  radioCercaKm:3
 };
 
 // Red de seguridad: si un error inesperado en cualquier parte del código
@@ -1624,6 +1626,13 @@ async function iniciarApp(){
   document.getElementById('greetSub').textContent = state.user.mode === 'guest'
     ? 'Estás explorando como invitado'
     : 'Descubre lo mejor de tu comunidad hoy';
+
+  // Ubicación en tiempo real: se intenta activar sola al abrir la app (sin
+  // interrumpir con una alerta si falla), salvo que la persona la haya
+  // apagado a propósito la última vez. La primera vez que se usa Nexo en
+  // este dispositivo, esto es lo que dispara el permiso del navegador.
+  if(leerPrefUbicacion() !== false) activarMiUbicacion(true);
+
   renderCategorias();
   renderInicio();
   renderExplorar();
@@ -1923,7 +1932,8 @@ function filtrarCategoria(c){
 function renderInicio(){
   document.getElementById('rowDestacados').innerHTML = NEGOCIOS.filter(n=>n.destacado).map(tarjetaHorizontal).join('') || vacio('No hay negocios destacados por ahora.');
   document.getElementById('rowPromos').innerHTML = NEGOCIOS.filter(n=>n.promo).sort((a,b)=>b.promoRank-a.promoRank).map(tarjetaHorizontal).join('') || vacio('Sin promociones activas hoy.');
-  document.getElementById('rowCerca').innerHTML = [...NEGOCIOS].sort((a,b)=>distanciaKm(a)-distanciaKm(b)).slice(0,3).map(filaVertical).join('');
+  renderChipsRadioCerca();
+  renderRowCerca();
   document.getElementById('rowNuevos').innerHTML = NEGOCIOS.filter(n=>n.nuevo).map(tarjetaHorizontal).join('') || vacio('Aún no hay negocios nuevos.');
   document.getElementById('rowServicios').innerHTML = NEGOCIOS.filter(n=>n.servicioReco).map(tarjetaHorizontal).join('') || vacio('Sin recomendaciones por ahora.');
   const banner = document.getElementById('bannerRegistrar');
@@ -1932,6 +1942,48 @@ function renderInicio(){
   // registrar más de un negocio o servicio, uno tras otro.
   banner.style.display = state.user ? 'flex' : 'none';
   document.getElementById('tarjetaPersonalizar').classList.toggle('hidden', !esDueno);
+}
+
+// Opciones de radio para "Negocios cerca de mí". 0 significa "sin límite"
+// (toda la ciudad). Solo tienen sentido si ya tenemos tu ubicación real —
+// sin eso, no hay con qué medir la distancia de verdad.
+const RADIOS_CERCA = [ {km:1, label:'1 km'}, {km:3, label:'3 km'}, {km:5, label:'5 km'}, {km:0, label:'Toda la ciudad'} ];
+function renderChipsRadioCerca(){
+  const cont = document.getElementById('chipsRadioCerca');
+  if(!cont) return;
+  if(!state.miUbicacion){ cont.innerHTML = ''; return; }
+  cont.innerHTML = RADIOS_CERCA.map(o => `<div class="chip ${state.radioCercaKm===o.km?'active':''}" onclick="seleccionarRadioCerca(${o.km})">${o.label}</div>`).join('');
+}
+function seleccionarRadioCerca(km){
+  state.radioCercaKm = km;
+  renderChipsRadioCerca();
+  renderRowCerca();
+}
+
+// Con la ubicación real activada, filtra a los negocios que de verdad
+// están dentro del radio elegido (útil cuando hay muchos negocios
+// registrados repartidos por toda la ciudad). Sin ubicación activada
+// todavía, se queda con el comportamiento de siempre: los 3 más cercanos
+// según la distancia de muestra, invitando a activarla.
+function renderRowCerca(){
+  const cont = document.getElementById('rowCerca');
+  if(!cont) return;
+  if(!state.miUbicacion){
+    const lista = [...NEGOCIOS].sort((a,b)=>distanciaKm(a)-distanciaKm(b)).slice(0,3);
+    cont.innerHTML = (lista.map(filaVertical).join('') || vacio('Aún no hay negocios registrados.')) +
+      `<p style="font-size:11.5px;color:var(--muted);padding:8px 2px 0">Activa "Mi ubicación" en Explorar para ver esto ordenado por tu cercanía real.</p>`;
+    return;
+  }
+  let lista = state.radioCercaKm > 0
+    ? NEGOCIOS.filter(n => distanciaKm(n) <= state.radioCercaKm)
+    : [...NEGOCIOS];
+  lista = lista.sort((a,b)=>distanciaKm(a)-distanciaKm(b));
+  if(lista.length === 0){
+    const cercanos = [...NEGOCIOS].sort((a,b)=>distanciaKm(a)-distanciaKm(b)).slice(0,3);
+    cont.innerHTML = `<p style="font-size:11.5px;color:var(--muted);padding:6px 2px 10px">No hay negocios registrados a menos de ${state.radioCercaKm} km de ti. Estos son los más cercanos disponibles:</p>` + cercanos.map(filaVertical).join('');
+    return;
+  }
+  cont.innerHTML = lista.slice(0, 8).map(filaVertical).join('');
 }
 function vacio(msg){ return `<p style="font-size:11.5px;color:var(--muted);padding:6px 2px">${msg}</p>`; }
 
@@ -3017,35 +3069,60 @@ function toggleMiUbicacion(){
   if(state.geoWatchId){ pararMiUbicacion(); } else { activarMiUbicacion(); }
 }
 
-function activarMiUbicacion(){
+// Recuerda en este dispositivo si la persona ya activó su ubicación, para
+// poder activarla sola la próxima vez que abra la app sin que tenga que
+// tocar el botón de nuevo. Si nunca ha decidido nada (primera vez), se
+// intenta activar igual: el navegador se encarga de pedir permiso.
+const UBICACION_PREF_KEY = 'nexo_ubicacion_activa';
+function leerPrefUbicacion(){
+  try{
+    const raw = localStorage.getItem(UBICACION_PREF_KEY);
+    return raw === null ? null : raw === 'true';
+  }catch(e){ return null; }
+}
+function guardarPrefUbicacion(activa){
+  try{ localStorage.setItem(UBICACION_PREF_KEY, activa ? 'true' : 'false'); }catch(e){}
+}
+
+function activarMiUbicacion(silencioso){
   if(!('geolocation' in navigator)){
-    mostrarAlerta('Este navegador no permite compartir tu ubicación en tiempo real.');
+    if(!silencioso) mostrarAlerta('Este navegador no permite compartir tu ubicación en tiempo real.');
     return;
   }
   const btn = document.getElementById('btnMiUbicacion');
   const txt = document.getElementById('btnMiUbicacionTxt');
-  txt.textContent = 'Ubicando…';
+  if(txt && !silencioso) txt.textContent = 'Ubicando…';
 
   state.geoWatchId = navigator.geolocation.watchPosition(
     (pos) => {
       state.miUbicacion = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      btn.classList.add('activa');
-      txt.textContent = 'Ubicación activa';
+      if(btn) btn.classList.add('activa');
+      if(txt) txt.textContent = 'Ubicación activa';
       dibujarMiUbicacionEnMapa(pos.coords);
+      guardarPrefUbicacion(true);
       renderInicio(); renderExplorar(); renderBusqueda();
     },
     (err) => {
-      pararMiUbicacion();
-      manejarErrorUbicacion(err);
+      pararMiUbicacion(false);
+      // Si el intento fue silencioso (automático al abrir la app), no
+      // molestamos con una alerta — solo se queda como estaba, mostrando
+      // el botón "Mi ubicación" para que la persona lo intente manualmente
+      // si quiere.
+      if(!silencioso) manejarErrorUbicacion(err);
     },
     { enableHighAccuracy:true, maximumAge:5000, timeout:15000 }
   );
 }
 
-function pararMiUbicacion(){
+function pararMiUbicacion(guardarComoDesactivada){
   if(state.geoWatchId !== null){ navigator.geolocation.clearWatch(state.geoWatchId); }
   state.geoWatchId = null;
   state.miUbicacion = null;
+  // Solo se guarda como "apagada a propósito" cuando la persona lo apaga
+  // ella misma desde el botón — si esto se llama porque un intento
+  // automático falló (GPS lento, sin señal, etc.), no queremos que eso
+  // cancele el intento automático de la próxima vez que abra la app.
+  if(guardarComoDesactivada !== false) guardarPrefUbicacion(false);
   const btn = document.getElementById('btnMiUbicacion');
   const txt = document.getElementById('btnMiUbicacionTxt');
   if(btn) btn.classList.remove('activa');
@@ -3056,6 +3133,11 @@ function pararMiUbicacion(){
   }
   renderInicio(); renderExplorar(); renderBusqueda();
 }
+
+// Para el botón toggle sí queremos avisar si falla (el usuario lo pidió a
+// propósito), así que pararMiUbicacion() de arriba se usa tal cual desde
+// toggleMiUbicacion(), y activarMiUbicacion() sin "silencioso" también
+// avisa con la alerta normal si algo sale mal.
 
 function dibujarMiUbicacionEnMapa(coords){
   if(!mapaLeaflet) return;
