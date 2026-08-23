@@ -148,6 +148,24 @@
     background:rgba(255,255,255,0.08); border-radius:12px; padding:12px 14px; margin-top:15px; position:relative; z-index:1;
     display:flex; align-items:center; gap:11px; border:1px solid rgba(255,255,255,0.12);
   }
+
+  /* ═══════ Tema visual "Premium" para TODA la app (Inicio, Explorar, Buscar,
+     Favoritos): se activa con la clase body.tema-premium cuando la cuenta que
+     inició sesión tiene al menos un negocio/servicio marcado esPremium (ver
+     aplicarTemaPremium() en el JS). Cambia el encabezado, la insignia activa
+     de la barra inferior y los chips seleccionados a la paleta dorada/azul
+     que ya se usaba solo en la tarjeta de Perfil, para que se note en todas
+     las pantallas que la cuenta es Premium — no solo en Perfil. ═══════ */
+  body.tema-premium .app-header{ background:linear-gradient(135deg,#0D2C55 0%,#1C4A87 55%,#3E8FD9 120%); }
+  body.tema-premium .app-header::before{
+    background-image:radial-gradient(circle at 85% -10%, rgba(244,201,93,0.28), transparent 50%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 22px);
+  }
+  body.tema-premium .hdr-brand .mini-logo{ background:var(--grad-gold); box-shadow:0 6px 16px rgba(196,136,31,0.4), inset 0 1px 0 rgba(255,255,255,0.3); }
+  body.tema-premium .nav-item.active{ color:var(--gold); }
+  body.tema-premium .nav-item.active .n-icon-wrap{ background:var(--grad-gold); box-shadow:0 6px 14px rgba(196,136,31,0.4); }
+  body.tema-premium .chip.active{ background:var(--grad-gold); border-color:var(--gold); }
+  body.tema-premium .quick-search{ border-color:#F4C95D; }
   .hdr-banner svg{ width:19px; height:19px; flex-shrink:0; stroke:var(--signal); }
   .hdr-banner p{ color:rgba(255,255,255,0.82); font-size:12px; line-height:1.5; }
   .hdr-banner strong{ color:var(--signal); }
@@ -1346,14 +1364,16 @@
           <div class="cat-grid" id="catGrid"></div>
 
           <!-- ═══════════════════ BANNER "Negocios y servicios Premium" ═══════════════════
-               Visible para CUALQUIER usuario (no solo Premium): al tocarlo abre un
-               directorio público que agrupa por cuenta dueña todos los negocios y
-               servicios de cuentas Premium, ordenados por cercanía real. Si el usuario
-               que mira la pantalla tiene sus propios negocios/servicios Premium ahí
-               dentro, ve además el interruptor de "estrella" para promocionarlos (ver
-               irADirectorioPremium() en el JS). Reemplaza al antiguo botón "Promocionar
-               mis negocios" que vivía en Perfil. -->
-          <div class="premium-directorio-banner" onclick="irADirectorioPremium()">
+               Visible SOLO para cuentas que ya pagaron el plan Premium (se oculta con
+               la clase "hidden" y se muestra desde renderInicio() según
+               obtenerMisNegocios().some(n => n.esPremium)) — no es un beneficio de
+               cuentas gratuitas, aunque ya tengan un negocio o servicio publicado. Al
+               tocarlo abre un directorio que agrupa por cuenta dueña todos los negocios
+               y servicios de cuentas Premium, ordenados por cercanía real. Si alguna de
+               esas cuentas es la del propio usuario, ve además el interruptor de
+               "estrella" para promocionarlos (ver irADirectorioPremium() en el JS).
+               Reemplaza al antiguo botón "Promocionar mis negocios" que vivía en Perfil. -->
+          <div class="premium-directorio-banner hidden" id="bannerDirectorioPremium" onclick="irADirectorioPremium()">
             <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.3L21 9l-5 4.6L17.3 21 12 17.6 6.7 21 8 13.6 3 9l6.1-.7z"/></svg></div>
             <div class="tx"><h4>Negocios y servicios Premium</h4><p>Descubre las cuentas Premium cerca de ti</p></div>
             <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
@@ -2593,6 +2613,15 @@ function renderInicio(){
   // registrar más de un negocio o servicio, uno tras otro.
   banner.style.display = state.user ? 'flex' : 'none';
   document.getElementById('tarjetaPersonalizar').classList.toggle('hidden', !esDueno);
+  // El banner "Negocios y servicios Premium" es un BENEFICIO exclusivo de
+  // las cuentas que ya pagaron el plan Premium (no de cuentas gratuitas,
+  // aunque tengan un negocio o servicio publicado): solo lo ven cuentas
+  // con al menos un negocio/servicio marcado esPremium.
+  const esCuentaPremium = obtenerMisNegocios().some(n => n.esPremium);
+  document.getElementById('bannerDirectorioPremium').classList.toggle('hidden', !esCuentaPremium);
+  // Tema visual dorado/azul en TODA la app (encabezado, barra inferior,
+  // chips) para cuentas Premium.
+  aplicarTemaPremium();
 }
 
 // Opciones de radio para "Negocios cerca de mí". 0 significa "sin límite"
@@ -2657,6 +2686,17 @@ function obtenerMisNegocios(){
   if(!state.user || state.user.mode !== 'user') return [];
   const email = state.user.email.toLowerCase();
   return NEGOCIOS.filter(n => (n.propietarioEmail || '').toLowerCase() === email);
+}
+
+// Aplica (o quita) el tema visual dorado/azul de cuenta Premium a TODA la
+// app (encabezado, insignia activa de la barra inferior, chips
+// seleccionados) — no solo a la tarjeta de Perfil. Se llama cada vez que
+// puede haber cambiado si la cuenta es Premium: al iniciar sesión, al
+// cargar los negocios, y al activar/desactivar la estrella en el
+// directorio Premium.
+function aplicarTemaPremium(){
+  const esCuentaPremium = obtenerMisNegocios().some(n => n.esPremium);
+  document.body.classList.toggle('tema-premium', esCuentaPremium);
 }
 
 async function irARegistrarNegocio(){
@@ -2839,6 +2879,13 @@ async function enviarComprobantePremium(){
    valores para ordenar "Destacados"/"Recomendados". Reemplaza a la antigua pantalla
    "Promocionar mis negocios" que se abría solo desde Perfil. */
 function irADirectorioPremium(){
+  // Beneficio exclusivo de cuentas Premium (mismo criterio que oculta el
+  // banner en renderInicio): por si se llega a esta función por otra vía,
+  // se vuelve a comprobar aquí antes de abrir la pantalla.
+  if(!obtenerMisNegocios().some(n => n.esPremium)){
+    mostrarAlerta('Esta función es solo para cuentas con plan Premium activo.');
+    return;
+  }
   document.getElementById('mainShell').classList.add('hidden');
   document.getElementById('bottomnav').classList.add('hidden');
   renderDirectorioPremium();
@@ -4478,6 +4525,7 @@ function cerrarSesion(){
   detenerRefrescoAutomaticoNegocios();
   document.getElementById('mainShell').classList.add('hidden');
   document.getElementById('bottomnav').classList.add('hidden');
+  document.body.classList.remove('tema-premium');
   mostrarPantalla('screenWelcome');
 }
 function cerrarSesionYMostrar(pantalla){
