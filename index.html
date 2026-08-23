@@ -509,6 +509,16 @@
 
   .field textarea{ border:none; outline:none; width:100%; resize:vertical; min-height:88px; font-size:14px; font-family:inherit; color:var(--ink); background:transparent; }
   .field .inp-wrap.textarea-wrap{ align-items:flex-start; padding:11px 13px; }
+
+  .check-row{ display:flex; align-items:flex-start; gap:9px; padding:2px 0 10px; cursor:pointer; }
+  .check-row input[type="checkbox"]{ width:17px; height:17px; margin-top:1px; flex-shrink:0; accent-color:var(--primary); }
+  .check-row span{ font-size:12.5px; color:var(--muted); line-height:1.45; }
+  .check-row span b{ color:var(--primary); font-weight:700; cursor:pointer; text-decoration:underline; }
+  .legal-text h4{ font-size:13px; font-weight:700; color:var(--ink); margin:16px 0 5px; }
+  .legal-text h4:first-child{ margin-top:0; }
+  .legal-text p, .legal-text li{ font-size:12.5px; color:var(--muted); line-height:1.6; }
+  .legal-text ul{ margin:4px 0 4px 18px; padding:0; }
+  .legal-text .legal-fecha{ font-size:11px; color:var(--muted-2, var(--muted)); margin-bottom:14px; }
   .switch{ position:relative; width:42px; height:24px; flex-shrink:0; cursor:pointer; }
   .switch input{ position:absolute; inset:0; opacity:0; margin:0; cursor:pointer; z-index:1; }
   .switch .track{ position:absolute; inset:0; background:var(--line); border-radius:999px; transition:background .15s; }
@@ -618,6 +628,14 @@
         <label>Contraseña</label>
         <div class="inp-wrap"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg><input id="regPass" type="password" maxlength="8" placeholder="Exactamente 8 caracteres"></div>
       </div>
+      <label class="check-row">
+        <input type="checkbox" id="regAceptaTerminos">
+        <span>He leído y acepto los <b onclick="event.preventDefault(); verLegal('terminos')">Términos y condiciones</b> de Nexo.</span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" id="regAceptaPrivacidad">
+        <span>He leído y acepto la <b onclick="event.preventDefault(); verLegal('privacidad')">Política de privacidad</b> de Nexo.</span>
+      </label>
       <p id="regError" class="form-error hidden"></p>
       <button class="btn-primary" id="btnRegister" style="margin-top:6px" onclick="crearCuenta()">Crear cuenta</button>
       <p class="form-footer">¿Ya tienes cuenta? <b onclick="mostrarPantalla('screenLogin')">Inicia sesión</b></p>
@@ -639,6 +657,107 @@
       <p id="verifyError" class="form-error hidden"></p>
       <button class="btn-primary" id="btnVerify" style="margin-top:6px" onclick="verificarCodigo()">Verificar y continuar</button>
       <p class="form-footer">¿No te llegó? <b id="btnReenviar" onclick="reenviarCodigo()">Reenviar código</b></p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ TÉRMINOS Y CONDICIONES ═══════════════════
+       Se abre desde el checkbox de "Crear cuenta". volverDesdeLegal()
+       regresa siempre a screenRegister, que es el único lugar desde
+       donde se puede llegar aquí. -->
+  <div class="form-screen hidden" id="screenTerminos">
+    <div class="form-top">
+      <div class="back-circle" onclick="volverDesdeLegal()"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <h2>Términos y condiciones</h2>
+    </div>
+    <div class="form-card legal-text">
+      <p class="legal-fecha">Última actualización: agosto de 2026</p>
+
+      <h4>1. Aceptación</h4>
+      <p>Al crear una cuenta en Nexo aceptas estos Términos y condiciones. Si no estás de acuerdo, no debes registrarte ni usar la aplicación.</p>
+
+      <h4>2. Qué es Nexo</h4>
+      <p>Nexo es un directorio digital de negocios y servicios locales de la comunidad (Trujillo, La Libertad, Perú) que permite a cualquier persona explorar negocios cercanos, y a los propios negocios publicarse de forma gratuita para darse a conocer.</p>
+
+      <h4>3. Cuenta de usuario</h4>
+      <ul>
+        <li>Debes registrarte con un correo electrónico real y verificarlo con el código que se te envía.</li>
+        <li>Eres responsable de mantener tu contraseña en privado y de toda actividad realizada desde tu cuenta.</li>
+        <li>Puedes usar la app como invitado sin cuenta, con funciones limitadas (sin favoritos ni registrar negocio).</li>
+      </ul>
+
+      <h4>4. Contenido publicado por negocios</h4>
+      <ul>
+        <li>Si publicas un negocio o servicio, declaras que la información (nombre, descripción, dirección, teléfono, fotos) es real y que tienes derecho a publicarla.</li>
+        <li>No se permite publicar contenido falso, ofensivo, ilegal, o que infrinja derechos de terceros.</li>
+        <li>Nexo puede editar o eliminar cualquier publicación que incumpla estas condiciones, sin previo aviso.</li>
+        <li>Eres el único responsable de la exactitud de los datos de tu negocio (precios, horarios, disponibilidad).</li>
+      </ul>
+
+      <h4>5. Uso permitido</h4>
+      <p>Te comprometes a no usar Nexo para fines fraudulentos, para enviar spam a otros usuarios, para intentar acceder sin autorización a cuentas ajenas, ni para interferir con el funcionamiento normal de la app.</p>
+
+      <h4>6. Disponibilidad del servicio</h4>
+      <p>Nexo se ofrece "tal cual" y de forma gratuita. No garantizamos disponibilidad ininterrumpida del servicio ni la exactitud permanente de la información publicada por terceros (negocios).</p>
+
+      <h4>7. Responsabilidad</h4>
+      <p>Nexo actúa como intermediario que conecta usuarios con negocios locales. No participamos directamente en las transacciones, compras o servicios contratados entre usuarios y negocios, y no somos responsables por la calidad, seguridad o legalidad de lo ofrecido por cada negocio.</p>
+
+      <h4>8. Cambios en estos términos</h4>
+      <p>Podemos actualizar estos Términos y condiciones en cualquier momento. Los cambios importantes se reflejarán con una nueva fecha de actualización en esta misma pantalla.</p>
+
+      <h4>9. Contacto</h4>
+      <p>Para dudas sobre estos términos, escríbenos desde "Ayuda y soporte" en tu Perfil.</p>
+
+      <button class="btn-primary" style="margin-top:10px" onclick="volverDesdeLegal()">Entendido</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ POLÍTICA DE PRIVACIDAD ═══════════════════ -->
+  <div class="form-screen hidden" id="screenPrivacidad">
+    <div class="form-top">
+      <div class="back-circle" onclick="volverDesdeLegal()"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <h2>Política de privacidad</h2>
+    </div>
+    <div class="form-card legal-text">
+      <p class="legal-fecha">Última actualización: agosto de 2026</p>
+
+      <h4>1. Qué datos recopilamos</h4>
+      <ul>
+        <li><b>De tu cuenta:</b> nombre, correo electrónico y una versión cifrada (nunca en texto plano) de tu contraseña.</li>
+        <li><b>De tu negocio</b> (solo si publicas uno): nombre, categoría, descripción, teléfono, dirección, ubicación en el mapa, fotos y, opcionalmente, WhatsApp y horario.</li>
+        <li><b>De tu uso de la app:</b> tus favoritos y tus preferencias de notificaciones.</li>
+        <li><b>De soporte:</b> si nos escribes desde "Ayuda y soporte", guardamos tu correo, nombre y el mensaje enviado.</li>
+      </ul>
+
+      <h4>2. Para qué usamos tus datos</h4>
+      <p>Para crear y proteger tu cuenta, mostrar negocios y servicios cercanos, permitirte guardar favoritos, enviarte los avisos que elijas activar, y responder tus consultas de soporte. No usamos tus datos para fines distintos a estos.</p>
+
+      <h4>3. Dónde se almacenan</h4>
+      <p>Tus datos se guardan en una hoja de cálculo de Google Sheets y, si publicas fotos de tu negocio, en una carpeta de Google Drive, ambos administrados directamente por el equipo de Nexo bajo los estándares de seguridad de Google. Tu contraseña nunca se guarda en texto plano, solo su huella cifrada.</p>
+
+      <h4>4. Con quién se comparte</h4>
+      <ul>
+        <li>No vendemos ni cedemos tus datos personales a terceros con fines publicitarios.</li>
+        <li>Si publicas un negocio, la información de ese negocio (nombre, descripción, contacto, ubicación) es pública dentro de la app, porque su propósito es que otros usuarios lo encuentren.</li>
+        <li>Tu correo y contraseña nunca se muestran públicamente a otros usuarios.</li>
+      </ul>
+
+      <h4>5. Tus derechos</h4>
+      <p>Puedes pedirnos en cualquier momento acceder, corregir o eliminar tus datos y tu cuenta (incluyendo los negocios que hayas publicado), escribiéndonos desde "Ayuda y soporte" con el correo de tu cuenta.</p>
+
+      <h4>6. Datos guardados en tu dispositivo</h4>
+      <p>Guardamos una sesión local en tu teléfono o navegador únicamente para mantenerte con la sesión iniciada entre una visita y otra; nunca guardamos tu contraseña ahí. Puedes cerrar sesión cuando quieras desde Perfil.</p>
+
+      <h4>7. Menores de edad</h4>
+      <p>Nexo no está dirigido a menores de 14 años. Si eres padre o madre y detectas que un menor a tu cargo creó una cuenta, contáctanos para eliminarla.</p>
+
+      <h4>8. Cambios en esta política</h4>
+      <p>Si actualizamos esta Política de privacidad de forma relevante, cambiaremos la fecha en la parte superior de esta pantalla.</p>
+
+      <h4>9. Contacto</h4>
+      <p>Para cualquier consulta sobre tus datos, escríbenos desde "Ayuda y soporte" en tu Perfil.</p>
+
+      <button class="btn-primary" style="margin-top:10px" onclick="volverDesdeLegal()">Entendido</button>
     </div>
   </div>
 
@@ -1482,6 +1601,16 @@ function mostrarPantalla(id){
   document.getElementById(id).classList.remove('hidden');
 }
 
+// Muestra Términos y condiciones o Política de privacidad desde el checkbox
+// de "Crear cuenta". No marca el checkbox automáticamente: el usuario debe
+// volver y marcarlo él mismo tras leer, para que la aceptación sea real.
+function verLegal(tipo){
+  mostrarPantalla(tipo === 'privacidad' ? 'screenPrivacidad' : 'screenTerminos');
+}
+function volverDesdeLegal(){
+  mostrarPantalla('screenRegister');
+}
+
 /* ─────────── mantener la sesión iniciada entre aperturas de la app ───────────
    Solo se guarda para cuentas reales (no "invitado"), y nunca se guarda la
    contraseña — solo los datos ya verificados por el backend (id, nombre,
@@ -1612,6 +1741,10 @@ async function crearCuenta(){
   if(!esNombreValidoJS(nombre)){ mostrarError('regError', 'Ingresa tu nombre completo (nombre y apellido, solo letras).'); return; }
   if(!esEmailValidoJS(email)){ mostrarError('regError', 'Ingresa un correo de Gmail (@gmail.com) o Hotmail (@hotmail.com) válido.'); return; }
   if(pass.length !== 8){ mostrarError('regError', 'La contraseña debe tener exactamente 8 caracteres.'); return; }
+  if(!document.getElementById('regAceptaTerminos').checked || !document.getElementById('regAceptaPrivacidad').checked){
+    mostrarError('regError', 'Debes aceptar los Términos y condiciones y la Política de privacidad para crear tu cuenta.');
+    return;
+  }
 
   const btn = document.getElementById('btnRegister');
   btn.disabled = true; btn.textContent = 'Creando cuenta…';
