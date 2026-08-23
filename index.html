@@ -447,6 +447,22 @@
   .detail-row{ display:flex; align-items:center; gap:11px; padding:11px 0; border-top:1px solid var(--line); }
   .detail-tags{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
   .detail-tag{ background:var(--paper); border:1px solid var(--line); color:var(--ink-2); font-size:10.5px; font-weight:700; padding:4px 10px; border-radius:100px; }
+  /* ── Caja "Calificar este negocio" (sistema de calificaciones 1-10) ── */
+  .rating-box{ padding-bottom:16px; }
+  .rating-summary{ display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+  .rating-avg{ font-family:var(--font-display); font-weight:700; font-size:26px; color:var(--gold); line-height:1; white-space:nowrap; }
+  .rating-avg span{ font-size:13px; font-weight:600; color:var(--muted-2); }
+  .rating-avg-tx{ font-size:11.5px; color:var(--muted); line-height:1.5; }
+  .rating-avg-tx b{ color:var(--ink); font-size:12.5px; }
+  .rating-hint{ font-family:var(--font-mono); font-size:10.5px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--primary); margin-bottom:8px; }
+  .rating-dots{ display:flex; flex-wrap:wrap; gap:6px; }
+  .rdot{
+    width:30px; height:30px; border-radius:9px; border:1.5px solid var(--line); background:var(--surface);
+    font-family:var(--font-mono); font-weight:700; font-size:12px; color:var(--ink-2);
+    display:flex; align-items:center; justify-content:center; transition:.15s;
+  }
+  .rdot:active{ transform:scale(.92); }
+  .rdot.active{ background:var(--gold); border-color:var(--gold); color:#fff; }
   .card-tags{ display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
   .card-tag{ background:var(--paper); border:1px solid var(--line); color:var(--muted); font-size:9px; font-weight:700; padding:2px 7px; border-radius:100px; }
   .detail-row:first-of-type{ border-top:none; }
@@ -1340,7 +1356,23 @@ function normalizarNegocio(n){
     direccion: String(n.direccion || ''),
     lat: Number(n.lat),
     lng: Number(n.lng),
-    rating: Number(n.rating) || 4.5,
+    // Ya no es un número fijo: es el promedio real (1-5 estrellas) calculado
+    // en el servidor a partir de todas las calificaciones 1-10 que le
+    // dejaron los usuarios. Si todavía nadie lo calificó, queda en 0 y la
+    // app lo muestra como "Sin calificaciones aún" en vez de un número
+    // inventado.
+    rating: Number(n.rating) || 0,
+    rating10: Number(n.rating10) || 0,
+    numCalificaciones: Number(n.num_calificaciones) || 0,
+    // Nota (1-10) que el usuario con la sesión iniciada YA le puso a este
+    // negocio, o 0 si todavía no lo calificó. Sirve para resaltar su propia
+    // calificación en el detalle.
+    miCalificacion: Number(n.mi_calificacion) || 0,
+    // Puntaje calculado en el servidor para ORDENAR (no para mostrar): pesa
+    // el promedio real junto con la cantidad de calificaciones, así un
+    // negocio con una sola nota de 10 no salta por encima de uno con 30
+    // calificaciones y 9.2 de promedio.
+    scoreOrden: n.score_orden !== undefined ? Number(n.score_orden) : 0,
     distancia: Number(n.distancia) || 0.5,
     destacado: n.destacado === true || n.destacado === 'TRUE' || n.destacado === 'true',
     promo: n.promo === true || n.promo === 'TRUE' || n.promo === 'true',
@@ -1432,24 +1464,29 @@ const SERVICIOS_TIPOS = [
 // Datos de muestra que se ven de inmediato mientras se conecta con Google
 // Sheets. En cuanto responde el backend, esta lista se reemplaza por los
 // negocios reales guardados en la hoja "Negocios" (ver cargarNegocios()).
+// Los campos de calificación (rating10, numCalificaciones, scoreOrden)
+// reflejan las calificaciones de muestra que siembra el backend la primera
+// vez que se instala (sembrarCalificacionesDeMuestra en Code.gs), para que
+// esta vista previa coincida con lo que se ve apenas carga el backend real.
 let NEGOCIOS = [
-  { id:'1', nombre:'Panadería San José', categoria:'Comida', rating:4.8, distancia:0.3, destacado:true, promo:true, promoRank:20, nuevo:false, promoTxt:'en pan del día', desc:'Pan artesanal recién horneado todas las mañanas.', lat:-8.1120, lng:-79.0295 },
-  { id:'2', nombre:'Barbería El Corte',  categoria:'Belleza', rating:4.6, distancia:0.5, destacado:true, promo:false, nuevo:false, desc:'Cortes clásicos y modernos, sin cita previa.', lat:-8.1145, lng:-79.0265 },
-  { id:'3', nombre:'Ferretería Rápida',  categoria:'Tienda', rating:4.3, distancia:0.8, destacado:false, promo:false, nuevo:true, desc:'Todo para el hogar y la construcción.', lat:-8.1095, lng:-79.0330 },
-  { id:'4', nombre:'Consultorio Dra. Ruiz', categoria:'Salud', rating:4.9, distancia:1.1, destacado:true, promo:false, nuevo:false, desc:'Medicina general, atención el mismo día.', lat:-8.1160, lng:-79.0310 },
-  { id:'5', nombre:'Gasfitero Torres',   categoria:'Servicios', rating:4.5, distancia:0.6, destacado:false, promo:false, nuevo:false, promoTxt:'Diagnóstico gratis', servicioReco:true, desc:'Reparaciones de agua y desagüe a domicilio.', lat:-8.1080, lng:-79.0270 },
-  { id:'6', nombre:'Tienda Doña Rosa',   categoria:'Tienda', rating:4.4, distancia:0.2, destacado:false, promo:true, promoRank:25, nuevo:false, promoTxt:'2x1 en bebidas', desc:'Abarrotes y bodega de barrio, abierto todo el día.', lat:-8.1130, lng:-79.0250 },
-  { id:'7', nombre:'Academia de Inglés Nexo', categoria:'Educación', rating:4.7, distancia:1.4, destacado:false, promo:false, nuevo:true, desc:'Clases grupales y particulares para todo nivel.', lat:-8.1175, lng:-79.0295 },
-  { id:'8', nombre:'Electricista Vega',  categoria:'Servicios', rating:4.6, distancia:0.9, destacado:false, promo:false, nuevo:false, servicioReco:true, desc:'Instalaciones y emergencias eléctricas 24/7.', lat:-8.1105, lng:-79.0245 },
-  { id:'9', nombre:'Spa Bienestar',      categoria:'Belleza', rating:4.5, distancia:1.6, destacado:false, promo:true, promoRank:15, nuevo:true, promoTxt:'primera cita', desc:'Masajes, faciales y cuidado personal.', lat:-8.1060, lng:-79.0300 },
-  { id:'10',nombre:'Veterinaria Patitas',categoria:'Salud', rating:4.8, distancia:0.7, destacado:false, promo:false, nuevo:false, servicioReco:true, desc:'Consulta, vacunas y emergencias para tu mascota.', lat:-8.1150, lng:-79.0225 }
+  { id:'1', nombre:'Panadería San José', categoria:'Comida', rating:4.6, rating10:9.2, numCalificaciones:6, scoreOrden:8.18, miCalificacion:0, distancia:0.3, destacado:true, promo:true, promoRank:20, nuevo:false, promoTxt:'en pan del día', desc:'Pan artesanal recién horneado todas las mañanas.', lat:-8.1120, lng:-79.0295 },
+  { id:'2', nombre:'Barbería El Corte',  categoria:'Belleza', rating:4.4, rating10:8.8, numCalificaciones:5, scoreOrden:7.9, miCalificacion:0, distancia:0.5, destacado:true, promo:false, nuevo:false, desc:'Cortes clásicos y modernos, sin cita previa.', lat:-8.1145, lng:-79.0265 },
+  { id:'3', nombre:'Ferretería Rápida',  categoria:'Tienda', rating:4.0, rating10:8.0, numCalificaciones:4, scoreOrden:7.44, miCalificacion:0, distancia:0.8, destacado:false, promo:false, nuevo:true, desc:'Todo para el hogar y la construcción.', lat:-8.1095, lng:-79.0330 },
+  { id:'4', nombre:'Consultorio Dra. Ruiz', categoria:'Salud', rating:4.8, rating10:9.7, numCalificaciones:6, scoreOrden:8.45, miCalificacion:0, distancia:1.1, destacado:true, promo:false, nuevo:false, desc:'Medicina general, atención el mismo día.', lat:-8.1160, lng:-79.0310 },
+  { id:'5', nombre:'Gasfitero Torres',   categoria:'Servicios', rating:4.3, rating10:8.7, numCalificaciones:3, scoreOrden:7.63, miCalificacion:0, distancia:0.6, destacado:false, promo:false, nuevo:false, promoTxt:'Diagnóstico gratis', servicioReco:true, desc:'Reparaciones de agua y desagüe a domicilio.', lat:-8.1080, lng:-79.0270 },
+  { id:'6', nombre:'Tienda Doña Rosa',   categoria:'Tienda', rating:4.2, rating10:8.3, numCalificaciones:3, scoreOrden:7.5, miCalificacion:0, distancia:0.2, destacado:false, promo:true, promoRank:25, nuevo:false, promoTxt:'2x1 en bebidas', desc:'Abarrotes y bodega de barrio, abierto todo el día.', lat:-8.1130, lng:-79.0250 },
+  { id:'7', nombre:'Academia de Inglés Nexo', categoria:'Educación', rating:4.5, rating10:9.0, numCalificaciones:4, scoreOrden:7.89, miCalificacion:0, distancia:1.4, destacado:false, promo:false, nuevo:true, desc:'Clases grupales y particulares para todo nivel.', lat:-8.1175, lng:-79.0295 },
+  { id:'8', nombre:'Electricista Vega',  categoria:'Servicios', rating:4.5, rating10:9.0, numCalificaciones:4, scoreOrden:7.89, miCalificacion:0, distancia:0.9, destacado:false, promo:false, nuevo:false, servicioReco:true, desc:'Instalaciones y emergencias eléctricas 24/7.', lat:-8.1105, lng:-79.0245 },
+  { id:'9', nombre:'Spa Bienestar',      categoria:'Belleza', rating:4.3, rating10:8.7, numCalificaciones:3, scoreOrden:7.63, miCalificacion:0, distancia:1.6, destacado:false, promo:true, promoRank:15, nuevo:true, promoTxt:'primera cita', desc:'Masajes, faciales y cuidado personal.', lat:-8.1060, lng:-79.0300 },
+  { id:'10',nombre:'Veterinaria Patitas',categoria:'Salud', rating:4.7, rating10:9.4, numCalificaciones:5, scoreOrden:8.2, miCalificacion:0, distancia:0.7, destacado:false, promo:false, nuevo:false, servicioReco:true, desc:'Consulta, vacunas y emergencias para tu mascota.', lat:-8.1150, lng:-79.0225 }
 ];
 
 // Trae los negocios reales desde Google Sheets y vuelve a pintar todas las
 // pantallas que los muestran. Si el backend no está configurado o falla,
 // la app se queda con los datos de muestra de arriba, sin romperse.
 async function cargarNegocios(){
-  const r = await apiPost('listarNegocios', {});
+  const email = (state.user && state.user.mode === 'user') ? state.user.email : '';
+  const r = await apiPost('listarNegocios', { email });
   if(r && r.ok && Array.isArray(r.negocios)){
    try{
     // Si el servidor ya trae la foto definitiva (subida a Google Drive) para
@@ -1905,7 +1942,7 @@ function tarjetaHorizontal(n){
       </div>
       <div class="info">
         <h4 style="color:${n.color || '#0F1A2E'};font-size:${tamNombrePx(12.5, n.tamNombre)}px">${escapeHtml(n.nombre)}</h4>
-        <div class="meta"><span class="rt"><svg viewBox="0 0 24 24"><path d="M12 3l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7z"/></svg>${n.rating}</span>&nbsp;· ${escapeHtml(n.tipo || n.categoria)} · ${textoDistancia(n)}</div>
+        <div class="meta"><span class="rt"><svg viewBox="0 0 24 24"><path d="M12 3l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7z"/></svg>${textoRatingCorto(n)}</span>&nbsp;· ${escapeHtml(n.tipo || n.categoria)} · ${textoDistancia(n)}</div>
         ${Array.isArray(n.etiquetas) && n.etiquetas.length ? `<div class="card-tags">${n.etiquetas.slice(0,2).map(t => `<span class="card-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
       </div>
     </div>`;
@@ -1920,7 +1957,7 @@ function filaVertical(n){
       <div class="body">
         <h4 style="color:${n.color || '#0F1A2E'};font-size:${tamNombrePx(13, n.tamNombre)}px">${escapeHtml(n.nombre)}</h4>
         <div class="meta">
-          <span class="rt"><svg viewBox="0 0 24 24"><path d="M12 3l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7z"/></svg>${n.rating}</span>
+          <span class="rt"><svg viewBox="0 0 24 24"><path d="M12 3l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7z"/></svg>${textoRatingCorto(n)}</span>
           <span>· ${escapeHtml(n.tipo || n.categoria)} · ${textoDistancia(n)}</span>
           ${n.promo ? `<span style="color:var(--signal-dark);font-weight:700">· ${escapeHtml(textoPromo(n))}</span>` : ''}
         </div>
@@ -2019,9 +2056,10 @@ function renderDetalleNegocioCompleto(n){
       </div>
       <div class="hero-tx">
         <h2 style="color:${n.color || '#fff'};font-size:${tamNombrePx(19, n.tamNombre)}px">${escapeHtml(n.nombre)}</h2>
-        <p>★ ${n.rating} · ${escapeHtml(n.tipo || n.categoria)} · ${textoDistancia(n)}</p>
+        <p>★ ${textoRatingCorto(n)} · ${escapeHtml(n.tipo || n.categoria)} · ${textoDistancia(n)}</p>
       </div>
     </div>
+    ${renderCajaCalificacion(n)}
     <div class="detail-card">
       ${n.promo ? `<p class="desc" style="color:var(--signal-dark);font-weight:700">🔥 ${escapeHtml(textoPromo(n))}</p>` : ''}
       ${Array.isArray(n.etiquetas) && n.etiquetas.length ? `<div class="detail-tags">${n.etiquetas.map(t => `<span class="detail-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
@@ -2063,6 +2101,7 @@ function renderDetalleNegocioSimple(n){
         <p>${escapeHtml(n.tipo || n.categoria || '')}</p>
       </div>
     </div>
+    ${renderCajaCalificacion(n)}
     <div class="detail-card">
       ${n.promo ? `<p class="desc" style="color:var(--signal-dark);font-weight:700">🔥 ${escapeHtml(textoPromo(n))}</p>` : ''}
       <p class="desc">${escapeHtml(n.desc) || 'Este negocio todavía no agregó una descripción.'}</p>
@@ -2070,6 +2109,61 @@ function renderDetalleNegocioSimple(n){
       ${n.direccion ? `<div class="detail-row"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 21V9l8-6 8 6v12"/></svg></div><span>${escapeHtml(n.direccion)}</span></div>` : ''}
     </div>
   `;
+}
+
+/* ─────────── caja de "Calificar este negocio" en el detalle ─────────── */
+// La ve CUALQUIER negocio (lo haya publicado quien lo haya publicado):
+// muestra el promedio real y cuántas personas calificaron, y —si hay una
+// cuenta con sesión iniciada (no invitado)— 10 botones para calificar del 1
+// al 10. Un invitado puede ver el promedio pero necesita crear una cuenta
+// para calificar (igual que con los favoritos).
+function renderCajaCalificacion(n){
+  const esInvitado = !state.user || state.user.mode === 'guest';
+  const resumen = n.numCalificaciones
+    ? `<div class="rating-avg">${n.rating.toFixed(1)}<span>/5</span></div>
+       <div class="rating-avg-tx"><b>${n.rating10.toFixed(1)}/10</b> de promedio<br>${n.numCalificaciones} calificaci${n.numCalificaciones === 1 ? 'ón' : 'ones'}</div>`
+    : `<div class="rating-avg-tx"><b>Sin calificaciones aún</b><br>Sé la primera persona en calificarlo.</div>`;
+
+  const botones = esInvitado
+    ? `<p class="rating-hint">Inicia sesión para calificar este negocio.</p>`
+    : `<p class="rating-hint">${n.miCalificacion ? 'Tu calificación:' : 'Califícalo del 1 al 10:'}</p>
+       <div class="rating-dots" id="ratingDots-${n.id}">
+         ${[1,2,3,4,5,6,7,8,9,10].map(v => `<button type="button" class="rdot ${n.miCalificacion===v?'active':''}" onclick="calificarNegocioClick('${n.id}',${v})">${v}</button>`).join('')}
+       </div>`;
+
+  return `
+    <div class="detail-card rating-box">
+      <div class="rating-summary">${resumen}</div>
+      ${botones}
+    </div>`;
+}
+
+// Envía la calificación al backend y actualiza el detalle y las listas
+// (Inicio, Buscar, etc.) con el nuevo promedio, sin recargar toda la app.
+async function calificarNegocioClick(id, puntuacion){
+  if(!state.user || state.user.mode === 'guest'){ mostrarAlerta('Crea una cuenta o inicia sesión para calificar este negocio.'); return; }
+  id = String(id);
+  const n = NEGOCIOS.find(x => String(x.id) === id);
+  if(!n) return;
+
+  const anterior = { rating: n.rating, rating10: n.rating10, numCalificaciones: n.numCalificaciones, miCalificacion: n.miCalificacion };
+  // Respuesta inmediata en pantalla; si el servidor falla, se revierte.
+  n.miCalificacion = puntuacion;
+  if(state.negocioDetalleAbierto === id) renderDetalleNegocio(n);
+
+  const r = await apiPost('calificarNegocio', { email: state.user.email, negocio_id: id, puntuacion });
+  if(r && r.ok){
+    n.rating = Number(r.rating) || 0;
+    n.rating10 = Number(r.rating10) || 0;
+    n.numCalificaciones = Number(r.num_calificaciones) || 0;
+    n.miCalificacion = Number(r.mi_calificacion) || 0;
+    if(state.negocioDetalleAbierto === id) renderDetalleNegocio(n);
+    renderInicio(); renderBusqueda(); renderExplorar(); renderFavoritos();
+  }else{
+    Object.assign(n, anterior);
+    if(state.negocioDetalleAbierto === id) renderDetalleNegocio(n);
+    mostrarAlerta((r && r.error) || 'No se pudo guardar tu calificación. Inténtalo de nuevo.');
+  }
 }
 
 // Mini-mapa de solo lectura que muestra la ubicación exacta (con pin) del
@@ -2135,12 +2229,15 @@ function filtrarCategoria(c){
   renderBusqueda();
 }
 function renderInicio(){
-  document.getElementById('rowDestacados').innerHTML = NEGOCIOS.filter(n=>n.destacado).map(tarjetaHorizontal).join('') || vacio('No hay negocios destacados por ahora.');
+  // "Destacados" y "Servicios recomendados" ya no son una lista fija: se
+  // arman a partir de la calificación real de la comunidad y se ordenan del
+  // más recomendado al menos recomendado (ver ordenarPorRecomendacion()).
+  document.getElementById('rowDestacados').innerHTML = ordenarPorRecomendacion(NEGOCIOS.filter(n=>n.destacado)).map(tarjetaHorizontal).join('') || vacio('Todavía no hay negocios destacados: hacen falta más calificaciones.');
   document.getElementById('rowPromos').innerHTML = NEGOCIOS.filter(n=>n.promo).sort((a,b)=>b.promoRank-a.promoRank).map(tarjetaHorizontal).join('') || vacio('Sin promociones activas hoy.');
   renderChipsRadioCerca();
   renderRowCerca();
   document.getElementById('rowNuevos').innerHTML = NEGOCIOS.filter(n=>n.nuevo).map(tarjetaHorizontal).join('') || vacio('Aún no hay negocios nuevos.');
-  document.getElementById('rowServicios').innerHTML = NEGOCIOS.filter(n=>n.servicioReco).map(tarjetaHorizontal).join('') || vacio('Sin recomendaciones por ahora.');
+  document.getElementById('rowServicios').innerHTML = ordenarPorRecomendacion(NEGOCIOS.filter(n=>n.servicioReco)).map(tarjetaHorizontal).join('') || vacio('Todavía no hay servicios recomendados: hacen falta más calificaciones.');
   const banner = document.getElementById('bannerRegistrar');
   const esDueno = state.user && state.user.mode === 'user' && state.user.tieneNegocio;
   // El banner para publicar siempre está disponible: una cuenta puede
@@ -3079,18 +3176,31 @@ async function publicarNegocio(){
   const negocioLocal = {
     id: idPublicado, nombre, categoria, tipo, desc: descripcion, telefono, direccion,
     lat: Number(state.negLat), lng: Number(state.negLng),
-    rating: 4.5, distancia: 0.4, destacado: false,
+    // La calificación real (promedio, conteo, "mi calificación") no se toca
+    // desde este formulario: si el negocio ya existía, se conservan sus
+    // valores tal cual hasta que cargarNegocios() traiga los definitivos; si
+    // es nuevo, nace sin calificaciones (nadie lo ha calificado todavía).
+    rating: negocioPrevio ? negocioPrevio.rating : 0,
+    rating10: negocioPrevio ? negocioPrevio.rating10 : 0,
+    numCalificaciones: negocioPrevio ? negocioPrevio.numCalificaciones : 0,
+    miCalificacion: negocioPrevio ? negocioPrevio.miCalificacion : 0,
+    scoreOrden: negocioPrevio ? negocioPrevio.scoreOrden : 0,
+    distancia: negocioPrevio ? negocioPrevio.distancia : 0.4,
+    destacado: negocioPrevio ? negocioPrevio.destacado : false,
     // La promoción, el color y el tamaño de letra no se tocan desde este
     // formulario: si ya existía el negocio, se conservan sus valores; si es
     // nuevo, se usan los mismos valores por defecto que pone el backend.
     promo: negocioPrevio ? negocioPrevio.promo : false,
     promoTxt: negocioPrevio ? negocioPrevio.promoTxt : '',
     promoRank: negocioPrevio ? negocioPrevio.promoRank : 20,
-    nuevo: !editando, servicioReco: false,
+    nuevo: !editando, servicioReco: negocioPrevio ? negocioPrevio.servicioReco : false,
     foto: state.negFotoBase64 || (negocioPrevio ? negocioPrevio.foto || '' : ''),
     propietarioEmail: propietarioReal,
     color: negocioPrevio ? negocioPrevio.color : COLORES_PERSONALIZAR[0],
-    tamNombre: negocioPrevio ? negocioPrevio.tamNombre : 'md'
+    tamNombre: negocioPrevio ? negocioPrevio.tamNombre : 'md',
+    horario: negocioPrevio ? negocioPrevio.horario : '',
+    whatsapp: negocioPrevio ? negocioPrevio.whatsapp : '',
+    etiquetas: negocioPrevio ? negocioPrevio.etiquetas : []
   };
   const idx = NEGOCIOS.findIndex(n => String(n.id) === idPublicado);
   if(idx !== -1) NEGOCIOS[idx] = negocioLocal; else NEGOCIOS.unshift(negocioLocal);
@@ -3212,7 +3322,7 @@ function renderMapaEstatico(){
     const c = catInfo(n.categoria);
     const { x, y } = posPct(n.lat, n.lng);
     return `<div class="map-pin" style="left:${x}%; top:${y}%" onclick="verNegocio('${n.id}')">
-      <div class="map-pin-tip"><b>${escapeHtml(n.nombre)}</b><br>${escapeHtml(n.tipo || n.categoria)} · ★${n.rating}</div>
+      <div class="map-pin-tip"><b>${escapeHtml(n.nombre)}</b><br>${escapeHtml(n.tipo || n.categoria)} · ★${textoRatingCorto(n)}</div>
       <div class="biz-pin" style="background:${c.grad}"><svg viewBox="0 0 24 24" stroke="#fff" stroke-width="1.8" fill="none"><path d="${c.icon}"/></svg></div>
     </div>`;
   }).join('');
@@ -3323,7 +3433,7 @@ function pintarMarcadoresNegocios(){
     const marker = L.marker([n.lat, n.lng], {
       icon: L.divIcon({ className:'', html:pinHtml, iconSize:[30,30], iconAnchor:[15,30] })
     }).addTo(capaMarcadores);
-    marker.bindPopup(`<b>${escapeHtml(n.nombre)}</b><br>${escapeHtml(n.tipo || n.categoria)} · ★${n.rating} · ${textoDistancia(n)}${n.promo ? '<br>🔥 '+escapeHtml(textoPromo(n)) : ''}`);
+    marker.bindPopup(`<b>${escapeHtml(n.nombre)}</b><br>${escapeHtml(n.tipo || n.categoria)} · ★${textoRatingCorto(n)} · ${textoDistancia(n)}${n.promo ? '<br>🔥 '+escapeHtml(textoPromo(n)) : ''}`);
     marker.on('click', () => verNegocio(n.id));
   });
 }
@@ -3356,6 +3466,20 @@ function distanciaKm(n){
 function textoDistancia(n){
   const d = distanciaKm(n);
   return (d < 1 ? Math.round(d * 1000) + ' m' : d.toFixed(1) + ' km');
+}
+
+/* ─────────── sistema de calificaciones (1 a 10) ─────────── */
+// Texto corto para tarjetas y filas: "4.6 (12)" si ya tiene calificaciones,
+// o "Nuevo" si todavía nadie lo calificó — nunca un número inventado.
+function textoRatingCorto(n){
+  return n.numCalificaciones ? `${n.rating.toFixed(1)} (${n.numCalificaciones})` : 'Nuevo';
+}
+// Ordena una lista de negocios de mayor a menor "recomendación" real, usando
+// el score bayesiano calculado en el servidor (ver CALIF_VOTOS_BASE en el
+// backend). No oculta a nadie: los negocios con menos o peores
+// calificaciones simplemente quedan más abajo, pero siguen visibles.
+function ordenarPorRecomendacion(lista){
+  return [...lista].sort((a, b) => (b.scoreOrden - a.scoreOrden) || (b.numCalificaciones - a.numCalificaciones));
 }
 
 function toggleMiUbicacion(){
@@ -3489,11 +3613,15 @@ function filtrarCategoriaEnBuscar(c){ state.categoriaActiva = c; renderBusqueda(
 function renderBusqueda(){
   renderChipsBuscar();
   const q = (document.getElementById('inputBuscar').value || '').toLowerCase().trim();
-  const resultados = NEGOCIOS.filter(n => {
+  let resultados = NEGOCIOS.filter(n => {
     const coincideTexto = !q || n.nombre.toLowerCase().includes(q) || n.categoria.toLowerCase().includes(q) || (n.tipo && n.tipo.toLowerCase().includes(q));
     const coincideCat = state.categoriaActiva === 'Todos' || n.categoria === state.categoriaActiva;
     return coincideTexto && coincideCat;
   });
+  // Dentro de cada categoría (y también en "Todos"), los mejor calificados
+  // aparecen primero y los que tienen menos o peores calificaciones quedan
+  // más abajo, pero SIGUEN VISIBLES — nunca se ocultan.
+  resultados = ordenarPorRecomendacion(resultados);
   document.getElementById('rowResultados').innerHTML = resultados.length ? resultados.map(filaVertical).join('') : vacioBig('Sin resultados', 'Prueba con otro nombre, categoría o servicio.');
 }
 
