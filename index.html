@@ -1149,6 +1149,27 @@
     </div>
   </div>
 
+  <!-- ═══════════════════ MI PLAN PREMIUM ═══════════════════
+       Botón nuevo en Perfil ("Mi plan Premium"): le muestra a CUALQUIER
+       cuenta (con uno o varios negocios/servicios publicados) el estado de
+       su plan Premium y la lista de todo lo que tiene publicado. El plan es
+       POR CUENTA (no por negocio individual), así que aquí no hay un
+       interruptor por cada uno: se activa a mano desde el Panel de
+       administrador tras confirmar el pago, y el servidor ya propaga ese
+       cambio a TODOS los negocios/servicios de la misma cuenta
+       automáticamente (ver propagarPremiumAMismoDueno en Code.gs). -->
+  <div class="form-screen hidden" id="screenMiPremium">
+    <div class="form-top">
+      <div class="back-circle" onclick="volverDesdeMiPremium()"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <h2>Mi plan Premium</h2>
+    </div>
+    <div class="form-card">
+      <div id="miPremiumEstado"></div>
+      <p class="sub" style="margin-top:14px">Tus negocios y servicios publicados</p>
+      <div id="listaMiPremium"></div>
+    </div>
+  </div>
+
   <!-- ═══════════════════ DETALLE DE NEGOCIO ═══════════════════ -->
   <div class="form-screen hidden" id="screenDetalleNegocio">
     <div class="form-top">
@@ -2522,6 +2543,53 @@ async function irARegistrarNegocio(){
     mostrarTab('tabInicio');
     mostrarAlerta('Ocurrió un problema al abrir tu negocio. Detalle técnico: ' + (err && err.message ? err.message : err));
   }
+}
+
+// Punto de entrada del botón "Mi plan Premium" en Perfil. El plan es POR
+// CUENTA: si CUALQUIERA de los negocios/servicios de esta cuenta ya es
+// premium, TODOS lo son (el servidor los mantiene sincronizados). Por eso
+// esta pantalla es informativa —muestra el estado y la lista de todo lo
+// publicado— y no un interruptor individual por negocio.
+function irAMiPremium(){
+  if(!state.user || state.user.mode === 'guest'){ mostrarAlerta('Crea una cuenta para ver tu plan Premium.'); return; }
+  document.getElementById('mainShell').classList.add('hidden');
+  document.getElementById('bottomnav').classList.add('hidden');
+  renderMiPremium();
+  mostrarPantalla('screenMiPremium');
+}
+function volverDesdeMiPremium(){
+  document.getElementById('screenMiPremium').classList.add('hidden');
+  document.getElementById('mainShell').classList.remove('hidden');
+  document.getElementById('bottomnav').classList.remove('hidden');
+  mostrarTab('tabPerfil');
+}
+function renderMiPremium(){
+  const misNegocios = obtenerMisNegocios();
+  const esPremium = misNegocios.some(n => n.esPremium);
+  document.getElementById('miPremiumEstado').innerHTML = esPremium
+    ? `<div class="empty-state" style="padding:18px 10px">
+         <h4>★ Tu cuenta es Premium</h4>
+         <p>Todos tus negocios y servicios publicados aparecen con la insignia Premium y saltan directo a "Negocios destacados" y "Servicios recomendados".</p>
+       </div>`
+    : `<div class="empty-state" style="padding:18px 10px">
+         <h4>Aún no tienes Premium</h4>
+         <p>Escríbenos desde "Ayuda y soporte" para activarlo. En cuanto se confirme el pago, TODOS tus negocios y servicios publicados pasan a Premium automáticamente, sin que tengas que hacer nada más.</p>
+       </div>`;
+  document.getElementById('listaMiPremium').innerHTML = misNegocios.length
+    ? misNegocios.map(n => `
+      <div class="selector-neg-row" onclick="verMiNegocioDesdePremium('${n.id}')">
+        <div class="dot" style="background:${n.color || '#D9691E'}"></div>
+        <div class="tx">
+          <h4>${escapeHtml(n.nombre)}${n.esPremium ? '<span class="premium-badge">★ Premium</span>' : ''}</h4>
+          <p>${escapeHtml(n.tipo || n.categoria)}</p>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+      </div>`).join('')
+    : '<p style="font-size:11.5px;color:var(--muted);padding:6px 2px">Todavía no tienes negocios ni servicios publicados.</p>';
+}
+function verMiNegocioDesdePremium(id){
+  document.getElementById('screenMiPremium').classList.add('hidden');
+  verNegocio(id);
 }
 
 // Punto de entrada de la tarjeta "Personalizar negocio o servicio": a
@@ -3945,6 +4013,7 @@ function renderPerfil(){
       <div class="settings-row" onclick="irAMisDatos()"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg></div><span>Mis datos</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
       <div class="settings-row" onclick="irANotificaciones()"><div class="ic"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></div><span>Notificaciones</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
       <div class="settings-row" onclick="mostrarTab('tabFavoritos')"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg></div><span>Mis favoritos (${state.favoritos.size})</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="settings-row" onclick="irAMiPremium()"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.3L21 9l-5 4.6L17.3 21 12 17.6 6.7 21 8 13.6 3 9l6.1-.7z"/></svg></div><span>Mi plan Premium</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
     </div>
     ${esAdminActual ? `
     <p class="sec-label-p">PANEL DE ADMINISTRADOR</p>
@@ -3977,14 +4046,42 @@ function filaAdminNegocio(n){
   return `
     <div class="admin-neg-row">
       <div class="body">
-        <h4>${escapeHtml(n.nombre)}</h4>
+        <h4>${escapeHtml(n.nombre)}${n.esPremium ? '<span class="premium-badge">★ Premium</span>' : ''}</h4>
         <p>${escapeHtml(n.propietarioEmail || 'Sin dueño registrado')} · ${escapeHtml(sub)}</p>
       </div>
       <div class="acciones">
+        <button onclick="adminTogglePremium('${n.id}')" title="${n.esPremium ? 'Quitar Premium' : 'Activar Premium'}">${n.esPremium ? '★' : '☆'}</button>
         <button onclick="adminEditarNegocio('${n.id}')" title="Editar">✏️</button>
         <button onclick="adminEliminarNegocio('${n.id}')" title="Eliminar">🗑️</button>
       </div>
     </div>`;
+}
+
+// Activa/desactiva el plan Premium desde el Panel de administrador. Antes
+// la única forma de hacerlo era editando a mano la celda "es_premium"
+// directo en la hoja de cálculo — eso NUNCA pasaba por actualizarNegocio(),
+// así que la propagación automática a los demás negocios/servicios de la
+// misma cuenta (ver propagarPremiumAMismoDueno en Code.gs) nunca se
+// disparaba, y un negocio quedaba premium mientras el resto de la MISMA
+// cuenta se quedaba sin el beneficio. Este botón sí pasa por la API, así
+// que un solo toque deja TODA la cuenta (todos sus negocios y servicios)
+// sincronizada.
+async function adminTogglePremium(id){
+  const n = NEGOCIOS.find(x => String(x.id) === String(id));
+  if(!n) return;
+  const nuevoValor = !n.esPremium;
+  const confirmado = await mostrarConfirmacion(
+    `¿Seguro que quieres ${nuevoValor ? 'ACTIVAR' : 'QUITAR'} el plan Premium de "${n.nombre}"? Esto afecta a TODOS los negocios y servicios de la cuenta ${n.propietarioEmail || 'sin dueño registrado'}, no solo a este.`,
+    nuevoValor ? 'Activar Premium' : 'Quitar Premium'
+  );
+  if(!confirmado) return;
+
+  const r = await apiPost('actualizarNegocio', { id: String(id), propietario_email: state.user.email, es_premium: nuevoValor });
+  if(!r.ok){ mostrarAlerta(r.error || 'No se pudo actualizar el plan Premium.'); return; }
+
+  await cargarNegocios();
+  renderAdminListaNegocios();
+  mostrarAlerta(nuevoValor ? 'Premium activado para toda la cuenta.' : 'Premium desactivado para toda la cuenta.');
 }
 
 function renderAdminListaNegocios(){
