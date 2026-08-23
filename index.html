@@ -1290,7 +1290,7 @@
       <h2>Negocios y servicios Premium</h2>
     </div>
     <div class="form-card">
-      <p class="sub">Cuentas con plan Premium activo, ordenadas por cercanía. Si es tu negocio o servicio, activa la estrella para que se promocione más y con prioridad según la ubicación de los demás usuarios.</p>
+      <p class="sub">Cuentas con plan Premium activo, ordenadas por cercanía. Si es tu negocio o servicio, activa la estrella: se mostrará con la insignia Premium y se promocionará según la ubicación de cada usuario. Si la desactivas, vuelve a verse como un negocio normal en toda la app.</p>
       <div id="listaDirectorioPremium"></div>
     </div>
   </div>
@@ -2148,7 +2148,7 @@ function tarjetaHorizontal(n){
         <div class="fav-btn ${esFav?'is-fav':''}" onclick="event.stopPropagation();toggleFavorito('${n.id}')"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg></div>
       </div>
       <div class="info">
-        <h4 style="color:${n.color || '#0F1A2E'};font-size:${tamNombrePx(12.5, n.tamNombre)}px">${escapeHtml(n.nombre)}${n.esPremium ? '<span class="premium-badge">★ Premium</span>' : ''}</h4>
+        <h4 style="color:${n.color || '#0F1A2E'};font-size:${tamNombrePx(12.5, n.tamNombre)}px">${escapeHtml(n.nombre)}${(n.esPremium && n.destacarActivo) ? '<span class="premium-badge">★ Premium</span>' : ''}</h4>
         <div class="meta"><span class="rt"><svg viewBox="0 0 24 24"><path d="M12 3l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7z"/></svg>${textoRatingCorto(n)}</span>&nbsp;· ${escapeHtml(n.tipo || n.categoria)} · ${textoDistancia(n)}</div>
         ${Array.isArray(n.etiquetas) && n.etiquetas.length ? `<div class="card-tags">${n.etiquetas.slice(0,2).map(t => `<span class="card-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
       </div>
@@ -2162,7 +2162,7 @@ function filaVertical(n){
     <div class="biz-row" onclick="verNegocio('${n.id}')">
       <div class="cover-sm" style="background:${c.grad}">${coverImgSm}<svg viewBox="0 0 24 24" stroke-width="1.7"><path d="${c.icon}"/></svg></div>
       <div class="body">
-        <h4 style="color:${n.color || '#0F1A2E'};font-size:${tamNombrePx(13, n.tamNombre)}px">${escapeHtml(n.nombre)}${n.esPremium ? '<span class="premium-badge">★ Premium</span>' : ''}</h4>
+        <h4 style="color:${n.color || '#0F1A2E'};font-size:${tamNombrePx(13, n.tamNombre)}px">${escapeHtml(n.nombre)}${(n.esPremium && n.destacarActivo) ? '<span class="premium-badge">★ Premium</span>' : ''}</h4>
         <div class="meta">
           <span class="rt"><svg viewBox="0 0 24 24"><path d="M12 3l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7z"/></svg>${textoRatingCorto(n)}</span>
           <span>· ${escapeHtml(n.tipo || n.categoria)} · ${textoDistancia(n)}</span>
@@ -2270,7 +2270,7 @@ function renderDetalleNegocioCompleto(n){
         <svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg>
       </div>
       <div class="hero-tx">
-        <h2 style="color:${n.color || '#fff'};font-size:${tamNombrePx(19, n.tamNombre)}px">${escapeHtml(n.nombre)}${n.esPremium ? '<span class="premium-badge">★ Premium</span>' : ''}</h2>
+        <h2 style="color:${n.color || '#fff'};font-size:${tamNombrePx(19, n.tamNombre)}px">${escapeHtml(n.nombre)}${(n.esPremium && n.destacarActivo) ? '<span class="premium-badge">★ Premium</span>' : ''}</h2>
         <p>★ ${textoRatingCorto(n)} · ${escapeHtml(n.tipo || n.categoria)} · ${textoDistancia(n)}</p>
       </div>
     </div>
@@ -2736,7 +2736,7 @@ function renderMiPremium(){
       <div class="selector-neg-row" onclick="verMiNegocioDesdePremium('${n.id}')">
         <div class="dot" style="background:${n.color || '#D9691E'}"></div>
         <div class="tx">
-          <h4>${escapeHtml(n.nombre)}${n.esPremium ? '<span class="premium-badge">★ Premium</span>' : ''}</h4>
+          <h4>${escapeHtml(n.nombre)}${(n.esPremium && n.destacarActivo) ? '<span class="premium-badge">★ Premium</span>' : ''}</h4>
           <p>${escapeHtml(n.tipo || n.categoria)}</p>
         </div>
         <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
@@ -2890,36 +2890,28 @@ function filaDirectorioPremium(n, esMia){
       </div>`;
   }
   return `
-    <div style="padding-left:22px;margin-top:10px">
-      <div class="encabezado" style="margin-bottom:6px">
-        <div class="tx"><h4 style="font-size:12.5px">${escapeHtml(n.nombre)}</h4><p>${escapeHtml(n.tipo || n.categoria)}${dist ? ' · ' + dist : ''}</p></div>
+    <div class="destacar-row ${n.destacarActivo ? 'activo' : ''}" style="margin-left:22px;margin-bottom:8px" id="destacarRow_${n.id}">
+      <div class="encabezado" style="margin-bottom:0">
+        <div class="tx"><h4 style="font-size:12.5px">${escapeHtml(n.nombre)}${n.destacarActivo ? '<span class="premium-badge">★ Premium</span>' : ''}</h4><p>${escapeHtml(n.tipo || n.categoria)}${dist ? ' · ' + dist : ''}</p></div>
         <label class="switch">
           <input type="checkbox" ${n.destacarActivo ? 'checked' : ''} onchange="toggleDestacarFila('${n.id}', this.checked)">
           <span class="track"></span><span class="thumb"></span>
         </label>
       </div>
-      <div class="rango-wrap ${n.destacarActivo ? '' : 'hidden'}" id="destacarRango_${n.id}">
-        <label>Prioridad frente a otras cuentas Premium</label>
-        <div class="rango-row">
-          <input type="range" min="1" max="100" step="1" value="${n.destacarPrioridad || 50}" oninput="document.getElementById('destacarVal_${n.id}').textContent = this.value" onchange="guardarPrioridadDestacar('${n.id}', this.value)">
-          <span class="val" id="destacarVal_${n.id}">${n.destacarPrioridad || 50}</span>
-        </div>
-      </div>
     </div>`;
 }
+// Interruptor único (sin barra de prioridad): al activarlo, este
+// negocio/servicio pasa a mostrar la insignia Premium y a promocionarse
+// según la cercanía real a cada usuario (ver conPremiumCerca() más abajo).
+// Al desactivarlo, vuelve a verse en TODA la app exactamente como un
+// negocio gratuito normal: sin insignia y sin ningún trato especial.
 async function toggleDestacarFila(id, activo){
   const n = NEGOCIOS.find(x => String(x.id) === String(id));
-  const prioridad = n ? n.destacarPrioridad : 50;
-  const r = await apiPost('destacarPremium', { id: String(id), propietario_email: state.user.email, activo: activo, prioridad: prioridad });
+  const r = await apiPost('destacarPremium', { id: String(id), propietario_email: state.user.email, activo: activo, prioridad: 50 });
   if(!r.ok){ mostrarAlerta(r.error || 'No se pudo guardar el cambio.'); renderDirectorioPremium(); return; }
-  if(n){ n.destacarActivo = activo; n.destacarPrioridad = Number(r.destacar_prioridad) || prioridad; }
-  document.getElementById(`destacarRango_${id}`).classList.toggle('hidden', !activo);
-}
-async function guardarPrioridadDestacar(id, valor){
-  const n = NEGOCIOS.find(x => String(x.id) === String(id));
-  const r = await apiPost('destacarPremium', { id: String(id), propietario_email: state.user.email, activo: true, prioridad: Number(valor) });
-  if(!r.ok){ mostrarAlerta(r.error || 'No se pudo guardar la prioridad.'); return; }
-  if(n) n.destacarPrioridad = Number(r.destacar_prioridad) || Number(valor);
+  if(n) n.destacarActivo = activo;
+  renderDirectorioPremium();
+  renderInicio();
 }
 
 // Punto de entrada de la tarjeta "Personalizar negocio o servicio": a
@@ -4085,17 +4077,19 @@ const RADIO_PREMIUM_KM = 2;
 // si no, se muestran igual, en el orden en que vienen del servidor.
 function conPremiumCerca(listaOrganica, filtroPremium){
   const idsYaIncluidos = new Set(listaOrganica.map(n => n.id));
-  let premium = NEGOCIOS.filter(n => n.esPremium && !idsYaIncluidos.has(n.id) && (!filtroPremium || filtroPremium(n)));
-  // Primero, los que el propio dueño Premium activó desde "Promocionar mis
-  // negocios" (destacarActivo), ordenados por su prioridad (1-100, mayor
-  // primero); luego el resto de negocios/servicios premium, ordenados por
-  // cercanía si hay ubicación activada (comportamiento de siempre).
-  const conEstrella = premium.filter(n => n.destacarActivo).sort((a,b) => b.destacarPrioridad - a.destacarPrioridad);
-  let sinEstrella = premium.filter(n => !n.destacarActivo);
+  // Solo entra aquí (con insignia y prioridad) un negocio/servicio de una
+  // cuenta Premium (esPremium) que ADEMÁS tenga la estrella activada
+  // (destacarActivo, ver el directorio "Negocios y servicios Premium" en
+  // Inicio). Si la estrella está desactivada, ese negocio/servicio no
+  // recibe ningún trato especial aquí: se ve y se ordena como cualquier
+  // negocio gratuito (solo puede aparecer si ya venía en listaOrganica por
+  // mérito propio). Entre los activados, se ordenan por cercanía real a la
+  // ubicación del usuario que mira la pantalla.
+  let premium = NEGOCIOS.filter(n => n.esPremium && n.destacarActivo && !idsYaIncluidos.has(n.id) && (!filtroPremium || filtroPremium(n)));
   if(state.miUbicacion){
-    sinEstrella = [...sinEstrella].sort((a,b) => distanciaKm(a) - distanciaKm(b));
+    premium = [...premium].sort((a,b) => distanciaKm(a) - distanciaKm(b));
   }
-  return [...conEstrella, ...sinEstrella, ...listaOrganica];
+  return [...premium, ...listaOrganica];
 }
 
 function toggleMiUbicacion(){
