@@ -471,6 +471,22 @@
   .detail-row span{ font-size:12.5px; font-weight:600; color:var(--ink-2); }
   .detail-row a{ color:var(--primary); text-decoration:none; }
 
+  /* ── Comentarios (gratis para todos; máximo 5 por negocio, rotativos) ── */
+  .comment-box{ padding-bottom:14px; }
+  .comment-item{ padding:10px 0; border-top:1px solid var(--line); }
+  .comment-item:first-of-type{ border-top:none; }
+  .comment-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+  .comment-name{ font-size:12px; font-weight:700; color:var(--ink); }
+  .comment-txt{ font-size:12.5px; color:var(--ink-2); line-height:1.5; margin-top:3px; }
+  .comment-like{ display:flex; align-items:center; gap:4px; font-family:var(--font-mono); font-size:11px; font-weight:700; color:var(--muted); flex-shrink:0; padding:2px; }
+  .comment-like svg{ width:13px; height:13px; stroke:var(--muted); fill:none; }
+  .comment-like.liked svg{ fill:var(--danger); stroke:var(--danger); }
+  .comment-form{ display:flex; gap:8px; margin-top:12px; align-items:flex-end; }
+  .comment-form textarea{ flex:1; border:1.5px solid var(--line); border-radius:12px; padding:9px 12px; font-size:12.5px; font-family:inherit; resize:none; height:40px; }
+  .comment-form button{ flex-shrink:0; }
+  /* ── Insignia de negocio premium ── */
+  .premium-badge{ display:inline-flex; align-items:center; gap:4px; background:linear-gradient(135deg,#F4C95D,#C4881F); color:#fff; font-size:9.5px; font-weight:800; letter-spacing:.03em; text-transform:uppercase; padding:3px 8px; border-radius:100px; margin-left:6px; vertical-align:middle; white-space:nowrap; }
+
   /* ═══════ Buscar — chips ═══════ */
   .chips-row{ display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:20px; scrollbar-width:none; }
   .chips-row::-webkit-scrollbar{ display:none; }
@@ -1211,6 +1227,10 @@
             <div class="map-locate" id="btnMiUbicacion" onclick="toggleMiUbicacion()"><span class="dot-live"></span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span id="btnMiUbicacionTxt">Mi ubicación</span></div>
           </div>
           <p class="map-note" id="mapNote">📍 Plaza de Armas de Trujillo, La Libertad — Perú. Toca "Mi ubicación" para ver los negocios ordenados por cercanía real a ti. Toca un pin para ver el detalle del negocio.</p>
+
+          <div class="sec-title" id="secTituloExplorarDestacados" style="display:none"><span class="lft">⭐ Destacados cerca de ti</span></div>
+          <div class="hscroll" id="rowExplorarDestacados"></div>
+
           <div id="rowExplorarLista"></div>
         </div>
       </section>
@@ -1392,7 +1412,12 @@ function normalizarNegocio(n){
     tamNombre: (n.tam_nombre === 'sm' || n.tam_nombre === 'lg') ? n.tam_nombre : 'md',
     horario: String(n.horario || ''),
     whatsapp: String(n.whatsapp || '').replace(/\D/g, ''),
-    etiquetas: String(n.etiquetas || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean).slice(0, 3)
+    etiquetas: String(n.etiquetas || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean).slice(0, 3),
+    // Cuenta con plan premium (activado a mano por el administrador tras
+    // confirmar el pago). Se usa para la insignia dorada y para el "salto"
+    // a Destacados/Recomendados solo entre usuarios cercanos (ver
+    // RADIO_PREMIUM_KM y armarDestacadosConPremium()).
+    esPremium: n.es_premium === true || n.es_premium === 'TRUE' || n.es_premium === 'true'
   };
 }
 
@@ -1941,7 +1966,7 @@ function tarjetaHorizontal(n){
         <div class="fav-btn ${esFav?'is-fav':''}" onclick="event.stopPropagation();toggleFavorito('${n.id}')"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg></div>
       </div>
       <div class="info">
-        <h4 style="color:${n.color || '#0F1A2E'};font-size:${tamNombrePx(12.5, n.tamNombre)}px">${escapeHtml(n.nombre)}</h4>
+        <h4 style="color:${n.color || '#0F1A2E'};font-size:${tamNombrePx(12.5, n.tamNombre)}px">${escapeHtml(n.nombre)}${n.esPremium ? '<span class="premium-badge">★ Premium</span>' : ''}</h4>
         <div class="meta"><span class="rt"><svg viewBox="0 0 24 24"><path d="M12 3l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7z"/></svg>${textoRatingCorto(n)}</span>&nbsp;· ${escapeHtml(n.tipo || n.categoria)} · ${textoDistancia(n)}</div>
         ${Array.isArray(n.etiquetas) && n.etiquetas.length ? `<div class="card-tags">${n.etiquetas.slice(0,2).map(t => `<span class="card-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
       </div>
@@ -1955,7 +1980,7 @@ function filaVertical(n){
     <div class="biz-row" onclick="verNegocio('${n.id}')">
       <div class="cover-sm" style="background:${c.grad}">${coverImgSm}<svg viewBox="0 0 24 24" stroke-width="1.7"><path d="${c.icon}"/></svg></div>
       <div class="body">
-        <h4 style="color:${n.color || '#0F1A2E'};font-size:${tamNombrePx(13, n.tamNombre)}px">${escapeHtml(n.nombre)}</h4>
+        <h4 style="color:${n.color || '#0F1A2E'};font-size:${tamNombrePx(13, n.tamNombre)}px">${escapeHtml(n.nombre)}${n.esPremium ? '<span class="premium-badge">★ Premium</span>' : ''}</h4>
         <div class="meta">
           <span class="rt"><svg viewBox="0 0 24 24"><path d="M12 3l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7z"/></svg>${textoRatingCorto(n)}</span>
           <span>· ${escapeHtml(n.tipo || n.categoria)} · ${textoDistancia(n)}</span>
@@ -2063,11 +2088,20 @@ function renderDetalleNegocioCompleto(n){
         <svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg>
       </div>
       <div class="hero-tx">
-        <h2 style="color:${n.color || '#fff'};font-size:${tamNombrePx(19, n.tamNombre)}px">${escapeHtml(n.nombre)}</h2>
+        <h2 style="color:${n.color || '#fff'};font-size:${tamNombrePx(19, n.tamNombre)}px">${escapeHtml(n.nombre)}${n.esPremium ? '<span class="premium-badge">★ Premium</span>' : ''}</h2>
         <p>★ ${textoRatingCorto(n)} · ${escapeHtml(n.tipo || n.categoria)} · ${textoDistancia(n)}</p>
       </div>
     </div>
     ${renderCajaCalificacion(n)}
+    <div class="detail-card comment-box" id="cajaComentarios-${n.id}">
+      <div class="sec-title" style="margin-bottom:10px"><span class="lft">💬 Comentarios</span></div>
+      <div id="listaComentarios-${n.id}"><p class="rating-hint" style="text-transform:none;color:var(--muted);font-weight:600">Cargando comentarios…</p></div>
+      ${(state.user && state.user.mode === 'user') ? `
+      <div class="comment-form">
+        <textarea id="inputComentario-${n.id}" maxlength="280" placeholder="Escribe un comentario para este negocio…"></textarea>
+        <button class="btn-primary" style="padding:9px 14px" onclick="enviarComentarioClick('${n.id}')">Enviar</button>
+      </div>` : `<p class="rating-hint" style="text-transform:none;color:var(--muted);font-weight:600">Inicia sesión para dejar un comentario.</p>`}
+    </div>
     <div class="detail-card">
       ${n.promo ? `<p class="desc" style="color:var(--signal-dark);font-weight:700">🔥 ${escapeHtml(textoPromo(n))}</p>` : ''}
       ${Array.isArray(n.etiquetas) && n.etiquetas.length ? `<div class="detail-tags">${n.etiquetas.map(t => `<span class="detail-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
@@ -2088,6 +2122,7 @@ function renderDetalleNegocioCompleto(n){
   if(Number.isFinite(n.lat) && Number.isFinite(n.lng)){
     setTimeout(() => iniciarMapaDetalleNegocio(n.lat, n.lng), 60);
   }
+  cargarComentarios(n.id);
 }
 
 // Versión mínima del detalle: solo texto (nombre, categoría, descripción,
@@ -2110,6 +2145,15 @@ function renderDetalleNegocioSimple(n){
       </div>
     </div>
     ${renderCajaCalificacion(n)}
+    <div class="detail-card comment-box" id="cajaComentarios-${n.id}">
+      <div class="sec-title" style="margin-bottom:10px"><span class="lft">💬 Comentarios</span></div>
+      <div id="listaComentarios-${n.id}"><p class="rating-hint" style="text-transform:none;color:var(--muted);font-weight:600">Cargando comentarios…</p></div>
+      ${(state.user && state.user.mode === 'user') ? `
+      <div class="comment-form">
+        <textarea id="inputComentario-${n.id}" maxlength="280" placeholder="Escribe un comentario para este negocio…"></textarea>
+        <button class="btn-primary" style="padding:9px 14px" onclick="enviarComentarioClick('${n.id}')">Enviar</button>
+      </div>` : `<p class="rating-hint" style="text-transform:none;color:var(--muted);font-weight:600">Inicia sesión para dejar un comentario.</p>`}
+    </div>
     <div class="detail-card">
       ${n.promo ? `<p class="desc" style="color:var(--signal-dark);font-weight:700">🔥 ${escapeHtml(textoPromo(n))}</p>` : ''}
       <p class="desc">${escapeHtml(n.desc) || 'Este negocio todavía no agregó una descripción.'}</p>
@@ -2117,6 +2161,7 @@ function renderDetalleNegocioSimple(n){
       ${n.direccion ? `<div class="detail-row"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 21V9l8-6 8 6v12"/></svg></div><span>${escapeHtml(n.direccion)}</span></div>` : ''}
     </div>
   `;
+  cargarComentarios(n.id);
 }
 
 /* ─────────── caja de "Calificar este negocio" en el detalle ─────────── */
@@ -2171,6 +2216,84 @@ async function calificarNegocioClick(id, puntuacion){
     Object.assign(n, anterior);
     if(state.negocioDetalleAbierto === id) renderDetalleNegocio(n);
     mostrarAlerta((r && r.error) || 'No se pudo guardar tu calificación. Inténtalo de nuevo.');
+  }
+}
+
+/* ─────────── Comentarios (gratis para todos, máx. 5 por negocio) ───────────
+   Se cargan aparte del resto del detalle (no vienen en listarNegocios) para
+   no pesar la lista completa de negocios con comentarios que casi nunca se
+   leen. Cada negocio conserva como máximo 5 a la vez: el backend elimina
+   solo el más débil (menos "me gusta") cuando llega uno nuevo que superaría
+   ese límite, así nunca hace falta borrar nada a mano. */
+const likesDadosLocal = new Set(); // ids de comentarios a los que YA se les dio like en esta sesión (evita doble clic accidental)
+
+async function cargarComentarios(negocioId){
+  negocioId = String(negocioId);
+  const r = await apiPost('listarComentarios', { negocio_id: negocioId });
+  // Si mientras cargaba el usuario ya cerró el detalle o abrió otro negocio,
+  // no pintamos nada para no "resucitar" una pantalla que ya no está.
+  if(state.negocioDetalleAbierto !== negocioId) return;
+  if(r && r.ok){
+    pintarComentarios(negocioId, r.comentarios || []);
+  }else{
+    const cont = document.getElementById('listaComentarios-' + negocioId);
+    if(cont) cont.innerHTML = `<p class="rating-hint" style="text-transform:none;color:var(--muted);font-weight:600">No se pudieron cargar los comentarios.</p>`;
+  }
+}
+
+function pintarComentarios(negocioId, comentarios){
+  const cont = document.getElementById('listaComentarios-' + negocioId);
+  if(!cont) return;
+  if(!comentarios.length){
+    cont.innerHTML = `<p class="rating-hint" style="text-transform:none;color:var(--muted);font-weight:600">Sé el primero en comentar este negocio.</p>`;
+    return;
+  }
+  cont.innerHTML = comentarios.map(c => {
+    const yaLike = likesDadosLocal.has(c.id);
+    return `
+    <div class="comment-item">
+      <div class="comment-head">
+        <div>
+          <div class="comment-name">${escapeHtml(c.nombre || 'Vecino de Nexo')}</div>
+          <div class="comment-txt">${escapeHtml(c.texto)}</div>
+        </div>
+        <div class="comment-like ${yaLike?'liked':''}" onclick="likeComentarioClick('${negocioId}','${c.id}')">
+          <svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg>
+          <span>${c.likes || 0}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function enviarComentarioClick(negocioId){
+  if(!state.user || state.user.mode === 'guest'){ mostrarAlerta('Crea una cuenta o inicia sesión para comentar.'); return; }
+  negocioId = String(negocioId);
+  const input = document.getElementById('inputComentario-' + negocioId);
+  const texto = (input.value || '').trim();
+  if(!texto){ mostrarAlerta('Escribe algo antes de enviar tu comentario.'); return; }
+
+  input.disabled = true;
+  const r = await apiPost('agregarComentario', { email: state.user.email, nombre: state.user.nombre, negocio_id: negocioId, texto });
+  input.disabled = false;
+
+  if(r && r.ok){
+    input.value = '';
+    pintarComentarios(negocioId, r.comentarios || []);
+  }else{
+    mostrarAlerta((r && r.error) || 'No se pudo enviar tu comentario. Inténtalo de nuevo.');
+  }
+}
+
+async function likeComentarioClick(negocioId, comentarioId){
+  if(likesDadosLocal.has(comentarioId)) return; // evita que un toque doble sume 2 likes por accidente
+  likesDadosLocal.add(comentarioId);
+  const r = await apiPost('likeComentario', { negocio_id: negocioId, comentario_id: comentarioId });
+  if(r && r.ok){
+    pintarComentarios(negocioId, r.comentarios || []);
+  }else{
+    likesDadosLocal.delete(comentarioId);
+    mostrarAlerta((r && r.error) || 'No se pudo registrar tu "me gusta". Inténtalo de nuevo.');
   }
 }
 
@@ -2240,12 +2363,14 @@ function renderInicio(){
   // "Destacados" y "Servicios recomendados" ya no son una lista fija: se
   // arman a partir de la calificación real de la comunidad y se ordenan del
   // más recomendado al menos recomendado (ver ordenarPorRecomendacion()).
-  document.getElementById('rowDestacados').innerHTML = ordenarPorRecomendacion(NEGOCIOS.filter(n=>n.destacado)).map(tarjetaHorizontal).join('') || vacio('Todavía no hay negocios destacados: hacen falta más calificaciones.');
+  const destacadosOrganicos = ordenarPorRecomendacion(NEGOCIOS.filter(n=>n.destacado));
+  document.getElementById('rowDestacados').innerHTML = conPremiumCerca(destacadosOrganicos).map(tarjetaHorizontal).join('') || vacio('Todavía no hay negocios destacados: hacen falta más calificaciones.');
   document.getElementById('rowPromos').innerHTML = NEGOCIOS.filter(n=>n.promo).sort((a,b)=>b.promoRank-a.promoRank).map(tarjetaHorizontal).join('') || vacio('Sin promociones activas hoy.');
   renderChipsRadioCerca();
   renderRowCerca();
   document.getElementById('rowNuevos').innerHTML = NEGOCIOS.filter(n=>n.nuevo).map(tarjetaHorizontal).join('') || vacio('Aún no hay negocios nuevos.');
-  document.getElementById('rowServicios').innerHTML = ordenarPorRecomendacion(NEGOCIOS.filter(n=>n.servicioReco)).map(tarjetaHorizontal).join('') || vacio('Todavía no hay servicios recomendados: hacen falta más calificaciones.');
+  const serviciosOrganicos = ordenarPorRecomendacion(NEGOCIOS.filter(n=>n.servicioReco));
+  document.getElementById('rowServicios').innerHTML = conPremiumCerca(serviciosOrganicos, n => n.categoria === 'Servicios').map(tarjetaHorizontal).join('') || vacio('Todavía no hay servicios recomendados: hacen falta más calificaciones.');
   const banner = document.getElementById('bannerRegistrar');
   const esDueno = state.user && state.user.mode === 'user' && state.user.tieneNegocio;
   // El banner para publicar siempre está disponible: una cuenta puede
@@ -3502,6 +3627,30 @@ function ordenarPorRecomendacion(lista){
   return [...lista].sort((a, b) => (b.scoreOrden - a.scoreOrden) || (b.numCalificaciones - a.numCalificaciones));
 }
 
+// Radio (en km) dentro del cual un negocio PREMIUM "salta" directo a
+// Negocios destacados / Servicios recomendados, sin tener que cumplir el
+// mínimo de calificaciones que exige un negocio normal. Fuera de este
+// radio (o si el usuario no activó su ubicación), un negocio premium
+// compite igual que cualquiera, solo por sus calificaciones reales — así
+// el beneficio premium no llena estas secciones para TODA la ciudad, solo
+// para quien de verdad lo tiene cerca.
+const RADIO_PREMIUM_KM = 2;
+
+// Combina una lista "orgánica" (ya destacada por sus calificaciones) con
+// los negocios premium que estén a menos de RADIO_PREMIUM_KM del usuario y
+// que todavía no estuvieran en esa lista. Los premium cercanos van
+// PRIMERO (ese es el beneficio pagado); debajo sigue la lista orgánica tal
+// cual. Sin ubicación activada, no hay con qué medir "cerca de verdad", así
+// que no se inserta ningún premium aparte y la lista queda igual que antes.
+function conPremiumCerca(listaOrganica, filtroPremium){
+  if(!state.miUbicacion) return listaOrganica;
+  const idsYaIncluidos = new Set(listaOrganica.map(n => n.id));
+  const premiumCerca = NEGOCIOS
+    .filter(n => n.esPremium && !idsYaIncluidos.has(n.id) && distanciaKm(n) <= RADIO_PREMIUM_KM && (!filtroPremium || filtroPremium(n)))
+    .sort((a,b) => distanciaKm(a) - distanciaKm(b));
+  return [...premiumCerca, ...listaOrganica];
+}
+
 function toggleMiUbicacion(){
   if(state.geoWatchId){ pararMiUbicacion(); } else { activarMiUbicacion(); }
 }
@@ -3660,6 +3809,22 @@ function renderExplorar(){
   iniciarMapaSiHaceFalta();
   if(mapaLeaflet){ pintarMarcadoresNegocios(); setTimeout(() => mapaLeaflet.invalidateSize(), 80); }
   document.getElementById('rowExplorarLista').innerHTML = [...NEGOCIOS].sort((a,b)=>distanciaKm(a)-distanciaKm(b)).map(filaVertical).join('');
+
+  // "Destacados cerca de ti": los negocios/servicios ya destacados por sus
+  // calificaciones, pero ordenados aquí por CERCANÍA real al usuario (no por
+  // qué tan bien calificados están) — así, dentro de Explorar, primero ve
+  // los destacados que de verdad tiene a la mano. Solo tiene sentido con la
+  // ubicación activada; sin ella no hay una cercanía real que mostrar.
+  const tituloDestacadosExplorar = document.getElementById('secTituloExplorarDestacados');
+  const rowDestacadosExplorar = document.getElementById('rowExplorarDestacados');
+  if(state.miUbicacion){
+    const destacadosCerca = NEGOCIOS.filter(n => n.destacado || n.servicioReco).sort((a,b)=>distanciaKm(a)-distanciaKm(b));
+    tituloDestacadosExplorar.style.display = destacadosCerca.length ? 'flex' : 'none';
+    rowDestacadosExplorar.innerHTML = destacadosCerca.map(tarjetaHorizontal).join('');
+  }else{
+    tituloDestacadosExplorar.style.display = 'none';
+    rowDestacadosExplorar.innerHTML = '';
+  }
 }
 function toggleListaExplorar(){
   const lista = document.getElementById('rowExplorarLista');
