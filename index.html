@@ -487,6 +487,28 @@
   .settings-row .sub-tx{ flex:1; }
   .settings-row .sub-tx span{ display:block; }
   .settings-row .sub-tx small{ display:block; font-size:11px; color:var(--muted); font-weight:500; margin-top:1px; }
+
+  /* ── Ayuda y soporte: acordeón de FAQ, tarjetas de contacto y formulario ── */
+  .faq-list{ margin-bottom:22px; }
+  .faq-item{ border:1.5px solid var(--line); border-radius:10px; margin-bottom:8px; overflow:hidden; background:var(--paper); }
+  .faq-pregunta{ display:flex; align-items:center; gap:10px; padding:12px 13px; cursor:pointer; font-size:13px; font-weight:700; color:var(--ink); }
+  .faq-pregunta span{ flex:1; }
+  .faq-pregunta svg.chev{ width:15px; height:15px; stroke:var(--muted); flex-shrink:0; transition:transform .18s; }
+  .faq-item.open .faq-pregunta svg.chev{ transform:rotate(90deg); }
+  .faq-respuesta{ max-height:0; overflow:hidden; transition:max-height .2s ease; }
+  .faq-item.open .faq-respuesta{ max-height:260px; }
+  .faq-respuesta p{ padding:0 13px 13px; font-size:12.5px; color:var(--muted); line-height:1.55; }
+
+  .contacto-row{ display:flex; align-items:center; gap:11px; border:1.5px solid var(--line); border-radius:10px; padding:12px 13px; margin-bottom:9px; background:var(--paper); text-decoration:none; }
+  .contacto-row .ic{ width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:var(--grad-blue); }
+  .contacto-row .ic svg{ width:17px; height:17px; stroke:#fff; }
+  .contacto-row .tx{ flex:1; }
+  .contacto-row .tx span{ display:block; font-size:13px; font-weight:700; color:var(--ink); }
+  .contacto-row .tx small{ display:block; font-size:11px; color:var(--muted); margin-top:1px; }
+  .contacto-row svg.chev{ width:15px; height:15px; stroke:var(--line); flex-shrink:0; }
+
+  .field textarea{ border:none; outline:none; width:100%; resize:vertical; min-height:88px; font-size:14px; font-family:inherit; color:var(--ink); background:transparent; }
+  .field .inp-wrap.textarea-wrap{ align-items:flex-start; padding:11px 13px; }
   .switch{ position:relative; width:42px; height:24px; flex-shrink:0; cursor:pointer; }
   .switch input{ position:absolute; inset:0; opacity:0; margin:0; cursor:pointer; z-index:1; }
   .switch .track{ position:absolute; inset:0; background:var(--line); border-radius:999px; transition:background .15s; }
@@ -871,6 +893,51 @@
     </div>
   </div>
 
+  <!-- ═══════════════════ AYUDA Y SOPORTE ═══════════════════
+       Se abre desde la fila "Ayuda y soporte" en Perfil, disponible tanto
+       para invitados como para cuentas registradas. Tres bloques: preguntas
+       frecuentes (acordeón, sin backend), contacto directo (WhatsApp y
+       correo, sin backend) y un formulario de reporte que sí guarda en la
+       hoja "Soporte" de Google Sheets vía el backend. -->
+  <div class="form-screen hidden" id="screenAyudaSoporte">
+    <div class="form-top">
+      <div class="back-circle" onclick="volverDesdeAyudaSoporte()"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <h2>Ayuda y soporte</h2>
+    </div>
+    <div class="form-card">
+      <p class="sub">Resuelve tus dudas o escríbenos directamente.</p>
+
+      <p class="sec-label-p" style="margin-top:0">PREGUNTAS FRECUENTES</p>
+      <div class="faq-list" id="faqList"></div>
+
+      <p class="sec-label-p">CONTÁCTANOS</p>
+      <a class="contacto-row" id="btnWhatsappSoporte" target="_blank" rel="noopener">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 11.5a8.5 8.5 0 01-12.36 7.56L3 20l1.06-5.4A8.5 8.5 0 1121 11.5z"/></svg></div>
+        <div class="tx"><span>WhatsApp</span><small>Respuesta directa del equipo de Nexo</small></div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+      </a>
+      <a class="contacto-row" id="btnCorreoSoporte">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></div>
+        <div class="tx"><span>Correo electrónico</span><small id="correoSoporteTxt">soporte@nexo.pe</small></div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+      </a>
+
+      <p class="sec-label-p">REPORTAR UN PROBLEMA</p>
+      <p class="sub" style="margin-top:-8px">Cuéntanos qué pasó y te responderemos a tu correo.</p>
+      <div class="field">
+        <label>Asunto</label>
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg><input id="soporteAsunto" type="text" placeholder="Ej: No puedo publicar mi negocio" maxlength="120"></div>
+      </div>
+      <div class="field">
+        <label>Mensaje</label>
+        <div class="inp-wrap textarea-wrap"><textarea id="soporteMensaje" maxlength="800" placeholder="Describe el problema con el mayor detalle posible…"></textarea></div>
+      </div>
+      <p id="soporteError" class="form-error hidden"></p>
+      <p id="soporteGuardado" class="form-success hidden">Recibimos tu reporte, te responderemos pronto ✅</p>
+      <button class="btn-primary" id="btnEnviarSoporte" onclick="enviarReporteSoporte()">Enviar reporte</button>
+    </div>
+  </div>
+
   <!-- ═══════════════════ CENTRO DE NOTIFICACIONES ═══════════════════
        Esto es lo que abre la campanita del header: primero lo NUEVO desde
        la última vez que la persona lo abrió (promociones recién puestas y
@@ -1083,7 +1150,12 @@ if(!NodeList.prototype.forEach){ NodeList.prototype.forEach = Array.prototype.fo
 const CONFIG = {
   // 👉 Pega aquí la URL de tu implementación de Apps Script (termina en /exec).
   // Instrucciones completas en el archivo Code.gs que se te entregó junto a este HTML.
-  API_URL: 'https://script.google.com/macros/s/AKfycbxZK3KBO_TqQSDHGZP3QWbiodSGLsJ5XDtTvN7GsGqhH8KiziXGOXgFMpW-HI_GekeNqA/exec'
+  API_URL: 'https://script.google.com/macros/s/AKfycbxZK3KBO_TqQSDHGZP3QWbiodSGLsJ5XDtTvN7GsGqhH8KiziXGOXgFMpW-HI_GekeNqA/exec',
+  // 👉 Número de WhatsApp de soporte, en formato internacional SIN "+" ni
+  // espacios (ej. Perú: '51987654321'). Se usa en Ayuda y soporte → Perfil.
+  WHATSAPP_SOPORTE: '51938528215',
+  // 👉 Correo que verán los usuarios para escribirte desde Ayuda y soporte.
+  EMAIL_SOPORTE: 'angelcastrovereau@gmail.com'
 };
 
 // 👉 Pon aquí TU correo (el mismo con el que inicias sesión en la app) para
@@ -2322,6 +2394,94 @@ function volverDesdeMisDatos(){
   mostrarTab('tabPerfil');
 }
 
+/* ─────────── Ayuda y soporte (disponible para invitados y cuentas) ─────────── */
+
+// Preguntas frecuentes mostradas en el acordeón. Editar este arreglo es
+// suficiente para agregar, quitar o reordenar preguntas: no requiere tocar
+// el backend.
+const FAQ_SOPORTE = [
+  { p: '¿Cómo registro mi negocio o servicio en Nexo?', r: 'Ve a la pestaña Inicio y toca el botón "Registrar mi negocio", o desde Perfil si ya tienes cuenta. Completa los datos y tu negocio aparecerá visible para toda la comunidad.' },
+  { p: '¿Cómo edito o elimino mi negocio?', r: 'Desde Perfil entra a "Mi negocio" (si ya publicaste uno) y ahí puedes editar sus datos, foto y personalización, o eliminarlo por completo.' },
+  { p: '¿Cómo guardo negocios en Favoritos?', r: 'Toca el ❤️ en cualquier negocio o servicio. Necesitas tener una cuenta creada; como invitado puedes explorar pero no guardar favoritos.' },
+  { p: '¿Puedo cambiar mi correo de la cuenta?', r: 'Por ahora el correo no se puede cambiar porque es la clave con la que se verificó tu cuenta. Si tienes un problema con tu correo, escríbenos por WhatsApp o desde el formulario de abajo.' },
+  { p: '¿Cómo elimino mi cuenta de Nexo?', r: 'Escríbenos por WhatsApp o correo indicando el email de tu cuenta y la eliminaremos junto con tus negocios y favoritos asociados.' }
+];
+
+function renderFaqSoporte(){
+  document.getElementById('faqList').innerHTML = FAQ_SOPORTE.map((item, i) => `
+    <div class="faq-item" id="faqItem${i}">
+      <div class="faq-pregunta" onclick="toggleFaq(${i})">
+        <span>${escapeHtml(item.p)}</span>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+      <div class="faq-respuesta"><p>${escapeHtml(item.r)}</p></div>
+    </div>`).join('');
+}
+
+function toggleFaq(i){
+  document.getElementById('faqItem' + i).classList.toggle('open');
+}
+
+function irAAyudaSoporte(){
+  renderFaqSoporte();
+
+  const numero = (CONFIG.WHATSAPP_SOPORTE || '').replace(/[^\d]/g, '');
+  const mensajePrellenado = encodeURIComponent('Hola, tengo una consulta sobre Nexo' + (state.user && state.user.email ? ' (cuenta: ' + state.user.email + ')' : '') + ':');
+  document.getElementById('btnWhatsappSoporte').href = numero ? `https://wa.me/${numero}?text=${mensajePrellenado}` : '#';
+
+  const correo = CONFIG.EMAIL_SOPORTE || 'soporte@nexo.pe';
+  document.getElementById('correoSoporteTxt').textContent = correo;
+  document.getElementById('btnCorreoSoporte').href = `mailto:${correo}?subject=${encodeURIComponent('Soporte Nexo')}`;
+
+  document.getElementById('soporteAsunto').value = '';
+  document.getElementById('soporteMensaje').value = '';
+  ocultarError('soporteError');
+  document.getElementById('soporteGuardado').classList.add('hidden');
+
+  document.getElementById('mainShell').classList.add('hidden');
+  document.getElementById('bottomnav').classList.add('hidden');
+  mostrarPantalla('screenAyudaSoporte');
+}
+
+function volverDesdeAyudaSoporte(){
+  document.getElementById('screenAyudaSoporte').classList.add('hidden');
+  document.getElementById('mainShell').classList.remove('hidden');
+  document.getElementById('bottomnav').classList.remove('hidden');
+  mostrarTab('tabPerfil');
+}
+
+async function enviarReporteSoporte(){
+  ocultarError('soporteError');
+  document.getElementById('soporteGuardado').classList.add('hidden');
+
+  const asunto = document.getElementById('soporteAsunto').value.trim();
+  const mensaje = document.getElementById('soporteMensaje').value.trim();
+  if(!asunto || !mensaje){
+    mostrarError('soporteError', 'Completa el asunto y el mensaje antes de enviar.');
+    return;
+  }
+
+  const btn = document.getElementById('btnEnviarSoporte');
+  btn.disabled = true; btn.textContent = 'Enviando…';
+
+  const payload = {
+    email: (state.user && state.user.mode === 'user') ? state.user.email : '',
+    nombre: (state.user && state.user.mode === 'user') ? state.user.nombre : 'Invitado',
+    asunto, mensaje
+  };
+  const r = await apiPost('enviarSoporte', payload);
+
+  btn.disabled = false; btn.textContent = 'Enviar reporte';
+
+  if(!r.ok){
+    mostrarError('soporteError', r.error || 'No se pudo enviar tu reporte. Intenta de nuevo.');
+    return;
+  }
+  document.getElementById('soporteAsunto').value = '';
+  document.getElementById('soporteMensaje').value = '';
+  document.getElementById('soporteGuardado').classList.remove('hidden');
+}
+
 async function guardarMisDatos(){
   ocultarError('datosError');
   document.getElementById('datosGuardado').classList.add('hidden');
@@ -3230,7 +3390,7 @@ function renderPerfil(){
       </div>
       <p class="sec-label-p">GENERAL</p>
       <div class="settings-list">
-        <div class="settings-row"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg></div><span>Ayuda y soporte</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+        <div class="settings-row" onclick="irAAyudaSoporte()"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg></div><span>Ayuda y soporte</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
         <div class="settings-row"><div class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></div><span>Acerca de Nexo</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
       </div>`;
     return;
@@ -3265,7 +3425,7 @@ function renderPerfil(){
     ` : ''}
     <p class="sec-label-p">GENERAL</p>
     <div class="settings-list">
-      <div class="settings-row"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg></div><span>Ayuda y soporte</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="settings-row" onclick="irAAyudaSoporte()"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg></div><span>Ayuda y soporte</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
       <div class="settings-row danger" onclick="cerrarSesion()"><div class="ic"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></div><span>Cerrar sesión</span></div>
     </div>`;
 
