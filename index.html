@@ -482,8 +482,14 @@
   .comment-like svg{ width:13px; height:13px; stroke:var(--muted); fill:none; }
   .comment-like.liked svg{ fill:var(--danger); stroke:var(--danger); }
   .comment-form{ display:flex; gap:8px; margin-top:12px; align-items:flex-end; }
-  .comment-form textarea{ flex:1; border:1.5px solid var(--line); border-radius:12px; padding:9px 12px; font-size:12.5px; font-family:inherit; resize:none; height:40px; }
-  .comment-form button{ flex-shrink:0; }
+  .comment-form textarea{ flex:1; min-width:0; border:1.5px solid var(--line); border-radius:12px; padding:9px 12px; font-size:12.5px; font-family:inherit; resize:none; height:40px; }
+  /* .btn-primary trae "width:100%" para los botones de pantalla completa
+     (Iniciar sesión, Crear cuenta, etc.). Dentro de esta fila en flex, ese
+     100% hacía que el botón "Enviar" intentara ocupar TODO el ancho de la
+     fila y terminara montado encima del textarea, dejándolo imposible de
+     tocar para escribir. Aquí se anula ese ancho para que el botón solo
+     ocupe lo que necesita su propio texto. */
+  .comment-form button{ flex-shrink:0; width:auto; }
   /* ── Insignia de negocio premium ── */
   .premium-badge{ display:inline-flex; align-items:center; gap:4px; background:linear-gradient(135deg,#F4C95D,#C4881F); color:#fff; font-size:9.5px; font-weight:800; letter-spacing:.03em; text-transform:uppercase; padding:3px 8px; border-radius:100px; margin-left:6px; vertical-align:middle; white-space:nowrap; }
 
@@ -3661,28 +3667,31 @@ function ordenarPorRecomendacion(lista){
   return [...lista].sort((a, b) => (b.scoreOrden - a.scoreOrden) || (b.numCalificaciones - a.numCalificaciones));
 }
 
-// Radio (en km) dentro del cual un negocio PREMIUM "salta" directo a
-// Negocios destacados / Servicios recomendados, sin tener que cumplir el
-// mínimo de calificaciones que exige un negocio normal. Fuera de este
-// radio (o si el usuario no activó su ubicación), un negocio premium
-// compite igual que cualquiera, solo por sus calificaciones reales — así
-// el beneficio premium no llena estas secciones para TODA la ciudad, solo
-// para quien de verdad lo tiene cerca.
+// Radio (en km) dentro del cual un negocio PREMIUM que además está cerca se
+// ordena primero que otro premium más lejano. Ya NO decide si el premium
+// aparece o no: un negocio premium (y, en "Servicios recomendados", cada
+// servicio que haya publicado esa misma cuenta premium) tiene que
+// aparecer SIEMPRE en Destacados/Recomendados, sin tener que cumplir el
+// mínimo de calificaciones que exige un negocio normal — ese es el
+// beneficio por el que pagó. La ubicación solo se usa, si está
+// disponible, para poner primero a los premium más cercanos; si no hay
+// ubicación activada, los premium igual se muestran, solo que sin un
+// orden por distancia entre ellos.
 const RADIO_PREMIUM_KM = 2;
 
 // Combina una lista "orgánica" (ya destacada por sus calificaciones) con
-// los negocios premium que estén a menos de RADIO_PREMIUM_KM del usuario y
-// que todavía no estuvieran en esa lista. Los premium cercanos van
-// PRIMERO (ese es el beneficio pagado); debajo sigue la lista orgánica tal
-// cual. Sin ubicación activada, no hay con qué medir "cerca de verdad", así
-// que no se inserta ningún premium aparte y la lista queda igual que antes.
+// TODOS los negocios premium que todavía no estuvieran en esa lista. Los
+// premium van PRIMERO (ese es el beneficio pagado); debajo sigue la lista
+// orgánica tal cual. Si hay ubicación activada, los premium se ordenan
+// entre sí por cercanía (los de dentro de RADIO_PREMIUM_KM primero);
+// si no, se muestran igual, en el orden en que vienen del servidor.
 function conPremiumCerca(listaOrganica, filtroPremium){
-  if(!state.miUbicacion) return listaOrganica;
   const idsYaIncluidos = new Set(listaOrganica.map(n => n.id));
-  const premiumCerca = NEGOCIOS
-    .filter(n => n.esPremium && !idsYaIncluidos.has(n.id) && distanciaKm(n) <= RADIO_PREMIUM_KM && (!filtroPremium || filtroPremium(n)))
-    .sort((a,b) => distanciaKm(a) - distanciaKm(b));
-  return [...premiumCerca, ...listaOrganica];
+  let premium = NEGOCIOS.filter(n => n.esPremium && !idsYaIncluidos.has(n.id) && (!filtroPremium || filtroPremium(n)));
+  if(state.miUbicacion){
+    premium = [...premium].sort((a,b) => distanciaKm(a) - distanciaKm(b));
+  }
+  return [...premium, ...listaOrganica];
 }
 
 function toggleMiUbicacion(){
