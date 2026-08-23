@@ -319,6 +319,20 @@
   .personalizar-banner p{ color:rgba(255,255,255,0.7); font-size:10.5px; margin-top:2px; }
   .personalizar-banner svg.chev{ position:relative; z-index:1; stroke:#fff; width:18px; height:18px; flex-shrink:0; }
 
+  /* ═══════ Banner "Negocios y servicios Premium" (en Inicio, visible para todos) ═══════ */
+  .premium-directorio-banner{
+    display:flex; align-items:center; gap:13px; border-radius:16px; padding:16px; margin:4px 0 22px;
+    background:linear-gradient(135deg,#0D2C55 0%,#1C4A87 55%,#3E8FD9 120%);
+    box-shadow:0 10px 24px rgba(13,44,85,0.28); position:relative; overflow:hidden; cursor:pointer;
+  }
+  .premium-directorio-banner::before{ content:'★'; position:absolute; right:-8px; top:-18px; font-size:86px; color:rgba(255,255,255,0.10); }
+  .premium-directorio-banner .ic{ position:relative; z-index:1; width:42px; height:42px; border-radius:12px; background:linear-gradient(135deg,#F4C95D,#C4881F); display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 6px 14px rgba(196,136,31,.35); }
+  .premium-directorio-banner .ic svg{ width:21px; height:21px; stroke:#fff; fill:none; }
+  .premium-directorio-banner .tx{ position:relative; z-index:1; flex:1; }
+  .premium-directorio-banner h4{ color:#fff; font-family:var(--font-display); font-size:13.5px; font-weight:700; }
+  .premium-directorio-banner p{ color:rgba(255,255,255,0.75); font-size:10.5px; margin-top:2px; }
+  .premium-directorio-banner svg.chev{ position:relative; z-index:1; stroke:#fff; width:18px; height:18px; flex-shrink:0; }
+
   .pers-sec-label{ font-family:var(--font-mono); font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--primary); margin:20px 0 10px; }
   .pers-sec-label:first-child{ margin-top:0; }
 
@@ -525,7 +539,7 @@
   .comprobante-upload .sub{ font-size:10.5px; color:var(--muted); margin-top:3px; }
   .comprobante-preview{ width:100%; max-width:180px; border-radius:12px; margin:10px auto 0; display:block; box-shadow:var(--shadow); }
 
-  /* ── Pantalla "Promocionar mis negocios" (solo cuentas Premium) ── */
+  /* ── Directorio "Negocios y servicios Premium" (banner en Inicio) ── */
   .destacar-row{ background:var(--surface); border:1.5px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px; }
   .destacar-row.activo{ border-color:#3E8FD9; background:linear-gradient(135deg,#F6FAFF,#FFFFFF); }
   .destacar-row .encabezado{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
@@ -1261,21 +1275,23 @@
     </div>
   </div>
 
-  <!-- ═══════════════════ PROMOCIONAR MIS NEGOCIOS (solo cuentas Premium) ═══════════════════
-       Distinto del botón "Personalizar" (aspecto visual) y del botón
-       "Promociones" (descuentos): aquí, una cuenta YA premium con más de
-       un negocio/servicio publicado elige CUÁL quiere empujar primero
-       dentro de "Negocios destacados" / "Servicios recomendados", con qué
-       prioridad frente a los demás premium (ver destacarPremium en
-       Code.gs). Es individual por cada negocio/servicio de la cuenta. -->
-  <div class="form-screen hidden" id="screenDestacarPremium">
+  <!-- ═══════════════════ DIRECTORIO DE NEGOCIOS Y SERVICIOS PREMIUM ═══════════════════
+       Se abre desde el banner "Negocios y servicios Premium" en Inicio, y lo puede
+       ver CUALQUIER usuario (no solo cuentas Premium): agrupa por cuenta dueña todos
+       los negocios/servicios de cuentas con plan Premium activo, ordenados por
+       cercanía real a la ubicación del usuario. Si alguna de esas cuentas es la del
+       propio usuario que mira la pantalla, sus negocios/servicios aparecen con el
+       interruptor de "estrella" para activarlos y que se promocionen con prioridad
+       según la ubicación de los demás usuarios (ver destacarPremium en Code.gs).
+       Reemplaza al antiguo botón "Promocionar mis negocios" que vivía en Perfil. -->
+  <div class="form-screen hidden" id="screenDirectorioPremium">
     <div class="form-top">
-      <div class="back-circle" onclick="volverDesdeDestacarPremium()"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
-      <h2>Promocionar mis negocios</h2>
+      <div class="back-circle" onclick="volverDesdeDirectorioPremium()"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <h2>Negocios y servicios Premium</h2>
     </div>
     <div class="form-card">
-      <p class="sub">Elige qué negocio o servicio quieres que aparezca primero en "Destacados" y "Recomendados", y con qué prioridad frente a otras cuentas Premium.</p>
-      <div id="listaDestacarPremium"></div>
+      <p class="sub">Cuentas con plan Premium activo, ordenadas por cercanía. Si es tu negocio o servicio, activa la estrella para que se promocione más y con prioridad según la ubicación de los demás usuarios.</p>
+      <div id="listaDirectorioPremium"></div>
     </div>
   </div>
 
@@ -1328,6 +1344,20 @@
 
           <p class="sec-title"><span class="lft">Categorías</span></p>
           <div class="cat-grid" id="catGrid"></div>
+
+          <!-- ═══════════════════ BANNER "Negocios y servicios Premium" ═══════════════════
+               Visible para CUALQUIER usuario (no solo Premium): al tocarlo abre un
+               directorio público que agrupa por cuenta dueña todos los negocios y
+               servicios de cuentas Premium, ordenados por cercanía real. Si el usuario
+               que mira la pantalla tiene sus propios negocios/servicios Premium ahí
+               dentro, ve además el interruptor de "estrella" para promocionarlos (ver
+               irADirectorioPremium() en el JS). Reemplaza al antiguo botón "Promocionar
+               mis negocios" que vivía en Perfil. -->
+          <div class="premium-directorio-banner" onclick="irADirectorioPremium()">
+            <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.3L21 9l-5 4.6L17.3 21 12 17.6 6.7 21 8 13.6 3 9l6.1-.7z"/></svg></div>
+            <div class="tx"><h4>Negocios y servicios Premium</h4><p>Descubre las cuentas Premium cerca de ti</p></div>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+          </div>
 
           <div class="personalizar-banner hidden" id="tarjetaPersonalizar" onclick="irAPersonalizarNegocio()">
             <div class="ic"><svg viewBox="0 0 24 24" stroke-width="1.7"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg></div>
@@ -2694,9 +2724,8 @@ function renderMiPremium(){
   document.getElementById('miPremiumEstado').innerHTML = esPremium
     ? `<div class="premium-hero">
          <h4>★ Tu cuenta es Premium</h4>
-         <p>Todos tus negocios y servicios publicados aparecen con la insignia Premium y saltan directo a "Negocios destacados" y "Servicios recomendados".</p>
-       </div>
-       <button class="btn-ghost" onclick="irADestacarPremium()" style="border:1.5px solid var(--primary);color:var(--primary);border-radius:12px;padding:12px;font-weight:800">⭐ Promocionar mis negocios</button>`
+         <p>Todos tus negocios y servicios publicados aparecen con la insignia Premium y saltan directo a "Negocios destacados" y "Servicios recomendados". Para promocionarlos con prioridad, entra al banner "Negocios y servicios Premium" en Inicio.</p>
+       </div>`
     : `<div class="premium-hero">
          <h4>Aún no tienes Premium</h4>
          <p>Con el plan Premium, tus negocios y servicios saltan directo a "Negocios destacados" y "Servicios recomendados", con insignia especial, sin depender de calificaciones.</p>
@@ -2798,56 +2827,92 @@ async function enviarComprobantePremium(){
   comprobanteBase64Actual = '';
 }
 
-/* ─────────── "Promocionar mis negocios" (solo cuentas Premium) ───────────
-   Cada negocio/servicio de la cuenta se muestra con un interruptor
+/* ─────────── Directorio "Negocios y servicios Premium" (banner en Inicio) ───────────
+   Público: lo puede abrir cualquier usuario. Agrupa por cuenta dueña TODOS los
+   negocios/servicios que ya son Premium (es_premium, por cuenta), ordenando las
+   cuentas por la menor distancia real de cualquiera de sus negocios/servicios al
+   usuario que mira la pantalla. Dentro de cada cuenta, si es la del propio usuario
+   que mira la pantalla, cada negocio/servicio se muestra con un interruptor
    (destacarActivo) y, si está activo, una barra de prioridad 1-100
-   (destacarPrioridad) frente a otros negocios/servicios premium. Ver
-   destacarPremium() en Code.gs y conPremiumCerca() más abajo, que es quien
-   realmente usa estos dos valores para ordenar las listas. */
-function irADestacarPremium(){
-  const misNegocios = obtenerMisNegocios();
-  if(!misNegocios.some(n => n.esPremium)){
-    mostrarAlerta('Esta función es solo para cuentas con plan Premium activo.');
+   (destacarPrioridad) frente a las demás cuentas premium. Ver destacarPremium() en
+   Code.gs y conPremiumCerca() más abajo, que es quien realmente usa estos dos
+   valores para ordenar "Destacados"/"Recomendados". Reemplaza a la antigua pantalla
+   "Promocionar mis negocios" que se abría solo desde Perfil. */
+function irADirectorioPremium(){
+  document.getElementById('mainShell').classList.add('hidden');
+  document.getElementById('bottomnav').classList.add('hidden');
+  renderDirectorioPremium();
+  mostrarPantalla('screenDirectorioPremium');
+}
+function volverDesdeDirectorioPremium(){
+  document.getElementById('screenDirectorioPremium').classList.add('hidden');
+  document.getElementById('mainShell').classList.remove('hidden');
+  document.getElementById('bottomnav').classList.remove('hidden');
+  mostrarTab('tabInicio');
+}
+function renderDirectorioPremium(){
+  const cont = document.getElementById('listaDirectorioPremium');
+  const premiumTodos = NEGOCIOS.filter(n => n.esPremium);
+  if(!premiumTodos.length){
+    cont.innerHTML = '<p style="font-size:11.5px;color:var(--muted);padding:6px 2px">Todavía no hay cuentas con plan Premium activo.</p>';
     return;
   }
-  document.getElementById('screenMiPremium').classList.add('hidden');
-  renderDestacarPremium();
-  mostrarPantalla('screenDestacarPremium');
-}
-function volverDesdeDestacarPremium(){
-  document.getElementById('screenDestacarPremium').classList.add('hidden');
-  irAMiPremium();
-}
-function renderDestacarPremium(){
-  const misNegocios = obtenerMisNegocios().filter(n => n.esPremium);
-  const cont = document.getElementById('listaDestacarPremium');
-  cont.innerHTML = misNegocios.length ? misNegocios.map(n => `
-    <div class="destacar-row ${n.destacarActivo ? 'activo' : ''}" id="destacarRow_${n.id}">
+  const miEmail = (state.user && state.user.mode === 'user' && state.user.email) ? state.user.email.toLowerCase() : null;
+  const grupos = {};
+  premiumTodos.forEach(n => {
+    const email = (n.propietarioEmail || 'sin-dueno').toLowerCase();
+    (grupos[email] = grupos[email] || []).push(n);
+  });
+  const cuentas = Object.keys(grupos).map(email => {
+    const negocios = grupos[email];
+    const distancias = negocios.map(n => distanciaKm(n)).filter(d => Number.isFinite(d));
+    return { email, negocios, distanciaMin: distancias.length ? Math.min(...distancias) : Infinity, esMia: email === miEmail };
+  }).sort((a, b) => a.distanciaMin - b.distanciaMin);
+  cont.innerHTML = cuentas.map(cuenta => `
+    <div class="destacar-row" style="${cuenta.esMia ? 'border-color:#3E8FD9' : ''}">
       <div class="encabezado">
-        <div class="dot" style="background:${n.color || '#D9691E'}"></div>
-        <div class="tx"><h4>${escapeHtml(n.nombre)}</h4><p>${escapeHtml(n.tipo || n.categoria)}</p></div>
+        <div class="dot" style="background:${cuenta.negocios[0].color || '#D9691E'}"></div>
+        <div class="tx"><h4>${cuenta.esMia ? 'Tu cuenta' : 'Cuenta Premium'}</h4><p>${cuenta.negocios.length} negocio${cuenta.negocios.length === 1 ? '' : 's'}/servicio${cuenta.negocios.length === 1 ? '' : 's'} publicado${cuenta.negocios.length === 1 ? '' : 's'}</p></div>
+      </div>
+      ${cuenta.negocios.map(n => filaDirectorioPremium(n, cuenta.esMia)).join('')}
+    </div>`).join('');
+}
+function filaDirectorioPremium(n, esMia){
+  const dist = Number.isFinite(distanciaKm(n)) ? textoDistancia(n) : '';
+  if(!esMia){
+    return `
+      <div class="selector-neg-row" onclick="document.getElementById('screenDirectorioPremium').classList.add('hidden'); verNegocio('${n.id}')" style="padding-left:22px">
+        <div class="tx">
+          <h4>${escapeHtml(n.nombre)}${n.destacarActivo ? '<span class="premium-badge">★ Premium</span>' : ''}</h4>
+          <p>${escapeHtml(n.tipo || n.categoria)}${dist ? ' · ' + dist : ''}</p>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+      </div>`;
+  }
+  return `
+    <div style="padding-left:22px;margin-top:10px">
+      <div class="encabezado" style="margin-bottom:6px">
+        <div class="tx"><h4 style="font-size:12.5px">${escapeHtml(n.nombre)}</h4><p>${escapeHtml(n.tipo || n.categoria)}${dist ? ' · ' + dist : ''}</p></div>
         <label class="switch">
           <input type="checkbox" ${n.destacarActivo ? 'checked' : ''} onchange="toggleDestacarFila('${n.id}', this.checked)">
           <span class="track"></span><span class="thumb"></span>
         </label>
       </div>
       <div class="rango-wrap ${n.destacarActivo ? '' : 'hidden'}" id="destacarRango_${n.id}">
-        <label>Prioridad frente a otros negocios Premium</label>
+        <label>Prioridad frente a otras cuentas Premium</label>
         <div class="rango-row">
-          <input type="range" min="1" max="100" step="1" value="${n.destacarPrioridad}" oninput="document.getElementById('destacarVal_${n.id}').textContent = this.value" onchange="guardarPrioridadDestacar('${n.id}', this.value)">
-          <span class="val" id="destacarVal_${n.id}">${n.destacarPrioridad}</span>
+          <input type="range" min="1" max="100" step="1" value="${n.destacarPrioridad || 50}" oninput="document.getElementById('destacarVal_${n.id}').textContent = this.value" onchange="guardarPrioridadDestacar('${n.id}', this.value)">
+          <span class="val" id="destacarVal_${n.id}">${n.destacarPrioridad || 50}</span>
         </div>
       </div>
-    </div>`).join('')
-    : '<p style="font-size:11.5px;color:var(--muted);padding:6px 2px">No tienes negocios ni servicios Premium para promocionar.</p>';
+    </div>`;
 }
 async function toggleDestacarFila(id, activo){
   const n = NEGOCIOS.find(x => String(x.id) === String(id));
   const prioridad = n ? n.destacarPrioridad : 50;
   const r = await apiPost('destacarPremium', { id: String(id), propietario_email: state.user.email, activo: activo, prioridad: prioridad });
-  if(!r.ok){ mostrarAlerta(r.error || 'No se pudo guardar el cambio.'); renderDestacarPremium(); return; }
+  if(!r.ok){ mostrarAlerta(r.error || 'No se pudo guardar el cambio.'); renderDirectorioPremium(); return; }
   if(n){ n.destacarActivo = activo; n.destacarPrioridad = Number(r.destacar_prioridad) || prioridad; }
-  document.getElementById(`destacarRow_${id}`).classList.toggle('activo', activo);
   document.getElementById(`destacarRango_${id}`).classList.toggle('hidden', !activo);
 }
 async function guardarPrioridadDestacar(id, valor){
@@ -4273,8 +4338,8 @@ function renderPerfil(){
   // panel para todos, igual que en el backend.
   const esAdminActual = !!ADMIN_EMAIL && state.user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
   // Cuenta Premium: se usa para el tema visual azul/blanco de la tarjeta de
-  // perfil y para mostrar el botón "Promocionar mis negocios" (ver
-  // irADestacarPremium() más arriba).
+  // perfil (la promoción en sí ahora se hace desde el banner "Negocios y
+  // servicios Premium" en Inicio, ver irADirectorioPremium()).
   const misNegociosPerfil = obtenerMisNegocios();
   const esPremiumActual = misNegociosPerfil.some(n => n.esPremium);
 
@@ -4291,7 +4356,7 @@ function renderPerfil(){
       <div class="settings-row" onclick="irANotificaciones()"><div class="ic"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></div><span>Notificaciones</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
       <div class="settings-row" onclick="mostrarTab('tabFavoritos')"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg></div><span>Mis favoritos (${state.favoritos.size})</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
       <div class="settings-row" onclick="irAMiPremium()"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.3L21 9l-5 4.6L17.3 21 12 17.6 6.7 21 8 13.6 3 9l6.1-.7z"/></svg></div><span>Mi plan Premium${esPremiumActual ? ' <span class="premium-badge" style="margin-left:6px">★ Premium</span>' : ''}</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
-      ${esPremiumActual ? `<div class="settings-row" onclick="irADestacarPremium()"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><circle cx="11" cy="11" r="2"/></svg></div><span>Promocionar mis negocios</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>` : ''}
+
     </div>
     ${esAdminActual ? `
     <p class="sec-label-p">PANEL DE ADMINISTRADOR</p>
