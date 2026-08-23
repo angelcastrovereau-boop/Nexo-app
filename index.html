@@ -1537,7 +1537,7 @@ async function cargarNegocios(){
 // —desde la app o directo en la Sheet— desaparece solo de Inicio, Mapa,
 // Buscar y Favoritos de TODOS los que tengan la app abierta, sin que quede
 // "estorbando" hasta la próxima vez que se recargue manualmente.
-const INTERVALO_REFRESCO_NEGOCIOS_MS = 25000;
+const INTERVALO_REFRESCO_NEGOCIOS_MS = 45000;
 let intervaloRefrescoNegocios = null;
 function iniciarRefrescoAutomaticoNegocios(){
   detenerRefrescoAutomaticoNegocios();
@@ -2033,7 +2033,15 @@ function renderDetalleNegocioCompleto(n){
   const c = catInfo(n.categoria);
   const esFav = state.favoritos.has(String(n.id));
   const esMio = state.user && state.user.mode === 'user' && n.propietarioEmail && n.propietarioEmail.toLowerCase() === state.user.email.toLowerCase();
-  const mapsUrl = `https://www.google.com/maps?q=${n.lat},${n.lng}`;
+  // Antes se usaba "https://www.google.com/maps?q=lat,lng", que es el formato
+  // viejo de Google Maps. Ese formato, al abrirse dentro del navegador
+  // integrado de la app empaquetada (APK), a veces detecta ese navegador
+  // como "no compatible" y muestra la pantalla de "Actualiza tu navegador"
+  // en vez de abrir el mapa. El formato nuevo de la Maps URLs API
+  // (api=1&query=...) es el que Google recomienda para enlaces desde apps y
+  // abre directamente la app de Google Maps del celular cuando existe, en
+  // vez de intentar renderizar el mapa completo dentro del navegador viejo.
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${n.lat},${n.lng}`;
 
   const heroIconHtml = `<div class="hero-icon" style="background:${c.grad}"><svg viewBox="0 0 24 24" stroke-width="1.6"><path d="${c.icon}"/></svg></div>`;
   // OJO: antes esto armaba el respaldo (ícono de categoría) como un pedazo de
@@ -3423,8 +3431,20 @@ function construirMapaLeaflet(){
 // recrear el mapa entero. Se llama cada vez que NEGOCIOS cambia (por
 // ejemplo, justo después de publicar un negocio o servicio nuevo), para
 // que aparezca de inmediato en su ubicación sin recargar la página.
+// Antes esta función borraba y volvía a dibujar TODOS los pines del mapa
+// cada vez que se llamaba — incluso cuando el refresco automático (cada
+// pocos segundos) traía exactamente la misma lista de negocios que ya
+// estaba pintada. Eso hacía que los pines "parpadearan" (desaparecían y
+// volvían a aparecer) todo el tiempo, dando la sensación de que el mapa se
+// refrescaba demasiado rápido y de forma molesta. Ahora se guarda una
+// "firma" simple de los datos ya pintados y, si el refresco trae lo mismo,
+// no se toca el mapa para nada.
+let firmaMarcadoresPintados = null;
 function pintarMarcadoresNegocios(){
   if(!mapaLeaflet || !capaMarcadores) return;
+  const firmaActual = NEGOCIOS.map(n => `${n.id}:${n.lat}:${n.lng}:${n.nombre}:${n.categoria}:${n.promo?1:0}`).join('|');
+  if(firmaActual === firmaMarcadoresPintados) return; // nada cambió, no repintar
+  firmaMarcadoresPintados = firmaActual;
   capaMarcadores.clearLayers();
   NEGOCIOS.forEach(n => {
     if(!Number.isFinite(n.lat) || !Number.isFinite(n.lng)) return;
@@ -3501,37 +3521,72 @@ function guardarPrefUbicacion(activa){
   try{ localStorage.setItem(UBICACION_PREF_KEY, activa ? 'true' : 'false'); }catch(e){}
 }
 
+// La app pide la ubicación en DOS PASOS, no uno solo:
+//  · Un punto rápido y aproximado (red / wifi / antenas), casi instantáneo
+//    y confiable incluso dentro del WebView de la app empaquetada.
+//  · En paralelo, arranca el seguimiento por GPS de alta precisión, que
+//    puede tardar más pero afina la ubicación exacta.
+// Antes solo se pedía el segundo paso (enableHighAccuracy:true) desde el
+// principio: eso significa esperar una señal de satélites limpia desde
+// cero, lo cual dentro de un edificio, con el GPS recién encendido, o
+// dentro de un WebView con el puente de permisos mal configurado, puede
+// tardar más de 15 segundos y terminar en el error de "tardó demasiado"
+// SIN que la persona haya visto nada en pantalla mientras tanto. Con el
+// punto rápido de arranque, la ubicación aparece casi al toque y el GPS de
+// alta precisión la va afinando después, sin bloquear nada.
+let geoBuscando = false;
 function activarMiUbicacion(silencioso){
   if(!('geolocation' in navigator)){
     if(!silencioso) mostrarAlerta('Este navegador no permite compartir tu ubicación en tiempo real.');
     return;
   }
+  if(geoBuscando || state.geoWatchId !== null) return; // ya hay una búsqueda en curso
+  geoBuscando = true;
+
   const btn = document.getElementById('btnMiUbicacion');
   const txt = document.getElementById('btnMiUbicacionTxt');
   if(txt && !silencioso) txt.textContent = 'Ubicando…';
 
-  state.geoWatchId = navigator.geolocation.watchPosition(
-    (pos) => {
-      state.miUbicacion = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      if(btn) btn.classList.add('activa');
-      if(txt) txt.textContent = 'Ubicación activa';
-      dibujarMiUbicacionEnMapa(pos.coords);
-      guardarPrefUbicacion(true);
-      renderInicio(); renderExplorar(); renderBusqueda();
-    },
-    (err) => {
-      pararMiUbicacion(false);
-      // Si el intento fue silencioso (automático al abrir la app), no
-      // molestamos con una alerta — solo se queda como estaba, mostrando
-      // el botón "Mi ubicación" para que la persona lo intente manualmente
-      // si quiere.
-      if(!silencioso) manejarErrorUbicacion(err);
-    },
-    { enableHighAccuracy:true, maximumAge:5000, timeout:15000 }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => { aplicarNuevaUbicacion(pos, false); iniciarSeguimientoPreciso(silencioso); },
+    (errRapido) => { iniciarSeguimientoPreciso(silencioso, errRapido); },
+    { enableHighAccuracy:false, maximumAge:60000, timeout:8000 }
   );
 }
 
+// Segundo paso: seguimiento continuo por GPS de alta precisión. Si este
+// paso falla, mostramos el error del PRIMER intento si lo hubo (suele ser
+// más claro, por ejemplo "permiso denegado") o, si no, el de este mismo.
+function iniciarSeguimientoPreciso(silencioso, errorPrevio){
+  state.geoWatchId = navigator.geolocation.watchPosition(
+    (pos) => { geoBuscando = false; aplicarNuevaUbicacion(pos, true); },
+    (err) => {
+      geoBuscando = false;
+      // Si el paso rápido (aproximado) SÍ funcionó, ya tenemos una
+      // ubicación en pantalla — no la borramos ni mostramos error solo
+      // porque el afinado por GPS de alta precisión no llegó a tiempo.
+      if(state.miUbicacion) return;
+      pararMiUbicacion(false);
+      if(!silencioso) manejarErrorUbicacion(errorPrevio || err);
+    },
+    { enableHighAccuracy:true, maximumAge:5000, timeout:20000 }
+  );
+}
+
+function aplicarNuevaUbicacion(pos, precisa){
+  geoBuscando = false;
+  state.miUbicacion = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  const btn = document.getElementById('btnMiUbicacion');
+  const txt = document.getElementById('btnMiUbicacionTxt');
+  if(btn) btn.classList.add('activa');
+  if(txt) txt.textContent = precisa ? 'Ubicación activa' : 'Ubicación aproximada…';
+  dibujarMiUbicacionEnMapa(pos.coords);
+  guardarPrefUbicacion(true);
+  renderInicio(); renderExplorar(); renderBusqueda();
+}
+
 function pararMiUbicacion(guardarComoDesactivada){
+  geoBuscando = false;
   if(state.geoWatchId !== null){ navigator.geolocation.clearWatch(state.geoWatchId); }
   state.geoWatchId = null;
   state.miUbicacion = null;
@@ -3578,16 +3633,26 @@ function dibujarMiUbicacionEnMapa(coords){
 
 function manejarErrorUbicacion(err){
   const enIframe = window.self !== window.top;
+  // Pista extra para cuando la app corre empaquetada en un APK (por ejemplo,
+  // generada con WebIntoApp): el navegador del celular puede tener el
+  // permiso de "Ubicación" activado a nivel de Android y AUN ASÍ la
+  // ubicación no llegar, porque ese tipo de apps necesita su PROPIO permiso
+  // de ubicación activado en los ajustes del sistema para esa app en
+  // concreto (Ajustes del celular → Apps → Nexo → Permisos → Ubicación),
+  // separado del permiso que pide la página web. Si además el generador de
+  // la app (WebIntoApp u otro) tiene su propio interruptor de "Acceso a
+  // ubicación" al construir el APK, también debe estar activado ahí.
+  const pistaApp = ' Si estás usando la app instalada (no el navegador), revisa también que el permiso de Ubicación esté activado para "Nexo" en Ajustes del celular → Apps → Nexo → Permisos.';
   if(err.code === err.PERMISSION_DENIED){
     if(enIframe){
       mostrarAlerta('El navegador bloqueó el permiso de ubicación porque Nexo está embebido dentro de otra página (por ejemplo, Google Sites). Abre Nexo en una pestaña aparte y vuelve a intentarlo, o revisa el ícono 🔒 junto a la barra de direcciones para permitir "Ubicación".');
     }else{
-      mostrarAlerta('Bloqueaste el permiso de ubicación. Tócalo el ícono 🔒 o "ⓘ" junto a la barra de direcciones, activa "Ubicación" y vuelve a intentarlo.');
+      mostrarAlerta('Bloqueaste el permiso de ubicación. Tócalo el ícono 🔒 o "ⓘ" junto a la barra de direcciones, activa "Ubicación" y vuelve a intentarlo.' + pistaApp);
     }
   }else if(err.code === err.POSITION_UNAVAILABLE){
-    mostrarAlerta('No se pudo determinar tu ubicación en este momento. Revisa que el GPS o la ubicación del dispositivo estén activados.');
+    mostrarAlerta('No se pudo determinar tu ubicación en este momento. Revisa que el GPS o la ubicación del dispositivo estén activados.' + pistaApp);
   }else{
-    mostrarAlerta('La búsqueda de tu ubicación tardó demasiado. Inténtalo de nuevo.');
+    mostrarAlerta('La búsqueda de tu ubicación tardó demasiado. Revisa que tengas buena señal de GPS (a cielo abierto funciona mejor) e inténtalo de nuevo.' + pistaApp);
   }
 }
 
