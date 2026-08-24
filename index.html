@@ -1349,19 +1349,22 @@
       <!-- ── TAB: INICIO ── -->
       <section class="tab-panel active" id="tabInicio">
         <div class="tab-screen">
-          <div class="register-banner" id="bannerRegistrar" onclick="registrarNuevoNegocio()" style="margin-top:16px">
+          <div class="quick-search" onclick="mostrarTab('tabBuscar')" style="margin-top:16px">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <span>Busca negocios, servicios o categorías…</span>
+          </div>
+
+          <div class="register-banner" id="bannerRegistrar" onclick="registrarNuevoNegocio()">
             <div class="ic"><svg viewBox="0 0 24 24"><path d="M3 9l9-6 9 6v11a1 1 0 01-1 1H4a1 1 0 01-1-1z"/><path d="M9 20v-6h6v6"/></svg></div>
             <div class="tx"><h4 id="bannerRegistrarTitulo">Registrar mi negocio o servicio</h4><p>Aparece en Nexo y llega a más vecinos</p></div>
             <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
           </div>
 
-          <div class="quick-search" onclick="mostrarTab('tabBuscar')">
-            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-            <span>Busca negocios, servicios o categorías…</span>
+          <div class="personalizar-banner hidden" id="tarjetaPersonalizar" onclick="irAPersonalizarNegocio()">
+            <div class="ic"><svg viewBox="0 0 24 24" stroke-width="1.7"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg></div>
+            <div class="tx"><h4 id="tarjetaPersonalizarTitulo">Personalizar negocio o servicio</h4><p>Color, tamaño, descripción y promoción del día</p></div>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
           </div>
-
-          <p class="sec-title"><span class="lft">Categorías</span></p>
-          <div class="cat-grid" id="catGrid"></div>
 
           <!-- ═══════════════════ BANNER "Negocios y servicios Premium" ═══════════════════
                Visible SOLO para cuentas que ya pagaron el plan Premium (se oculta con
@@ -1379,21 +1382,18 @@
             <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
           </div>
 
-          <div class="personalizar-banner hidden" id="tarjetaPersonalizar" onclick="irAPersonalizarNegocio()">
-            <div class="ic"><svg viewBox="0 0 24 24" stroke-width="1.7"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg></div>
-            <div class="tx"><h4 id="tarjetaPersonalizarTitulo">Personalizar negocio o servicio</h4><p>Color, tamaño, descripción y promoción del día</p></div>
-            <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
-          </div>
+          <p class="sec-title"><span class="lft">Categorías</span></p>
+          <div class="cat-grid" id="catGrid"></div>
 
           <div class="sec-title"><span class="lft">⭐ Negocios destacados</span><span class="verall" onclick="mostrarTab('tabBuscar')">Ver todos</span></div>
           <div class="hscroll" id="rowDestacados"></div>
 
-          <div class="sec-title"><span class="lft">🔥 Promociones del día</span><span class="verall" onclick="mostrarTab('tabBuscar')">Ver todas</span></div>
-          <div class="hscroll" id="rowPromos"></div>
-
           <div class="sec-title"><span class="lft">📍 Negocios cerca de mí</span><span class="verall" onclick="mostrarTab('tabExplorar')">Ver mapa</span></div>
           <div class="chips-row" id="chipsRadioCerca"></div>
           <div id="rowCerca"></div>
+
+          <div class="sec-title"><span class="lft">🔥 Promociones del día</span><span class="verall" onclick="mostrarTab('tabBuscar')">Ver todas</span></div>
+          <div class="hscroll" id="rowPromos"></div>
 
           <div class="sec-title"><span class="lft">🆕 Negocios nuevos</span><span class="verall" onclick="mostrarTab('tabBuscar')">Ver todos</span></div>
           <div class="hscroll" id="rowNuevos"></div>
