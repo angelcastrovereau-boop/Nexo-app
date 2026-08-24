@@ -1392,7 +1392,6 @@
           <div class="hscroll" id="rowPromos"></div>
 
           <div class="sec-title"><span class="lft">📍 Negocios cerca de mí</span><span class="verall" onclick="mostrarTab('tabExplorar')">Ver mapa</span></div>
-          <div class="chips-row" id="chipsModoCerca"></div>
           <div class="chips-row" id="chipsRadioCerca"></div>
           <div id="rowCerca"></div>
 
@@ -1416,6 +1415,7 @@
           <p class="map-note" id="mapNote">📍 Plaza de Armas de Trujillo, La Libertad — Perú. Toca "Mi ubicación" para ver los negocios ordenados por cercanía real a ti. Toca un pin para ver el detalle del negocio.</p>
 
           <div class="sec-title" id="secTituloExplorarDestacados" style="display:none"><span class="lft">⭐ Destacados cerca de ti</span></div>
+          <div class="chips-row" id="chipsModoExplorarDestacados" style="display:none"></div>
           <div class="hscroll" id="rowExplorarDestacados"></div>
 
           <div id="rowExplorarLista"></div>
@@ -1793,10 +1793,11 @@ const state = {
   selectorModo:null, selectorLista:[], vinoDelSelector:false,
   miUbicacion:null, geoWatchId:null, marcadorMiUbicacion:null, circuloMiUbicacion:null,
   radioCercaKm:3,
-  // "Negocios cerca de mí": modoCerca decide si se ve todo o solo Premium.
-  // premiumRotacionIdx e intervaloPremiumRotacion son para ir turnando qué
-  // tanda de negocios Premium se muestra primero (ver rotarPremiumCerca()).
-  modoCerca:'todos', premiumRotacionIdx:0, intervaloPremiumRotacion:null
+  // "Destacados cerca de ti" en Explorar: modoExplorarDestacados decide si
+  // se ve cualquier negocio destacado/recomendado o solo Premium.
+  // premiumRotacionIdx e intervaloPremiumRotacion turnan qué tanda de
+  // negocios Premium se muestra (ver rotarPremiumExplorar()).
+  modoExplorarDestacados:'todos', premiumRotacionIdx:0, intervaloPremiumRotacion:null
 };
 
 // Red de seguridad: si un error inesperado en cualquier parte del código
@@ -2151,7 +2152,7 @@ function mostrarTab(id){
   document.getElementById(id).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.tab === id));
   window.scrollTo(0,0);
-  if(id !== 'tabInicio') pararRotacionPremiumCerca();
+  if(id !== 'tabExplorar') pararRotacionPremiumExplorar();
   if(id === 'tabFavoritos') renderFavoritos();
   if(id === 'tabPerfil') renderPerfil();
   if(id === 'tabExplorar'){ iniciarMapaSiHaceFalta(); if(mapaLeaflet) setTimeout(() => { mapaLeaflet.invalidateSize(); mapaLeaflet.setView([TRUJILLO_CENTRO.lat, TRUJILLO_CENTRO.lng], 15); }, 80); }
@@ -2621,7 +2622,6 @@ function renderInicio(){
   const destacadosOrganicos = ordenarPorRecomendacion(NEGOCIOS.filter(n=>n.destacado));
   document.getElementById('rowDestacados').innerHTML = conPremiumCerca(destacadosOrganicos).map(tarjetaHorizontal).join('') || vacio('Todavía no hay negocios destacados: hacen falta más calificaciones.');
   document.getElementById('rowPromos').innerHTML = NEGOCIOS.filter(n=>n.promo).sort((a,b)=>b.promoRank-a.promoRank).map(tarjetaHorizontal).join('') || vacio('Sin promociones activas hoy.');
-  renderChipsModoCerca();
   renderChipsRadioCerca();
   renderRowCerca();
   document.getElementById('rowNuevos').innerHTML = NEGOCIOS.filter(n=>n.nuevo).map(tarjetaHorizontal).join('') || vacio('Aún no hay negocios nuevos.');
@@ -2660,47 +2660,6 @@ function seleccionarRadioCerca(km){
   renderRowCerca();
 }
 
-// Botones "Negocios" / "★ Premium" para "Negocios cerca de mí": el primero
-// muestra cualquier negocio o servicio cerca (comportamiento de siempre),
-// el segundo filtra solo a los que pagaron el plan Premium. Cambiar de
-// modo reinicia la rotación (ver rotarPremiumCerca más abajo).
-const MODOS_CERCA = [ {id:'todos', label:'Negocios'}, {id:'premium', label:'★ Premium'} ];
-function renderChipsModoCerca(){
-  const cont = document.getElementById('chipsModoCerca');
-  if(!cont) return;
-  cont.innerHTML = MODOS_CERCA.map(o => `<div class="chip ${state.modoCerca===o.id?'active':''}" onclick="seleccionarModoCerca('${o.id}')">${o.label}</div>`).join('');
-}
-function seleccionarModoCerca(modo){
-  if(state.modoCerca === modo) return;
-  state.modoCerca = modo;
-  state.premiumRotacionIdx = 0;
-  renderChipsModoCerca();
-  renderRowCerca();
-}
-
-// Cuántos negocios Premium se muestran a la vez en "Negocios cerca de mí"
-// y cada cuánto se turnan por el siguiente grupo. La idea: si hay más
-// negocios Premium cerca que cupos visibles, en vez de mostrar siempre a
-// los mismos (los más cercanos), se van rotando en tandas para que TODAS
-// las cuentas Premium de la zona reciban visibilidad, no solo las más
-// cercanas al usuario.
-const PREMIUM_CERCA_CUPOS = 5;
-const PREMIUM_CERCA_ROTACION_MS = 8000;
-function pararRotacionPremiumCerca(){
-  if(state.intervaloPremiumRotacion){
-    clearInterval(state.intervaloPremiumRotacion);
-    state.intervaloPremiumRotacion = null;
-  }
-}
-function iniciarRotacionPremiumCerca(totalGrupos){
-  pararRotacionPremiumCerca();
-  if(totalGrupos <= 1) return;
-  state.intervaloPremiumRotacion = setInterval(() => {
-    state.premiumRotacionIdx = (state.premiumRotacionIdx + 1) % totalGrupos;
-    renderRowCerca();
-  }, PREMIUM_CERCA_ROTACION_MS);
-}
-
 // Con la ubicación real activada, filtra a los negocios que de verdad
 // están dentro del radio elegido (útil cuando hay muchos negocios
 // registrados repartidos por toda la ciudad). Sin ubicación activada
@@ -2710,53 +2669,65 @@ function renderRowCerca(){
   const cont = document.getElementById('rowCerca');
   if(!cont) return;
   if(!state.miUbicacion){
-    pararRotacionPremiumCerca();
-    const base = state.modoCerca === 'premium' ? NEGOCIOS.filter(n => n.esPremium && n.destacarActivo) : NEGOCIOS;
-    const lista = [...base].sort((a,b)=>distanciaKm(a)-distanciaKm(b)).slice(0,3);
-    cont.innerHTML = (lista.map(filaVertical).join('') || vacio(state.modoCerca === 'premium' ? 'Todavía no hay negocios Premium registrados.' : 'Aún no hay negocios registrados.')) +
+    const lista = [...NEGOCIOS].sort((a,b)=>distanciaKm(a)-distanciaKm(b)).slice(0,3);
+    cont.innerHTML = (lista.map(filaVertical).join('') || vacio('Aún no hay negocios registrados.')) +
       `<p style="font-size:11.5px;color:var(--muted);padding:8px 2px 0">Activa "Mi ubicación" en Explorar para ver esto ordenado por tu cercanía real.</p>`;
     return;
   }
-  const base = state.modoCerca === 'premium' ? NEGOCIOS.filter(n => n.esPremium && n.destacarActivo) : NEGOCIOS;
   let lista = state.radioCercaKm > 0
-    ? base.filter(n => distanciaKm(n) <= state.radioCercaKm)
-    : [...base];
+    ? NEGOCIOS.filter(n => distanciaKm(n) <= state.radioCercaKm)
+    : [...NEGOCIOS];
   lista = lista.sort((a,b)=>distanciaKm(a)-distanciaKm(b));
-
   if(lista.length === 0){
-    pararRotacionPremiumCerca();
-    if(state.modoCerca === 'premium'){
-      cont.innerHTML = vacio(`No hay negocios Premium a menos de ${state.radioCercaKm} km de ti todavía.`);
-      return;
-    }
-    const cercanos = [...base].sort((a,b)=>distanciaKm(a)-distanciaKm(b)).slice(0,3);
+    const cercanos = [...NEGOCIOS].sort((a,b)=>distanciaKm(a)-distanciaKm(b)).slice(0,3);
     cont.innerHTML = `<p style="font-size:11.5px;color:var(--muted);padding:6px 2px 10px">No hay negocios registrados a menos de ${state.radioCercaKm} km de ti. Estos son los más cercanos disponibles:</p>` + cercanos.map(filaVertical).join('');
     return;
   }
-
-  if(state.modoCerca !== 'premium'){
-    pararRotacionPremiumCerca();
-    cont.innerHTML = lista.slice(0, 8).map(filaVertical).join('');
-    return;
-  }
-
-  // Modo Premium: si caben todos en un solo grupo, se muestran todos y no
-  // hace falta rotar. Si son más que los cupos, se parte la lista (ya
-  // ordenada por cercanía) en grupos de PREMIUM_CERCA_CUPOS y se va
-  // mostrando un grupo a la vez, turnándose automáticamente.
-  const totalGrupos = Math.ceil(lista.length / PREMIUM_CERCA_CUPOS);
-  if(totalGrupos <= 1){
-    pararRotacionPremiumCerca();
-    cont.innerHTML = lista.map(filaVertical).join('');
-    return;
-  }
-  const idx = state.premiumRotacionIdx % totalGrupos;
-  const grupo = lista.slice(idx * PREMIUM_CERCA_CUPOS, idx * PREMIUM_CERCA_CUPOS + PREMIUM_CERCA_CUPOS);
-  cont.innerHTML = grupo.map(filaVertical).join('') +
-    `<p style="font-size:11px;color:var(--muted);padding:8px 2px 0">Mostrando ${idx+1} de ${totalGrupos} grupos de negocios Premium cerca de ti — se turnan cada ${PREMIUM_CERCA_ROTACION_MS/1000}s para que todos tengan visibilidad.</p>`;
-  iniciarRotacionPremiumCerca(totalGrupos);
+  cont.innerHTML = lista.slice(0, 8).map(filaVertical).join('');
 }
 function vacio(msg){ return `<p style="font-size:11.5px;color:var(--muted);padding:6px 2px">${msg}</p>`; }
+
+// Botones "Negocios" / "★ Premium" para "Destacados cerca de ti" en
+// Explorar: el primero muestra los destacados/recomendados de siempre
+// (ordenados por cercanía), el segundo filtra solo a los que pagaron el
+// plan Premium. Cambiar de modo reinicia la rotación (ver más abajo).
+const MODOS_EXPLORAR_DESTACADOS = [ {id:'todos', label:'Negocios'}, {id:'premium', label:'★ Premium'} ];
+function renderChipsModoExplorarDestacados(){
+  const cont = document.getElementById('chipsModoExplorarDestacados');
+  if(!cont) return;
+  cont.innerHTML = MODOS_EXPLORAR_DESTACADOS.map(o => `<div class="chip ${state.modoExplorarDestacados===o.id?'active':''}" onclick="seleccionarModoExplorarDestacados('${o.id}')">${o.label}</div>`).join('');
+}
+function seleccionarModoExplorarDestacados(modo){
+  if(state.modoExplorarDestacados === modo) return;
+  state.modoExplorarDestacados = modo;
+  state.premiumRotacionIdx = 0;
+  renderChipsModoExplorarDestacados();
+  renderExplorar();
+}
+
+// Cuántos negocios Premium se muestran a la vez en "Destacados cerca de
+// ti" (Explorar) y cada cuánto se turnan por el siguiente grupo. La idea:
+// si hay más negocios Premium cerca que cupos visibles, en vez de mostrar
+// siempre a los mismos (los más cercanos), se van rotando en tandas para
+// que TODAS las cuentas Premium de la zona reciban visibilidad, no solo
+// las más cercanas al usuario.
+const PREMIUM_EXPLORAR_CUPOS = 5;
+const PREMIUM_EXPLORAR_ROTACION_MS = 8000;
+function pararRotacionPremiumExplorar(){
+  if(state.intervaloPremiumRotacion){
+    clearInterval(state.intervaloPremiumRotacion);
+    state.intervaloPremiumRotacion = null;
+  }
+}
+function iniciarRotacionPremiumExplorar(totalGrupos){
+  pararRotacionPremiumExplorar();
+  if(totalGrupos <= 1) return;
+  state.intervaloPremiumRotacion = setInterval(() => {
+    state.premiumRotacionIdx = (state.premiumRotacionIdx + 1) % totalGrupos;
+    renderExplorar();
+  }, PREMIUM_EXPLORAR_ROTACION_MS);
+}
+
 
 /* ─────────── administrar / personalizar negocio o servicio (fusionado) ───────────
    Antes había dos pantallas separadas: "Administrar" (nombre, foto, datos)
@@ -4394,15 +4365,51 @@ function renderExplorar(){
   // qué tan bien calificados están) — así, dentro de Explorar, primero ve
   // los destacados que de verdad tiene a la mano. Solo tiene sentido con la
   // ubicación activada; sin ella no hay una cercanía real que mostrar.
+  //
+  // Los botones "Negocios" / "★ Premium" filtran esta lista: "Negocios"
+  // deja el comportamiento de siempre (destacados/recomendados por
+  // cercanía); "★ Premium" muestra solo cuentas Premium activas cerca y,
+  // si hay más de PREMIUM_EXPLORAR_CUPOS, las va rotando en tandas para
+  // que todas las cuentas que pagaron reciban visibilidad, no solo las
+  // más cercanas al usuario.
   const tituloDestacadosExplorar = document.getElementById('secTituloExplorarDestacados');
+  const chipsModoExplorar = document.getElementById('chipsModoExplorarDestacados');
   const rowDestacadosExplorar = document.getElementById('rowExplorarDestacados');
-  if(state.miUbicacion){
+  if(!state.miUbicacion){
+    tituloDestacadosExplorar.style.display = 'none';
+    chipsModoExplorar.style.display = 'none';
+    rowDestacadosExplorar.innerHTML = '';
+    pararRotacionPremiumExplorar();
+    return;
+  }
+
+  renderChipsModoExplorarDestacados();
+
+  if(state.modoExplorarDestacados === 'premium'){
+    chipsModoExplorar.style.display = 'flex';
+    const premiumCerca = NEGOCIOS.filter(n => n.esPremium && n.destacarActivo).sort((a,b)=>distanciaKm(a)-distanciaKm(b));
+    tituloDestacadosExplorar.style.display = 'flex';
+    if(premiumCerca.length === 0){
+      pararRotacionPremiumExplorar();
+      rowDestacadosExplorar.innerHTML = `<p style="font-size:11.5px;color:var(--muted);padding:2px 2px 12px">Todavía no hay negocios Premium registrados cerca de ti.</p>`;
+      return;
+    }
+    const totalGrupos = Math.ceil(premiumCerca.length / PREMIUM_EXPLORAR_CUPOS);
+    if(totalGrupos <= 1){
+      pararRotacionPremiumExplorar();
+      rowDestacadosExplorar.innerHTML = premiumCerca.map(tarjetaHorizontal).join('');
+      return;
+    }
+    const idx = state.premiumRotacionIdx % totalGrupos;
+    const grupo = premiumCerca.slice(idx * PREMIUM_EXPLORAR_CUPOS, idx * PREMIUM_EXPLORAR_CUPOS + PREMIUM_EXPLORAR_CUPOS);
+    rowDestacadosExplorar.innerHTML = grupo.map(tarjetaHorizontal).join('');
+    iniciarRotacionPremiumExplorar(totalGrupos);
+  }else{
+    pararRotacionPremiumExplorar();
+    chipsModoExplorar.style.display = 'flex';
     const destacadosCerca = NEGOCIOS.filter(n => n.destacado || n.servicioReco).sort((a,b)=>distanciaKm(a)-distanciaKm(b));
     tituloDestacadosExplorar.style.display = destacadosCerca.length ? 'flex' : 'none';
     rowDestacadosExplorar.innerHTML = destacadosCerca.map(tarjetaHorizontal).join('');
-  }else{
-    tituloDestacadosExplorar.style.display = 'none';
-    rowDestacadosExplorar.innerHTML = '';
   }
 }
 function toggleListaExplorar(){
