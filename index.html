@@ -2097,7 +2097,7 @@ async function iniciarApp(){
   document.getElementById('mainShell').classList.remove('hidden');
   document.getElementById('bottomnav').classList.remove('hidden');
   const nombre = state.user.mode === 'guest' ? 'invitado' : state.user.nombre;
-  document.getElementById('greetTitulo').textContent = `Hola, ${nombre} 👋`;
+  document.getElementById('greetTitulo').textContent = `HOLA, ${nombre} 👋`;
   document.getElementById('greetSub').textContent = state.user.mode === 'guest'
     ? 'Estás explorando como invitado'
     : 'Descubre lo mejor de tu comunidad hoy';
