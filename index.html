@@ -4622,16 +4622,38 @@ function iniciarSeguimientoPreciso(silencioso, errorPrevio){
   );
 }
 
+// Umbral mínimo de movimiento para considerar que la ubicación "cambió de
+// verdad". En computadora, el navegador casi no manda posiciones nuevas
+// (por eso ahí el auto-refresh se sentía bien), pero en celular el GPS
+// real manda un tick nuevo cada 1-2 segundos aunque la persona esté
+// quieta (el "jitter" normal del GPS). Antes, CADA tick repintaba Inicio,
+// Explorar y Buscar completos, y eso es lo que se sentía como que la app
+// se autorefrescaba sola cada segundo. Ahora solo se repintan esas
+// pantallas cuando la persona se movió al menos este umbral; el puntito
+// azul del mapa sí se sigue moviendo suave en cada tick, sin disparar el
+// repintado pesado.
+const UMBRAL_MOVIMIENTO_REPINTAR_KM = 0.03; // 30 metros
 function aplicarNuevaUbicacion(pos, precisa){
   geoBuscando = false;
-  state.miUbicacion = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  const ubicacionAnterior = state.miUbicacion;
+  const nuevaUbicacion = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  const movioLoSuficiente = !ubicacionAnterior ||
+    haversineKm(ubicacionAnterior.lat, ubicacionAnterior.lng, nuevaUbicacion.lat, nuevaUbicacion.lng) >= UMBRAL_MOVIMIENTO_REPINTAR_KM;
+  state.miUbicacion = nuevaUbicacion;
   const btn = document.getElementById('btnMiUbicacion');
   const txt = document.getElementById('btnMiUbicacionTxt');
   if(btn) btn.classList.add('activa');
   if(txt) txt.textContent = precisa ? 'Ubicación activa' : 'Ubicación aproximada…';
+  // El punto en el mapa se mueve siempre, en cada tick del GPS, para que
+  // el seguimiento se vea fluido.
   dibujarMiUbicacionEnMapa(pos.coords);
   guardarPrefUbicacion(true);
-  renderInicio(); renderExplorar(); renderBusqueda();
+  // Pero el repintado pesado de las 3 pantallas (que recalculan distancias,
+  // reordenan listas por cercanía, etc.) solo ocurre si de verdad hubo un
+  // desplazamiento relevante.
+  if(movioLoSuficiente){
+    renderInicio(); renderExplorar(); renderBusqueda();
+  }
 }
 
 function pararMiUbicacion(guardarComoDesactivada){
