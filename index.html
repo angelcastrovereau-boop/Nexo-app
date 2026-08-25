@@ -955,14 +955,26 @@
         <div class="inp-wrap"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3-8.7A2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .3 2 .7 2.9a2 2 0 01-.4 2.1L8 10a16 16 0 006 6l1.3-1.4a2 2 0 012.1-.4c.9.4 1.9.6 2.9.7a2 2 0 011.7 2z"/></svg><input id="negTelefono" type="tel" placeholder="Ej. 987 654 321"></div>
       </div>
       <div class="field">
-        <label>Dirección</label>
+        <label>Dirección (opcional, es solo una referencia)</label>
         <div class="inp-wrap"><svg viewBox="0 0 24 24"><path d="M4 21V9l8-6 8 6v12"/></svg><input id="negDireccion" type="text" placeholder="Referencia o dirección en Trujillo"></div>
       </div>
 
       <div class="field">
         <label>Ubicación en el mapa</label>
+        <div class="inp-wrap" style="margin-bottom:8px">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input id="negBuscarDireccion" type="text" placeholder="Busca una calle o referencia en Trujillo" onkeydown="if(event.key==='Enter'){event.preventDefault();buscarDireccionEnMapaPicker();}">
+        </div>
+        <div style="display:flex; gap:8px; margin-bottom:10px">
+          <button type="button" class="btn-outline" style="flex:1; padding:10px; font-size:12.5px" onclick="buscarDireccionEnMapaPicker()">Buscar en el mapa</button>
+          <button type="button" class="btn-outline" style="flex:1; padding:10px; font-size:12.5px; gap:6px" onclick="usarMiUbicacionEnMapaPicker()">
+            <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:var(--primary)"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+            Mi ubicación
+          </button>
+        </div>
         <div class="mini-map-picker" id="negMapPicker"><div class="picker-hint">Toca o arrastra el pin 📍</div></div>
         <p class="coord-readout" id="negCoordTxt">Cargando mapa…</p>
+        <p class="coord-readout" id="negBuscarEstado" style="min-height:14px"></p>
       </div>
 
       <p id="negError" class="form-error hidden" style="margin-top:16px"></p>
@@ -1336,7 +1348,7 @@
         </div>
       </div>
       <div class="hdr-greet">
-        <h2 id="greetTitulo">HOLA 👋</h2>
+        <h2 id="greetTitulo">Hola 👋</h2>
         <p id="greetSub">Descubre lo mejor de tu comunidad hoy</p>
       </div>
       <div class="hdr-banner">
@@ -1712,6 +1724,24 @@ let NEGOCIOS = [
 // Trae los negocios reales desde Google Sheets y vuelve a pintar todas las
 // pantallas que los muestran. Si el backend no está configurado o falla,
 // la app se queda con los datos de muestra de arriba, sin romperse.
+// Compara los negocios recién traídos del servidor contra los que ya
+// están en pantalla, campo por campo, para saber si el refresco automático
+// trae algo REALMENTE nuevo (negocio publicado, eliminado, o algún dato
+// cambiado) o si es una vuelta más sin novedad. Así el auto-refresh de
+// fondo puede seguir consultando el backend cada cierto tiempo sin volver
+// a pintar (y "parpadear") la pantalla cuando no hay ningún cambio real.
+function firmaNegociosParaComparar(lista){
+  return lista
+    .map(n => String(n.id))
+    .sort()
+    .concat(
+      // JSON.stringify de cada negocio (con sus claves en el mismo orden que
+      // llegan) detecta cualquier campo que haya cambiado, no solo altas/bajas.
+      [...lista].sort((a,b) => String(a.id).localeCompare(String(b.id))).map(n => JSON.stringify(n))
+    )
+    .join('|');
+}
+
 async function cargarNegocios(){
   const email = (state.user && state.user.mode === 'user') ? state.user.email : '';
   const r = await apiPost('listarNegocios', { email });
@@ -1721,7 +1751,11 @@ async function cargarNegocios(){
     // un negocio, ya no hace falta seguir usando la vista previa local.
     r.negocios.forEach(n => { if(n.foto_url && fotosRecientes[String(n.id)]) delete fotosRecientes[String(n.id)]; });
     const idsAntes = new Set(NEGOCIOS.map(n => String(n.id)));
-    NEGOCIOS = r.negocios.map(normalizarNegocio);
+    const firmaAntes = firmaNegociosParaComparar(NEGOCIOS);
+    const negociosNuevos = r.negocios.map(normalizarNegocio);
+    const firmaAhora = firmaNegociosParaComparar(negociosNuevos);
+    const huboCambios = firmaAntes !== firmaAhora;
+    NEGOCIOS = negociosNuevos;
     const idsAhora = new Set(NEGOCIOS.map(n => String(n.id)));
     // Si el usuario tiene sesión, revisamos si ya es dueño de un negocio en
     // la hoja de cálculo (esto se mantiene entre sesiones, no solo en memoria).
@@ -1729,8 +1763,15 @@ async function cargarNegocios(){
       const propio = NEGOCIOS.find(n => n.propietarioEmail.toLowerCase() === state.user.email.toLowerCase());
       state.user.tieneNegocio = !!propio;
     }
-    renderCategorias(); renderInicio(); renderExplorar(); renderBusqueda(); renderFavoritos(); renderPerfil();
-    actualizarBadgeNotificaciones();
+    // Solo se vuelve a pintar la pantalla si de verdad cambió algo (negocio
+    // nuevo, eliminado, o algún dato distinto). Si el refresco automático no
+    // trajo ninguna novedad, la lista en memoria queda igual de actualizada
+    // pero la pantalla NO se repinta, para que en el celular no se sienta
+    // como si la app se recargara sola a cada rato.
+    if(huboCambios){
+      renderCategorias(); renderInicio(); renderExplorar(); renderBusqueda(); renderFavoritos(); renderPerfil();
+      actualizarBadgeNotificaciones();
+    }
     // Si justo estás viendo el detalle de un negocio que alguien (o tú mismo
     // desde la Sheet) acaba de eliminar, esta recarga automática ya lo quitó
     // de todas las listas — pero si te quedas parado en su pantalla de
@@ -2097,7 +2138,7 @@ async function iniciarApp(){
   document.getElementById('mainShell').classList.remove('hidden');
   document.getElementById('bottomnav').classList.remove('hidden');
   const nombre = state.user.mode === 'guest' ? 'invitado' : state.user.nombre;
-  document.getElementById('greetTitulo').textContent = `HOLA, ${nombre} 👋`;
+  document.getElementById('greetTitulo').textContent = `Hola, ${nombre} 👋`;
   document.getElementById('greetSub').textContent = state.user.mode === 'guest'
     ? 'Estás explorando como invitado'
     : 'Descubre lo mejor de tu comunidad hoy';
@@ -2248,12 +2289,30 @@ async function verNegocio(id){
     document.getElementById('mainShell').classList.add('hidden');
     document.getElementById('bottomnav').classList.add('hidden');
     mostrarPantalla('screenDetalleNegocio');
+    // Estadística (solo se muestra al dueño si su cuenta es Premium, ver
+    // renderMiPremium): se registra "en silencio", sin esperar la
+    // respuesta ni avisar nada, así nunca puede trabar ni afectar la
+    // navegación de quien está viendo el negocio.
+    registrarVistaNegocio(String(n.id));
   }catch(err){
     document.getElementById('mainShell').classList.remove('hidden');
     document.getElementById('bottomnav').classList.remove('hidden');
     mostrarAlerta('No se pudo abrir este negocio. Inténtalo de nuevo.');
   }
 }
+// Estadísticas (solo visibles para el dueño si su cuenta es Premium, ver
+// renderMiPremium): suman +1 en el servidor cada vez que alguien abre el
+// detalle de un negocio o toca su botón de WhatsApp. Se llaman "en
+// silencio" — sin await bloqueando la pantalla y sin mostrar ningún aviso —
+// así, si por lo que sea la petición falla o tarda, nunca afecta lo que la
+// persona está viendo ni haciendo en ese momento.
+function registrarVistaNegocio(id){
+  apiPost('registrarEvento', { negocio_id: id, tipo: 'vista' });
+}
+function registrarClicWhatsapp(id){
+  apiPost('registrarEvento', { negocio_id: id, tipo: 'whatsapp' });
+}
+
 function volverDesdeDetalle(){
   document.getElementById('screenDetalleNegocio').classList.add('hidden');
   document.getElementById('mainShell').classList.remove('hidden');
@@ -2328,7 +2387,7 @@ function renderDetalleNegocioCompleto(n){
         <p class="detail-map-coord">📍 ${n.lat.toFixed(5)}, ${n.lng.toFixed(5)}</p>
       </div>` : ''}
     </div>
-    ${n.whatsapp ? `<a class="btn-primary" style="background:#25D366;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;margin-top:14px" href="https://wa.me/${escapeHtml(n.whatsapp)}?text=${encodeURIComponent('Hola, te escribo desde Nexo por "' + n.nombre + '"')}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="18" height="18" fill="#fff"><path d="M21 11.5a8.4 8.4 0 01-8.9 8.4 8.5 8.5 0 01-4-1L3 20l1.2-5a8.4 8.4 0 1116.8-3.5z" fill="none" stroke="#fff" stroke-width="1.8"/></svg>Escríbenos por WhatsApp</a>` : ''}
+    ${n.whatsapp ? `<a class="btn-primary" style="background:#25D366;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;margin-top:14px" href="https://wa.me/${escapeHtml(n.whatsapp)}?text=${encodeURIComponent('Hola, te escribo desde Nexo por "' + n.nombre + '"')}" target="_blank" rel="noopener" onclick="registrarClicWhatsapp('${n.id}')"><svg viewBox="0 0 24 24" width="18" height="18" fill="#fff"><path d="M21 11.5a8.4 8.4 0 01-8.9 8.4 8.5 8.5 0 01-4-1L3 20l1.2-5a8.4 8.4 0 1116.8-3.5z" fill="none" stroke="#fff" stroke-width="1.8"/></svg>Escríbenos por WhatsApp</a>` : ''}
     ${esMio ? `<button class="btn-outline" style="margin-top:14px" onclick="volverDesdeDetalle(); irARegistrarNegocio()">✏️ Editar mi negocio</button>` : ''}
     ${renderCajaCalificacion(n)}
     <div class="detail-card comment-box" id="cajaComentarios-${n.id}" style="margin-top:14px">
@@ -2820,7 +2879,7 @@ function volverDesdeMiPremium(){
   document.getElementById('bottomnav').classList.remove('hidden');
   mostrarTab('tabPerfil');
 }
-function renderMiPremium(){
+async function renderMiPremium(){
   const misNegocios = obtenerMisNegocios();
   const esPremium = misNegocios.some(n => n.esPremium);
   document.getElementById('miPremiumEstado').innerHTML = esPremium
@@ -2833,16 +2892,40 @@ function renderMiPremium(){
          <p>Con el plan Premium, tus negocios y servicios saltan directo a "Negocios destacados" y "Servicios recomendados", con insignia especial, sin depender de calificaciones.</p>
          <button class="btn-mejorar-plan" onclick="irAMejorarPlan()"><svg class="icon" viewBox="0 0 24 24" width="17" height="17" stroke="#fff"><path d="M12 2l2.9 6.3L21 9l-5 4.6L17.3 21 12 17.6 6.7 21 8 13.6 3 9l6.1-.7z"/></svg>Mejorar plan</button>
        </div>`;
+
+  // Estadísticas (solo cuentas Premium): se piden al servidor solo si la
+  // cuenta ya es Premium (el backend las bloquea igual si no lo es, pero
+  // así evitamos pedirlas de más para cuentas gratis). Mientras llegan, la
+  // lista se ve sin los números; en cuanto responde el servidor, se vuelve
+  // a pintar con "👁️ vistas · 💬 WhatsApp · ⭐ favoritos" debajo de cada
+  // negocio o servicio.
+  let estadisticasPorNegocio = {};
+  if(esPremium && misNegocios.length){
+    try{
+      const r = await apiPost('obtenerEstadisticas', { propietario_email: state.user.email });
+      if(r && r.ok && r.estadisticas) estadisticasPorNegocio = r.estadisticas;
+    }catch(err){
+      // Si falla, la lista se queda sin estadísticas en vez de romperse.
+    }
+  }
+
   document.getElementById('listaMiPremium').innerHTML = misNegocios.length
-    ? misNegocios.map(n => `
+    ? misNegocios.map(n => {
+        const est = estadisticasPorNegocio[String(n.id)];
+        const lineaStats = est
+          ? `<p style="color:var(--muted);font-size:10.5px;margin-top:2px">👁️ ${est.vistas} vistas · 💬 ${est.clics_whatsapp} WhatsApp · ⭐ ${est.favoritos} favoritos</p>`
+          : '';
+        return `
       <div class="selector-neg-row" onclick="verMiNegocioDesdePremium('${n.id}')">
         <div class="dot" style="background:${n.color || '#D9691E'}"></div>
         <div class="tx">
           <h4>${escapeHtml(n.nombre)}${(n.esPremium && n.destacarActivo) ? '<span class="premium-badge">★ Premium</span>' : ''}</h4>
           <p>${escapeHtml(n.tipo || n.categoria)}</p>
+          ${lineaStats}
         </div>
         <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
-      </div>`).join('')
+      </div>`;
+      }).join('')
     : '<p style="font-size:11.5px;color:var(--muted);padding:6px 2px">Todavía no tienes negocios ni servicios publicados.</p>';
 }
 function verMiNegocioDesdePremium(id){
@@ -3590,7 +3673,39 @@ function volverDesdeTipoRegistro(){
   document.getElementById('bottomnav').classList.remove('hidden');
 }
 
+// Límite de publicaciones por cuenta: como máximo 2 "negocio" y 1
+// "servicio" (3 en total). Coincide con el límite real que aplica el
+// backend en crearNegocio() — este chequeo de aquí es solo para avisar al
+// instante, sin esperar la respuesta del servidor. Si el dueño elimina una
+// publicación, obtenerMisNegocios() (que lee de NEGOCIOS en memoria, ya
+// actualizado por eliminarNegocioActual()/adminEliminarNegocio()) refleja
+// el cupo libre de inmediato.
+const MAX_NEGOCIOS_POR_CUENTA = 2;
+const MAX_SERVICIOS_POR_CUENTA = 1;
+
+// Clasifica una publicación de la cuenta como "servicio" (tiene tipo, o su
+// categoría es "Servicios") o como "negocio" (cualquier otra categoría) —
+// mismo criterio que ya usa el resto de la app (ver seleccionarDesdeSelector,
+// adminEditarNegocio).
+function esPublicacionServicio(n){
+  return !!(n.tipo || n.categoria === 'Servicios');
+}
+
 function elegirTipoRegistro(modo){
+  const misNegocios = obtenerMisNegocios();
+  const totalNegocios = misNegocios.filter(n => !esPublicacionServicio(n)).length;
+  const totalServicios = misNegocios.filter(esPublicacionServicio).length;
+
+  if(modo === 'servicio' && totalServicios >= MAX_SERVICIOS_POR_CUENTA){
+    volverDesdeTipoRegistro();
+    mostrarAlerta(`Ya tienes ${MAX_SERVICIOS_POR_CUENTA} servicio publicado, que es el máximo por cuenta. Elimínalo desde "Mi negocio" para poder publicar otro.`);
+    return;
+  }
+  if(modo === 'negocio' && totalNegocios >= MAX_NEGOCIOS_POR_CUENTA){
+    volverDesdeTipoRegistro();
+    mostrarAlerta(`Ya tienes ${MAX_NEGOCIOS_POR_CUENTA} negocios publicados, que es el máximo por cuenta. Elimina uno desde "Mi negocio" para poder publicar otro.`);
+    return;
+  }
   abrirFormularioNegocio(modo, null);
 }
 
@@ -3621,6 +3736,8 @@ function abrirFormularioNegocio(modo, negocioExistente){
   state.negFotoBase64 = null;
   state.negLat = null;
   state.negLng = null;
+  document.getElementById('negBuscarDireccion').value = '';
+  document.getElementById('negBuscarEstado').textContent = '';
   document.getElementById('negFotoPreview').classList.add('hidden');
   document.getElementById('negFotoPlaceholder').classList.remove('hidden');
   document.getElementById('negFotoEditarTag').classList.add('hidden');
@@ -3794,6 +3911,75 @@ function iniciarMapaPickerNegocio(lat, lng){
   });
 }
 
+// Centra el mini-mapa del formulario y mueve el pin a las coordenadas
+// indicadas, reutilizando el mismo mapa y marcador que ya creó
+// iniciarMapaPickerNegocio() (en vez de reconstruir el mapa desde cero) —
+// tanto la búsqueda por dirección como el botón "Mi ubicación" pasan por
+// aquí para terminar de ubicar el pin.
+function moverMapaPickerNegocio(lat, lng, zoom){
+  document.getElementById('negCoordTxt').textContent = `📍 ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  state.negLat = lat; state.negLng = lng;
+  if(state.mapaPickerNegocio && state.marcadorPickerNegocio){
+    state.mapaPickerNegocio.setView([lat, lng], zoom || state.mapaPickerNegocio.getZoom());
+    state.marcadorPickerNegocio.setLatLng([lat, lng]);
+  }
+}
+
+// Busca una calle o referencia escrita a mano usando Nominatim (el
+// buscador gratuito de OpenStreetMap, sin necesidad de ninguna clave ni
+// cuenta), acotado a Trujillo / La Libertad para que el primer resultado
+// sea relevante, y mueve el mapa + el pin ahí directo. Antes la única forma
+// de ubicar el negocio en el mapa pequeño era arrastrar el pin a ojo desde
+// el centro de la ciudad, lo que hacía difícil marcar el punto exacto.
+let buscandoDireccionPicker = false;
+async function buscarDireccionEnMapaPicker(){
+  const input = document.getElementById('negBuscarDireccion');
+  const estado = document.getElementById('negBuscarEstado');
+  const texto = (input.value || '').trim();
+  if(!texto){ if(estado) estado.textContent = 'Escribe una calle o referencia para buscar.'; return; }
+  if(buscandoDireccionPicker) return;
+  buscandoDireccionPicker = true;
+  if(estado) estado.textContent = 'Buscando…';
+  try{
+    const query = encodeURIComponent(texto + ', Trujillo, La Libertad, Perú');
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${query}`;
+    const res = await fetch(url, { headers:{ 'Accept':'application/json' } });
+    const datos = await res.json();
+    if(!Array.isArray(datos) || datos.length === 0){
+      if(estado) estado.textContent = 'No se encontró esa dirección. Prueba con otra referencia o marca el pin a mano.';
+      return;
+    }
+    const lat = parseFloat(datos[0].lat), lng = parseFloat(datos[0].lon);
+    moverMapaPickerNegocio(lat, lng, 17);
+    if(estado) estado.textContent = '';
+  }catch(err){
+    if(estado) estado.textContent = 'No se pudo buscar (revisa tu conexión). Puedes marcar el pin a mano.';
+  }finally{
+    buscandoDireccionPicker = false;
+  }
+}
+
+// Botón "Mi ubicación" del mini-mapa: usa el GPS del celular para centrar
+// el pin exactamente donde está parada la persona en ese momento — la
+// forma más rápida y precisa de marcar un negocio si lo estás registrando
+// desde el propio local.
+function usarMiUbicacionEnMapaPicker(){
+  const estado = document.getElementById('negBuscarEstado');
+  if(!('geolocation' in navigator)){
+    if(estado) estado.textContent = 'Este navegador no permite obtener tu ubicación.';
+    return;
+  }
+  if(estado) estado.textContent = 'Obteniendo tu ubicación…';
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      moverMapaPickerNegocio(pos.coords.latitude, pos.coords.longitude, 17);
+      if(estado) estado.textContent = '';
+    },
+    () => { if(estado) estado.textContent = 'No se pudo obtener tu ubicación. Revisa los permisos de ubicación del navegador.'; },
+    { enableHighAccuracy:true, timeout:10000, maximumAge:30000 }
+  );
+}
+
 async function publicarNegocio(){
   ocultarError('negError');
   ocultarError('negSuccess');
@@ -3806,6 +3992,12 @@ async function publicarNegocio(){
   const direccion = document.getElementById('negDireccion').value.trim();
 
   if(!nombre){ mostrarError('negError', modo === 'servicio' ? 'Ingresa el nombre de tu servicio.' : 'Ingresa el nombre de tu negocio.'); return; }
+  // La dirección es solo una referencia (queda opcional) y la foto también
+  // sigue siendo opcional (más abajo, en payload.foto_base64, solo se envía
+  // si la persona subió una). Todo lo demás del formulario sí es obligatorio
+  // para poder publicar.
+  if(!descripcion){ mostrarError('negError', modo === 'servicio' ? 'Cuéntanos qué ofrece tu servicio.' : 'Cuéntanos qué ofrece tu negocio.'); return; }
+  if(!telefono){ mostrarError('negError', 'Ingresa un teléfono de contacto.'); return; }
   if(!state.user || state.user.mode !== 'user'){ mostrarError('negError', 'Debes iniciar sesión para publicar.'); return; }
 
   // Color, tamaño de letra y promoción se editan aparte, en la pantalla
