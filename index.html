@@ -3970,13 +3970,37 @@ function usarMiUbicacionEnMapaPicker(){
     return;
   }
   if(estado) estado.textContent = 'Obteniendo tu ubicación…';
+
+  let yaUbicado = false;
+
+  // Igual que el botón "Mi ubicación" de Explorar: primero se pide un punto
+  // rápido y aproximado (red/wifi, enableHighAccuracy:false), que responde
+  // casi al toque incluso dentro del WebView de la app empaquetada. Antes
+  // este picker pedía alta precisión desde el arranque, y el GPS puede
+  // tardar más de 10s en dar señal limpia ahí dentro, disparando el error
+  // "no se pudo obtener tu ubicación" aunque el GPS sí funcionara. Si este
+  // primer intento rápido falla, recién ahí se reintenta con alta precisión
+  // dándole más tiempo al GPS.
   navigator.geolocation.getCurrentPosition(
     (pos) => {
+      yaUbicado = true;
       moverMapaPickerNegocio(pos.coords.latitude, pos.coords.longitude, 17);
       if(estado) estado.textContent = '';
     },
-    () => { if(estado) estado.textContent = 'No se pudo obtener tu ubicación. Revisa los permisos de ubicación del navegador.'; },
-    { enableHighAccuracy:true, timeout:10000, maximumAge:30000 }
+    () => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          yaUbicado = true;
+          moverMapaPickerNegocio(pos.coords.latitude, pos.coords.longitude, 17);
+          if(estado) estado.textContent = '';
+        },
+        () => {
+          if(!yaUbicado && estado) estado.textContent = 'No se pudo obtener tu ubicación. Revisa los permisos de ubicación del navegador.';
+        },
+        { enableHighAccuracy:true, timeout:10000, maximumAge:30000 }
+      );
+    },
+    { enableHighAccuracy:false, timeout:8000, maximumAge:60000 }
   );
 }
 
