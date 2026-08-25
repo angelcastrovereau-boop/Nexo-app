@@ -548,6 +548,9 @@
   .pago-row .tx b{ display:block; font-size:12.5px; color:var(--ink); }
   .pago-row .tx span{ font-size:12px; color:var(--muted); font-family:var(--font-mono); letter-spacing:.02em; }
   .pago-row .accion{ flex-shrink:0; font-size:11px; font-weight:800; color:var(--primary); background:#EAF2FF; padding:8px 12px; border-radius:9px; }
+  .precio-premium-box{ display:flex; align-items:center; justify-content:space-between; background:linear-gradient(135deg,#FFF6E5,#FFFFFF); border:1.5px solid #F0D9A6; border-radius:14px; padding:12px 16px; margin:12px 0 16px; }
+  .precio-premium-box span{ font-size:12.5px; font-weight:700; color:var(--muted); }
+  .precio-premium-box b{ font-family:var(--font-display); font-size:17px; font-weight:700; color:var(--gold); }
   .qr-yape-box{ background:linear-gradient(135deg,#EAF3FF,#FFFFFF); border:1.5px solid #BFDCFA; border-radius:16px; padding:16px; text-align:center; margin:14px 0; }
   .qr-yape-box img{ width:100%; max-width:220px; border-radius:12px; margin:0 auto 8px; display:block; box-shadow:0 8px 20px rgba(13,44,85,0.15); }
   .qr-yape-box p{ font-size:11.5px; color:var(--muted); line-height:1.4; }
@@ -651,6 +654,30 @@
     background:var(--grad-signal); box-shadow:0 4px 12px rgba(224,123,46,0.3);
   }
   .promo-bar span{ color:#fff; font-weight:700; font-size:12.5px; }
+
+  /* ═══════ Bloque de promoción en "Detalle del negocio" ═══════
+     Versión normal: barra simple con el % y la descripción, igual para
+     todas las cuentas. Versión Premium: se ve más grande y "de pago" a
+     propósito (borde dorado, resplandor, chip ★ Premium y la fecha de
+     vigencia abajo) — la idea es que un negocio Premium con promoción se
+     note claramente más que uno gratuito en el mismo listado. */
+  .promo-detalle{
+    display:flex; flex-direction:column; gap:4px; margin-bottom:12px; padding:12px 14px; border-radius:13px;
+    background:var(--grad-signal); box-shadow:0 4px 14px rgba(224,123,46,0.28);
+  }
+  .promo-detalle-head{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+  .promo-fire{ font-size:15px; line-height:1; }
+  .promo-detalle-txt{ color:#fff; font-weight:800; font-size:13.5px; }
+  .promo-vigencia{ color:rgba(255,255,255,0.85); font-size:10.5px; font-weight:600; margin-top:1px; }
+  .promo-premium-chip{
+    display:inline-flex; align-items:center; gap:3px; background:rgba(255,255,255,0.22); color:#fff;
+    font-size:9px; font-weight:800; letter-spacing:.03em; text-transform:uppercase; padding:2px 7px;
+    border-radius:100px; margin-left:auto;
+  }
+  .promo-detalle-premium{
+    background:linear-gradient(135deg,#E07B2E,#C4881F 55%,#F4C95D);
+    box-shadow:0 6px 18px rgba(196,136,31,0.4), 0 0 0 1.5px rgba(244,201,93,0.9) inset;
+  }
 
   /* ═══════ bottom nav — mismo patrón que la app cívica ═══════ */
   .bottom-nav{
@@ -1286,6 +1313,7 @@
     </div>
     <div class="form-card">
       <p class="sub">Paga tu plan Premium por WhatsApp o Yape y sube tu comprobante. Activamos el beneficio en cuanto lo confirmemos.</p>
+      <div class="precio-premium-box"><span>Plan Premium</span><b id="txtPrecioPremium">S/ 7 al mes</b></div>
 
       <div class="pago-row" onclick="abrirWhatsappPremium()">
         <div class="ic whatsapp"><svg viewBox="0 0 24 24" width="19" height="19" fill="#fff"><path d="M21 11.5a8.4 8.4 0 01-8.9 8.4 8.5 8.5 0 01-4-1L3 20l1.2-5a8.4 8.4 0 1116.8-3.5z" fill="none" stroke="#fff" stroke-width="1.8"/></svg></div>
@@ -1301,7 +1329,7 @@
 
       <div class="qr-yape-box">
         <img src="" id="imgQrYape" alt="Código QR de Yape para pagar el plan Premium">
-        <p>Escanea el código con tu app Yape y paga el monto de tu plan Premium.</p>
+        <p>Escanea el código con tu app Yape y paga el monto de tu plan Premium (S/ 7 al mes).</p>
       </div>
 
       <p class="pers-sec-label" style="margin-top:18px">Sube tu comprobante de pago</p>
@@ -1541,6 +1569,12 @@ const CONFIG = {
 // exactamente el mismo correo que pusiste en ADMIN_EMAIL dentro de Code.gs.
 const ADMIN_EMAIL = 'angelcastrovereau@gmail.com';
 
+// 👉 Precio mensual del plan Premium, tal como se muestra en "Mi plan
+// Premium" y en "Mejorar plan" (pantalla de pago). Cámbialo aquí si el
+// precio cambia; se usa en un solo lugar para no tener que buscarlo en
+// varias partes del HTML.
+const PRECIO_PREMIUM_TEXTO = 'S/ 7 al mes';
+
 // Llama al backend en Apps Script. Se usa Content-Type "text/plain" a propósito:
 // así el navegador no envía una petición OPTIONS de pre-vuelo (que Apps Script
 // no responde), evitando errores de CORS.
@@ -1689,6 +1723,32 @@ function textoPromo(n){
   if(!n.promoActiva) return '';
   const pct = n.promoRank ? `${n.promoRank}% de descuento` : 'Promoción activa';
   return n.promoTxt ? `${pct} · ${n.promoTxt}` : pct;
+}
+
+// Fecha corta en español, ej. "25 ago". Recibe "yyyy-MM-dd" (formato que ya
+// devuelve el backend en listarNegocios).
+function formatearFechaCortaPromo(fechaStr){
+  if(!fechaStr) return '';
+  const partes = fechaStr.split('-');
+  if(partes.length !== 3) return '';
+  const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const mesIdx = parseInt(partes[1], 10) - 1;
+  if(mesIdx < 0 || mesIdx > 11) return '';
+  return `${parseInt(partes[2], 10)} ${meses[mesIdx]}`;
+}
+
+// Texto de vigencia que se ve SOLO en negocios Premium con fecha
+// programada (ver actualizarNegocio en Code.gs: las fechas solo se
+// guardan si es_premium=true). Las cuentas gratuitas nunca tienen
+// promoInicio/promoFin, así que para ellas esta función siempre devuelve
+// '' y su promoción se sigue viendo igual que siempre: sin fechas, activa
+// hasta que el propio dueño la apague a mano.
+function textoVigenciaPromo(n){
+  if(!n.esPremium) return '';
+  if(!n.promoInicio && !n.promoFin) return '';
+  if(n.promoInicio && n.promoFin) return `Del ${formatearFechaCortaPromo(n.promoInicio)} al ${formatearFechaCortaPromo(n.promoFin)}`;
+  if(n.promoFin) return `Vigente hasta el ${formatearFechaCortaPromo(n.promoFin)}`;
+  return `Vigente desde el ${formatearFechaCortaPromo(n.promoInicio)}`;
 }
 
 // Lista completa de tipos de servicio que puede ofrecer una persona de forma
@@ -2395,7 +2455,14 @@ function renderDetalleNegocioCompleto(n){
       </div>
     </div>
     <div class="detail-card">
-      ${n.promoActiva ? `<p class="desc" style="color:var(--signal-dark);font-weight:700">🔥 ${escapeHtml(textoPromo(n))}</p>` : ''}
+      ${n.promoActiva ? `<div class="promo-detalle ${n.esPremium ? 'promo-detalle-premium' : ''}">
+        <div class="promo-detalle-head">
+          <span class="promo-fire">🔥</span>
+          <span class="promo-detalle-txt">${escapeHtml(textoPromo(n))}</span>
+          ${n.esPremium ? '<span class="promo-premium-chip">★ Premium</span>' : ''}
+        </div>
+        ${textoVigenciaPromo(n) ? `<p class="promo-vigencia">📅 ${escapeHtml(textoVigenciaPromo(n))}</p>` : ''}
+      </div>` : ''}
       ${Array.isArray(n.etiquetas) && n.etiquetas.length ? `<div class="detail-tags">${n.etiquetas.map(t => `<span class="detail-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
       <p class="desc">${escapeHtml(n.desc) || 'Este negocio todavía no agregó una descripción.'}</p>
       ${n.horario ? `<div class="detail-row"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div><span>${escapeHtml(n.horario)}</span></div>` : ''}
@@ -2447,7 +2514,14 @@ function renderDetalleNegocioSimple(n){
       </div>
     </div>
     <div class="detail-card">
-      ${n.promoActiva ? `<p class="desc" style="color:var(--signal-dark);font-weight:700">🔥 ${escapeHtml(textoPromo(n))}</p>` : ''}
+      ${n.promoActiva ? `<div class="promo-detalle ${n.esPremium ? 'promo-detalle-premium' : ''}">
+        <div class="promo-detalle-head">
+          <span class="promo-fire">🔥</span>
+          <span class="promo-detalle-txt">${escapeHtml(textoPromo(n))}</span>
+          ${n.esPremium ? '<span class="promo-premium-chip">★ Premium</span>' : ''}
+        </div>
+        ${textoVigenciaPromo(n) ? `<p class="promo-vigencia">📅 ${escapeHtml(textoVigenciaPromo(n))}</p>` : ''}
+      </div>` : ''}
       <p class="desc">${escapeHtml(n.desc) || 'Este negocio todavía no agregó una descripción.'}</p>
       ${n.telefono ? `<div class="detail-row"><div class="ic"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3-8.7A2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .3 2 .7 2.9a2 2 0 01-.4 2.1L8 10a16 16 0 006 6l1.3-1.4a2 2 0 012.1-.4c.9.4 1.9.6 2.9.7a2 2 0 011.7 2z"/></svg></div><a href="tel:${escapeHtml(n.telefono)}"><span>${escapeHtml(n.telefono)}</span></a></div>` : ''}
       ${n.direccion ? `<div class="detail-row"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 21V9l8-6 8 6v12"/></svg></div><span>${escapeHtml(n.direccion)}</span></div>` : ''}
@@ -2911,6 +2985,7 @@ async function renderMiPremium(){
     : `<div class="premium-hero">
          <h4>Aún no tienes Premium</h4>
          <p>Con el plan Premium, tus negocios y servicios saltan directo a "Negocios destacados" y "Servicios recomendados", con insignia especial, sin depender de calificaciones.</p>
+         <div class="precio-premium-box"><span>Plan Premium</span><b>${PRECIO_PREMIUM_TEXTO}</b></div>
          <button class="btn-mejorar-plan" onclick="irAMejorarPlan()"><svg class="icon" viewBox="0 0 24 24" width="17" height="17" stroke="#fff"><path d="M12 2l2.9 6.3L21 9l-5 4.6L17.3 21 12 17.6 6.7 21 8 13.6 3 9l6.1-.7z"/></svg>Mejorar plan</button>
        </div>`;
 
@@ -2962,6 +3037,7 @@ function irAMejorarPlan(){
   document.getElementById('txtWhatsappPremium').textContent = CONFIG.YAPE_NUMERO;
   document.getElementById('txtYapeNumero').textContent = CONFIG.YAPE_NUMERO;
   document.getElementById('imgQrYape').src = CONFIG.QR_YAPE;
+  document.getElementById('txtPrecioPremium').textContent = PRECIO_PREMIUM_TEXTO;
   comprobanteBase64Actual = '';
   document.getElementById('imgComprobantePreview').classList.add('hidden');
   document.getElementById('imgComprobantePreview').src = '';
