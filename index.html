@@ -1049,6 +1049,19 @@
           <svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.4 2.3 7.4L12 17l-6.3 4.2 2.3-7.4-6-4.4h7.6z"/></svg>
           <input id="negPromoTxt" type="text" placeholder="Detalle opcional. Ej. solo en pan del día" oninput="actualizarPreviewPersonalizar()">
         </div>
+        <!-- Fechas de vencimiento de la promoción: función exclusiva Premium.
+             Cuentas normales ven en su lugar un aviso invitándolas a hacerse
+             Premium; la promo les sigue funcionando igual, on/off manual,
+             sin vencimiento programado. -->
+        <div class="hidden" id="campoPromoFechas" style="margin-top:10px">
+          <label style="display:block;font-family:var(--font-mono);font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--primary);margin-bottom:4px">Vigencia de la promoción (opcional)</label>
+          <p style="font-size:11px;color:var(--muted);margin-bottom:6px;line-height:1.4">Prográmala y se apagará sola cuando termine, sin que tengas que acordarte de desactivarla.</p>
+          <div style="display:flex;gap:8px">
+            <div class="inp-wrap" style="flex:1"><input id="negPromoInicio" type="date" oninput="actualizarPreviewPersonalizar()"></div>
+            <div class="inp-wrap" style="flex:1"><input id="negPromoFin" type="date" oninput="actualizarPreviewPersonalizar()"></div>
+          </div>
+        </div>
+        <p class="hidden" id="avisoPromoFechasPremium" style="font-size:10.5px;color:var(--muted);margin-top:8px;line-height:1.4">🔒 Hazte Premium para programar fecha de inicio y fin: la promoción se apagará sola al vencer.</p>
         <div class="promo-bar hidden" id="promoBarPreview">
           <span>🔥</span><span id="promoBarTexto">20% de descuento</span>
         </div>
@@ -1607,6 +1620,14 @@ function normalizarNegocio(n){
     promo: n.promo === true || n.promo === 'TRUE' || n.promo === 'true',
     promoTxt: String(n.promo_txt || ''),
     promoRank: Number(n.promo_rank) || 20,
+    // Fecha de inicio/fin de la promoción (solo cuentas Premium). Si están
+    // vacías, la promo no tiene vencimiento programado (se comporta igual
+    // que antes). "promoActiva" ya viene calculado del servidor comparando
+    // estas fechas con hoy: úsala para decidir si SE MUESTRA la promo en
+    // vez de "promo" a secas, así una promo vencida se apaga sola.
+    promoInicio: String(n.promo_inicio || ''),
+    promoFin: String(n.promo_fin || ''),
+    promoActiva: n.promo_activa === true || n.promo_activa === 'TRUE' || n.promo_activa === 'true',
     nuevo: n.nuevo === true || n.nuevo === 'TRUE' || n.nuevo === 'true',
     servicioReco: n.servicio_reco === true || n.servicio_reco === 'TRUE' || n.servicio_reco === 'true',
     foto: n.foto_url || fotosRecientes[id] || '',
@@ -1665,7 +1686,7 @@ function catInfo(nombre){ return CATEGORIAS_INFO.find(c=>c.nombre===nombre) || C
 // descuento configurado con la barrita, y si el dueño escribió un detalle
 // adicional (opcional) se agrega después.
 function textoPromo(n){
-  if(!n.promo) return '';
+  if(!n.promoActiva) return '';
   const pct = n.promoRank ? `${n.promoRank}% de descuento` : 'Promoción activa';
   return n.promoTxt ? `${pct} · ${n.promoTxt}` : pct;
 }
@@ -1961,7 +1982,7 @@ function leerVistos(){
 function guardarVistosSnapshot(){
   try{
     const promos = {};
-    NEGOCIOS.forEach(n => { if(n.promo) promos[String(n.id)] = promoFirma(n); });
+    NEGOCIOS.forEach(n => { if(n.promoActiva) promos[String(n.id)] = promoFirma(n); });
     localStorage.setItem(VISTOS_KEY, JSON.stringify({ ids: NEGOCIOS.map(n => String(n.id)), promos }));
   }catch(e){ /* localStorage no disponible: la app sigue, solo sin marcar novedades */ }
 }
@@ -1975,7 +1996,7 @@ function calcularNovedades(){
   if(!vistos) return { negociosNuevos: [], promosNuevas: [] };
   const idsVistos = new Set(vistos.ids || []);
   const negociosNuevos = NEGOCIOS.filter(n => !idsVistos.has(String(n.id)));
-  const promosNuevas = NEGOCIOS.filter(n => n.promo && vistos.promos[String(n.id)] !== promoFirma(n));
+  const promosNuevas = NEGOCIOS.filter(n => n.promoActiva && vistos.promos[String(n.id)] !== promoFirma(n));
   return { negociosNuevos, promosNuevas };
 }
 
@@ -2247,7 +2268,7 @@ function filaVertical(n){
         <div class="meta">
           <span class="rt"><svg viewBox="0 0 24 24"><path d="M12 3l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7z"/></svg>${textoRatingCorto(n)}</span>
           <span>· ${escapeHtml(n.tipo || n.categoria)} · ${textoDistancia(n)}</span>
-          ${n.promo ? `<span style="color:var(--signal-dark);font-weight:700">· ${escapeHtml(textoPromo(n))}</span>` : ''}
+          ${n.promoActiva ? `<span style="color:var(--signal-dark);font-weight:700">· ${escapeHtml(textoPromo(n))}</span>` : ''}
         </div>
       </div>
       <div class="fav-mini ${esFav?'is-fav':''}" onclick="event.stopPropagation();toggleFavorito('${n.id}')"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg></div>
@@ -2374,7 +2395,7 @@ function renderDetalleNegocioCompleto(n){
       </div>
     </div>
     <div class="detail-card">
-      ${n.promo ? `<p class="desc" style="color:var(--signal-dark);font-weight:700">🔥 ${escapeHtml(textoPromo(n))}</p>` : ''}
+      ${n.promoActiva ? `<p class="desc" style="color:var(--signal-dark);font-weight:700">🔥 ${escapeHtml(textoPromo(n))}</p>` : ''}
       ${Array.isArray(n.etiquetas) && n.etiquetas.length ? `<div class="detail-tags">${n.etiquetas.map(t => `<span class="detail-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
       <p class="desc">${escapeHtml(n.desc) || 'Este negocio todavía no agregó una descripción.'}</p>
       ${n.horario ? `<div class="detail-row"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div><span>${escapeHtml(n.horario)}</span></div>` : ''}
@@ -2426,7 +2447,7 @@ function renderDetalleNegocioSimple(n){
       </div>
     </div>
     <div class="detail-card">
-      ${n.promo ? `<p class="desc" style="color:var(--signal-dark);font-weight:700">🔥 ${escapeHtml(textoPromo(n))}</p>` : ''}
+      ${n.promoActiva ? `<p class="desc" style="color:var(--signal-dark);font-weight:700">🔥 ${escapeHtml(textoPromo(n))}</p>` : ''}
       <p class="desc">${escapeHtml(n.desc) || 'Este negocio todavía no agregó una descripción.'}</p>
       ${n.telefono ? `<div class="detail-row"><div class="ic"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3-8.7A2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .3 2 .7 2.9a2 2 0 01-.4 2.1L8 10a16 16 0 006 6l1.3-1.4a2 2 0 012.1-.4c.9.4 1.9.6 2.9.7a2 2 0 011.7 2z"/></svg></div><a href="tel:${escapeHtml(n.telefono)}"><span>${escapeHtml(n.telefono)}</span></a></div>` : ''}
       ${n.direccion ? `<div class="detail-row"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 21V9l8-6 8 6v12"/></svg></div><span>${escapeHtml(n.direccion)}</span></div>` : ''}
@@ -3168,7 +3189,7 @@ function filaSelectorNegocio(n){
       <div class="dot" style="background:${n.color || '#D9691E'}"></div>
       <div class="tx">
         <h4>${escapeHtml(n.nombre)}</h4>
-        <p>${escapeHtml(sub)}${n.promo ? ` · <span class="promo-mini">🔥 ${escapeHtml(textoPromo(n))}</span>` : ''}</p>
+        <p>${escapeHtml(sub)}${n.promoActiva ? ` · <span class="promo-mini">🔥 ${escapeHtml(textoPromo(n))}</span>` : ''}</p>
       </div>
       <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
     </div>`;
@@ -3313,6 +3334,12 @@ function abrirFormularioPersonalizar(negocio){
   document.getElementById('negPromoRankVal').textContent = rank + '%';
   document.getElementById('campoPromoRank').classList.toggle('hidden', !tienePromo);
   document.getElementById('btnCancelarPromo').classList.toggle('hidden', !tienePromo);
+
+  document.getElementById('negPromoInicio').value = negocio.promoInicio || '';
+  document.getElementById('negPromoFin').value = negocio.promoFin || '';
+  const esCuentaPremium = obtenerMisNegocios().some(n => n.esPremium);
+  document.getElementById('campoPromoFechas').classList.toggle('hidden', !(tienePromo && esCuentaPremium));
+  document.getElementById('avisoPromoFechasPremium').classList.toggle('hidden', !(tienePromo && !esCuentaPremium));
 
   actualizarPreviewPersonalizar();
   mostrarPantalla('screenPersonalizar');
@@ -3599,6 +3626,13 @@ async function guardarPersonalizacion(){
   const tienePromo = document.getElementById('negTienePromo').checked;
   const promoTxt = document.getElementById('negPromoTxt').value.trim();
   const promoRank = parseInt(document.getElementById('negPromoRank').value, 10) || 20;
+  const esCuentaPremium = obtenerMisNegocios().some(n => n.esPremium);
+  const promoInicio = esCuentaPremium ? document.getElementById('negPromoInicio').value : '';
+  const promoFin = esCuentaPremium ? document.getElementById('negPromoFin').value : '';
+  if(esCuentaPremium && promoInicio && promoFin && promoFin < promoInicio){
+    mostrarError('persError', 'La fecha de fin no puede ser antes que la fecha de inicio.');
+    return;
+  }
   const descripcion = document.getElementById('persDescripcion').value.trim();
   const horario = document.getElementById('persHorario').value.trim();
   const whatsapp = document.getElementById('persWhatsapp').value.replace(/\D/g, '');
@@ -3620,7 +3654,9 @@ async function guardarPersonalizacion(){
     etiquetas: etiquetas,
     promo: tienePromo,
     promo_txt: tienePromo ? promoTxt : '',
-    promo_rank: tienePromo ? promoRank : ''
+    promo_rank: tienePromo ? promoRank : '',
+    promo_inicio: tienePromo ? promoInicio : '',
+    promo_fin: tienePromo ? promoFin : ''
   };
 
   const btn = document.getElementById('btnGuardarPers');
@@ -3635,11 +3671,21 @@ async function guardarPersonalizacion(){
   // Inicio, Explorar, Buscar y el detalle.
   const idx = NEGOCIOS.findIndex(n => String(n.id) === String(state.personalizandoId));
   if(idx !== -1){
+    // "promoActiva" se recalcula aquí igual que en el servidor (ver
+    // listarNegocios en Code.gs): si hay promo con fechas, solo cuenta como
+    // vigente si hoy cae dentro del rango; sin fechas, sigue el mismo
+    // comportamiento de siempre.
+    const hoyStr = new Date().toISOString().slice(0, 10);
+    const promoActivaLocal = tienePromo
+      && (!promoInicio || hoyStr >= promoInicio)
+      && (!promoFin || hoyStr <= promoFin);
     NEGOCIOS[idx] = Object.assign({}, NEGOCIOS[idx], {
       color: state.persColor, tamNombre: state.persTam, desc: descripcion,
       horario: horario, whatsapp: whatsapp, etiquetas: state.persEtiquetas.slice(0, 3),
       promo: tienePromo, promoTxt: tienePromo ? promoTxt : '',
-      promoRank: tienePromo ? promoRank : 20
+      promoRank: tienePromo ? promoRank : 20,
+      promoInicio: tienePromo ? promoInicio : '', promoFin: tienePromo ? promoFin : '',
+      promoActiva: promoActivaLocal
     });
     state.personalizando = NEGOCIOS[idx];
   }
@@ -3811,6 +3857,15 @@ function togglePromoNegocio(){
   if(barra) barra.classList.toggle('hidden', !chk.checked);
   const btnCancelar = document.getElementById('btnCancelarPromo');
   if(btnCancelar) btnCancelar.classList.toggle('hidden', !chk.checked);
+
+  // Vigencia con fecha: solo para cuentas Premium. A las que no lo son se
+  // les muestra un aviso invitándolas a mejorar su plan, en vez del campo.
+  const esCuentaPremium = obtenerMisNegocios().some(n => n.esPremium);
+  const campoFechas = document.getElementById('campoPromoFechas');
+  const avisoPremium = document.getElementById('avisoPromoFechasPremium');
+  if(campoFechas) campoFechas.classList.toggle('hidden', !(chk.checked && esCuentaPremium));
+  if(avisoPremium) avisoPremium.classList.toggle('hidden', !(chk.checked && !esCuentaPremium));
+
   actualizarPreviewPersonalizar();
 }
 
@@ -4081,6 +4136,9 @@ async function publicarNegocio(){
     promo: negocioPrevio ? negocioPrevio.promo : false,
     promoTxt: negocioPrevio ? negocioPrevio.promoTxt : '',
     promoRank: negocioPrevio ? negocioPrevio.promoRank : 20,
+    promoInicio: negocioPrevio ? negocioPrevio.promoInicio : '',
+    promoFin: negocioPrevio ? negocioPrevio.promoFin : '',
+    promoActiva: negocioPrevio ? negocioPrevio.promoActiva : false,
     nuevo: !editando, servicioReco: negocioPrevio ? negocioPrevio.servicioReco : false,
     foto: state.negFotoBase64 || (negocioPrevio ? negocioPrevio.foto || '' : ''),
     propietarioEmail: propietarioReal,
@@ -4322,7 +4380,7 @@ function construirMapaLeaflet(){
 let firmaMarcadoresPintados = null;
 function pintarMarcadoresNegocios(){
   if(!mapaLeaflet || !capaMarcadores) return;
-  const firmaActual = NEGOCIOS.map(n => `${n.id}:${n.lat}:${n.lng}:${n.nombre}:${n.categoria}:${n.promo?1:0}`).join('|');
+  const firmaActual = NEGOCIOS.map(n => `${n.id}:${n.lat}:${n.lng}:${n.nombre}:${n.categoria}:${n.promoActiva?1:0}`).join('|');
   if(firmaActual === firmaMarcadoresPintados) return; // nada cambió, no repintar
   firmaMarcadoresPintados = firmaActual;
   capaMarcadores.clearLayers();
@@ -4333,7 +4391,7 @@ function pintarMarcadoresNegocios(){
     const marker = L.marker([n.lat, n.lng], {
       icon: L.divIcon({ className:'', html:pinHtml, iconSize:[30,30], iconAnchor:[15,30] })
     }).addTo(capaMarcadores);
-    marker.bindPopup(`<b>${escapeHtml(n.nombre)}</b><br>${escapeHtml(n.tipo || n.categoria)} · ★${textoRatingCorto(n)} · ${textoDistancia(n)}${n.promo ? '<br>🔥 '+escapeHtml(textoPromo(n)) : ''}`);
+    marker.bindPopup(`<b>${escapeHtml(n.nombre)}</b><br>${escapeHtml(n.tipo || n.categoria)} · ★${textoRatingCorto(n)} · ${textoDistancia(n)}${n.promoActiva ? '<br>🔥 '+escapeHtml(textoPromo(n)) : ''}`);
     marker.on('click', () => verNegocio(n.id));
   });
 }
