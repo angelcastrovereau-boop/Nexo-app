@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Nexo — Tu ciudad, conectada</title>
+<style>
+  :root{
+    --ink:#0F1A2E; --ink-2:#16264A;
+    --paper:#F4F5F1; --surface:#FFFFFF; --line:#E6E7E1;
+    --primary:#1C4A87; --primary-2:#0D2C55;
+    --signal:#E07B2E; --signal-dark:#B65E1B;
+    --muted:#5B6472; --muted-2:#8891A0;
+    --radius:20px; --radius-sm:14px;
+    --shadow:0 8px 24px rgba(15,26,46,0.08);
+    --shadow-lg:0 24px 56px rgba(15,26,46,0.20);
+    --grad-blue:linear-gradient(135deg,#2A5FAE,#0D2C55);
+    --grad-signal:linear-gradient(135deg,#F2A354,#D9691E);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    background:var(--paper); color:var(--ink); line-height:1.6;
+  }
+  a{color:inherit;}
+
+  /* ---------- HERO ---------- */
+  .hero{
+    background:var(--grad-blue); color:#fff; position:relative; overflow:hidden;
+    padding:52px 20px 100px; text-align:center;
+  }
+  .hero::after{
+    content:''; position:absolute; inset:auto 0 0 0; height:60px;
+    background:var(--paper); border-radius:50% 50% 0 0 / 100% 100% 0 0;
+    transform:scale(1.5); transform-origin:bottom;
+  }
+  .hero-logo{
+    width:64px; height:64px; border-radius:18px; background:rgba(255,255,255,.12);
+    display:flex; align-items:center; justify-content:center; margin:0 auto 16px;
+    font-size:30px;
+  }
+  .hero h1{margin:0 0 8px; font-size:32px; letter-spacing:.3px;}
+  .hero p{margin:0; opacity:.85; font-size:16px; max-width:340px; margin:0 auto;}
+
+  /* ---------- LAYOUT ---------- */
+  main{max-width:720px; margin:0 auto; padding:0 18px 40px; position:relative; z-index:1;}
+
+  .section{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:28px 24px; margin-bottom:20px;
+  }
+  .section-head{display:flex; align-items:center; gap:12px; margin-bottom:16px;}
+  .step-num{
+    width:34px; height:34px; border-radius:50%; background:var(--grad-blue);
+    color:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:15px; font-weight:700; flex-shrink:0;
+  }
+  .section-head h2{margin:0; font-size:19px; color:var(--primary-2);}
+
+  .with-image{display:flex; flex-direction:column; gap:20px;}
+  @media(min-width:600px){
+    .with-image{flex-direction:row; align-items:center;}
+    .with-image.reverse{flex-direction:row-reverse;}
+    .with-image .text{flex:1;}
+    .with-image .frame-wrap{flex-shrink:0;}
+  }
+
+  .frame-wrap{display:flex; justify-content:center;}
+  .frame{
+    width:200px; border-radius:26px; overflow:hidden; border:6px solid var(--ink);
+    box-shadow:var(--shadow-lg); background:var(--ink);
+  }
+  .frame img{display:block; width:100%; height:auto;}
+
+  ol, ul{margin:0; padding-left:20px;}
+  ol li, ul li{margin-bottom:9px;}
+  ol li:last-child, ul li:last-child{margin-bottom:0;}
+  p{margin:0 0 10px;}
+  p:last-child{margin-bottom:0;}
+  .muted{color:var(--muted); font-size:14px;}
+
+  .chip-row{display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;}
+  .chip{
+    background:var(--paper); border:1px solid var(--line); border-radius:20px;
+    padding:7px 14px; font-size:13.5px; color:var(--ink-2); font-weight:500;
+  }
+
+  .privacy-list{list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:12px;}
+  .privacy-list li{
+    display:flex; gap:10px; align-items:flex-start; margin:0; font-size:14.5px; color:var(--ink-2);
+  }
+  .privacy-list li::before{
+    content:'✓'; color:#fff; background:var(--primary); border-radius:50%;
+    width:20px; height:20px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:700; margin-top:1px;
+  }
+
+  /* ---------- DOWNLOAD ---------- */
+  .download{
+    text-align:center; background:var(--grad-signal); border-radius:var(--radius);
+    padding:36px 24px; box-shadow:var(--shadow-lg); margin-bottom:20px;
+  }
+  .download h3{color:#fff; margin:0 0 6px; font-size:20px;}
+  .download p{color:#fff; margin:0 0 20px; font-size:14.5px; opacity:.92;}
+  .btn-download{
+    display:inline-block; background:#fff; color:var(--signal-dark);
+    font-weight:700; text-decoration:none; padding:15px 32px;
+    border-radius:var(--radius-sm); font-size:16px; box-shadow:0 10px 24px rgba(0,0,0,.18);
+  }
+
+  footer{text-align:center; padding:24px; color:var(--muted-2); font-size:13px;}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-logo">🏠</div>
+  <h1>Nexo</h1>
+  <p>Tu ciudad, conectada. Descubre, apoya y contacta con los negocios y servicios de tu comunidad.</p>
+</div>
+
+<main>
+
+  <!-- 1. Descargar -->
+  <div class="section">
+    <div class="section-head">
+      <div class="step-num">1</div>
+      <h2>Descarga e instala</h2>
+    </div>
+    <p>Toca el botón de descarga al final de esta página. Si tu celular te pide permiso para instalar apps de "fuentes desconocidas", acéptalo — es normal en apps que no vienen de una tienda oficial.</p>
+  </div>
+
+  <!-- 2. Crear cuenta -->
+  <div class="section">
+    <div class="with-image">
+      <div class="text">
+        <div class="section-head">
+          <div class="step-num">2</div>
+          <h2>Crea tu cuenta</h2>
+        </div>
+        <ol>
+          <li>Abre la app y toca <b>"Crear cuenta"</b>.</li>
+          <li>Ingresa tu nombre completo, correo y una contraseña de 8 caracteres.</li>
+          <li>Acepta los Términos y la Política de privacidad.</li>
+          <li>Ingresa el código de 6 dígitos que llega a tu correo.</li>
+        </ol>
+        <p class="muted">Con tu cuenta puedes guardar favoritos, calificar negocios y publicar el tuyo.</p>
+      </div>
+      <div class="frame-wrap">
+        <div class="frame"><img src="imagenes/nexo-registro.jpg" alt="Pantalla de crear cuenta en Nexo"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Privacidad -->
+  <div class="section">
+    <div class="section-head">
+      <div class="step-num">3</div>
+      <h2>Política de privacidad, en resumen</h2>
+    </div>
+    <ul class="privacy-list">
+      <li>Guardamos tu nombre, correo y una versión cifrada de tu contraseña — nunca en texto plano.</li>
+      <li>Si publicas un negocio, sus datos (nombre, descripción, contacto, ubicación) son públicos dentro de la app para que otros vecinos lo encuentren.</li>
+      <li>Tu correo y contraseña nunca se muestran a otros usuarios.</li>
+      <li>No vendemos tus datos a terceros con fines publicitarios.</li>
+      <li>Puedes pedir que corrijamos o eliminemos tu cuenta y tus datos cuando quieras, desde "Ayuda y soporte" en tu Perfil.</li>
+    </ul>
+  </div>
+
+  <!-- 4. Publicar negocio -->
+  <div class="section">
+    <div class="with-image reverse">
+      <div class="text">
+        <div class="section-head">
+          <div class="step-num">4</div>
+          <h2>Publica tu negocio o servicio</h2>
+        </div>
+        <ol>
+          <li>Desde Inicio o tu Perfil, toca <b>"Registrar mi negocio o servicio"</b>.</li>
+          <li>Completa nombre, categoría, descripción, teléfono y (opcional) dirección y foto.</li>
+          <li>Marca su ubicación en el mapa.</li>
+          <li>Toca <b>"Publicar"</b> — aparece al instante para toda la comunidad.</li>
+        </ol>
+        <p class="muted">Luego puedes editarlo o personalizarlo desde tu Perfil cuando quieras.</p>
+      </div>
+      <div class="frame-wrap">
+        <div class="frame"><img src="imagenes/nexo-inicio.jpg" alt="Pantalla de inicio de Nexo con botón registrar negocio"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Mapa -->
+  <div class="section">
+    <div class="with-image">
+      <div class="text">
+        <div class="section-head">
+          <div class="step-num">5</div>
+          <h2>Usa el mapa</h2>
+        </div>
+        <ul>
+          <li>Activa tu ubicación para ver qué negocios tienes más cerca.</li>
+          <li>Explora los puntos marcados o cambia a la vista de lista.</li>
+          <li>Toca cualquier marcador para ver el detalle de ese negocio.</li>
+        </ul>
+      </div>
+      <div class="frame-wrap">
+        <div class="frame"><img src="imagenes/nexo-explorar.jpg" alt="Mapa de negocios cercanos en Nexo"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Opciones extra -->
+  <div class="section">
+    <div class="section-head">
+      <div class="step-num">6</div>
+      <h2>Opciones dentro de cada publicación</h2>
+    </div>
+    <p>Al abrir cualquier negocio o servicio puedes:</p>
+    <div class="chip-row">
+      <span class="chip">❤️ Guardar en favoritos</span>
+      <span class="chip">⭐ Calificarlo del 1 al 10</span>
+      <span class="chip">💬 Contactar por WhatsApp</span>
+      <span class="chip">📍 Ver ubicación en Google Maps</span>
+    </div>
+  </div>
+
+  <div class="download">
+    <h3>¿Listo para empezar?</h3>
+    <p>Descarga Nexo ahora y conecta con tu ciudad</p>
+    <a class="btn-download" href="https://drive.google.com/uc?export=download&id=1jf5zRuhCsqffKUouWroPCSMxIDeEack6">Descargar Nexo</a>
+  </div>
+
+</main>
+
+<footer>Nexo — Tu ciudad, conectada</footer>
+
+</body>
+</html>
