@@ -159,16 +159,71 @@
      de la barra inferior y los chips seleccionados a la paleta dorada/azul
      que ya se usaba solo en la tarjeta de Perfil, para que se note en todas
      las pantallas que la cuenta es Premium — no solo en Perfil. ═══════ */
-  body.tema-premium .app-header{ background:linear-gradient(135deg,#0D2C55 0%,#1C4A87 55%,#3E8FD9 120%); }
-  body.tema-premium .app-header::before{
-    background-image:radial-gradient(circle at 85% -10%, rgba(244,201,93,0.28), transparent 50%),
-      repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 22px);
+  /* Paleta Premium por defecto: negro / azul metálico / blanco / azul claro. */
+  :root{
+    --premium-black:#0B0E14; --premium-blue-1:#1C3A63; --premium-blue-2:#3E7BC4;
+    --premium-blue-light:#AFD4F7; --premium-white:#F3F7FC;
+    --grad-premium:linear-gradient(135deg,#0B0E14 0%,#1C3A63 40%,#3E7BC4 75%,#AFD4F7 115%);
   }
-  body.tema-premium .hdr-brand .mini-logo{ box-shadow:0 0 0 2px var(--gold), 0 6px 16px rgba(196,136,31,0.4); }
-  body.tema-premium .nav-item.active{ color:var(--gold); }
-  body.tema-premium .nav-item.active .n-icon-wrap{ background:var(--grad-gold); box-shadow:0 6px 14px rgba(196,136,31,0.4); }
-  body.tema-premium .chip.active{ background:var(--grad-gold); border-color:var(--gold); }
-  body.tema-premium .quick-search{ border-color:#F4C95D; }
+  body.tema-premium .app-header{ background:var(--grad-premium); }
+  body.tema-premium .app-header::before{
+    background-image:radial-gradient(circle at 85% -10%, rgba(175,212,247,0.30), transparent 50%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 22px);
+  }
+  body.tema-premium .hdr-brand .mini-logo{ box-shadow:0 0 0 2px var(--premium-blue-light), 0 6px 16px rgba(11,14,20,0.5); }
+  body.tema-premium .nav-item.active{ color:var(--premium-blue-2); }
+  body.tema-premium .nav-item.active .n-icon-wrap{ background:var(--grad-premium); box-shadow:0 6px 14px rgba(11,14,20,0.4); }
+  body.tema-premium .chip.active{ background:var(--grad-premium); border-color:var(--premium-blue-1); }
+  body.tema-premium .quick-search{ border-color:var(--premium-blue-light); }
+  body.tema-premium .profile-card.premium-look{ background:var(--grad-premium); }
+  body.tema-premium .premium-crown{ background:rgba(175,212,247,0.18); border-color:rgba(175,212,247,0.4); }
+  body.tema-premium .premium-badge{ background:var(--grad-premium); }
+  body.tema-premium .premium-hero{ background:linear-gradient(135deg,#EAF1FB 0%,#FFFFFF 55%,#DCE9FA 100%); border-color:var(--premium-blue-2); }
+  body.tema-premium .premium-hero h4{ color:var(--premium-blue-1); }
+  body.tema-premium .precio-premium-box{ background:linear-gradient(135deg,#EAF1FB,#FFFFFF); border-color:var(--premium-blue-2); }
+  body.tema-premium .precio-premium-box b{ color:var(--premium-blue-1); }
+  body.tema-premium .premium-directorio-banner{ background:var(--grad-premium); }
+
+  /* ═══════ Animaciones táctiles para los botones de Inicio y del resto de
+     la app: pequeño "pop" al presionar para dar sensación de respuesta
+     inmediata, además del efecto de entrada que ya tenían algunas tarjetas. ═══════ */
+  .cat-btn, .nav-item, .quick-search, .premium-directorio-banner, .biz-card, .biz-row,
+  .hdr-notif, .chip, .btn-primary, .btn-outline, .settings-row{
+    transition:transform .16s cubic-bezier(.34,1.56,.64,1), box-shadow .16s ease, background .16s ease;
+  }
+  .cat-btn:active, .quick-search:active, .premium-directorio-banner:active,
+  .biz-card:active, .biz-row:active, .hdr-notif:active, .chip:active,
+  .btn-primary:active, .btn-outline:active, .settings-row:active{ transform:scale(.95); }
+  .nav-item:active .n-icon-wrap{ transform:scale(.88); }
+  @keyframes nexoPop{ 0%{ transform:scale(.9); opacity:.6; } 60%{ transform:scale(1.04); opacity:1; } 100%{ transform:scale(1); } }
+  .cat-btn, .biz-card{ animation:fadeInUp .35s ease both; }
+
+  /* ═══════ Personalización por usuario: tamaño de letra y forma de
+     tarjetas/banners. Las clases se ponen en <body> desde aplicarPersonalizacion()
+     en el JS, según lo guardado para la cuenta activa. ═══════ */
+  body.letra-pequena #app{ zoom:0.9; }
+  body.letra-mediana #app{ zoom:1; }
+  body.letra-grande #app{ zoom:1.14; }
+
+  body.forma-cuadrada .biz-card, body.forma-cuadrada .cat-btn,
+  body.forma-cuadrada .premium-directorio-banner, body.forma-cuadrada .biz-row{ border-radius:4px !important; }
+  body.forma-redondeada .biz-card, body.forma-redondeada .cat-btn,
+  body.forma-redondeada .premium-directorio-banner, body.forma-redondeada .biz-row{ border-radius:18px !important; }
+  body.forma-ondulada .biz-card, body.forma-ondulada .premium-directorio-banner{
+    border-radius:26px 8px 26px 8px !important;
+  }
+  body.forma-ondulada .cat-btn{ border-radius:50% 12px 50% 12px !important; }
+  body.forma-ondulada .biz-row{ border-radius:8px 26px 8px 26px !important; }
+  body.forma-ondulada .biz-card .cover{ border-radius:26px 8px 0 0 !important; }
+
+  .personal-swatch-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
+  .personal-swatch{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .personal-swatch .dot{ width:38px; height:38px; border-radius:50%; border:2px solid transparent; box-shadow:var(--shadow); transition:transform .15s; }
+  .personal-swatch.active .dot{ border-color:var(--ink); transform:scale(1.1); }
+  .personal-swatch span{ font-size:9.5px; color:var(--muted); font-weight:700; text-align:center; }
+  .personal-opciones{ display:flex; gap:8px; margin-bottom:16px; }
+  .personal-opt{ flex:1; padding:10px 6px; text-align:center; border-radius:11px; border:1.5px solid var(--line); background:var(--paper); font-size:11.5px; font-weight:700; color:var(--muted); }
+  .personal-opt.active{ border-color:var(--primary); color:var(--primary); background:#fff; }
   .hdr-banner svg{ width:19px; height:19px; flex-shrink:0; stroke:var(--signal); }
   .hdr-banner p{ color:rgba(255,255,255,0.82); font-size:12px; line-height:1.5; }
   .hdr-banner strong{ color:var(--signal); }
@@ -1166,6 +1221,33 @@
        Disponible para CUALQUIER cuenta (no solo el administrador ni el
        dueño de un negocio): cada usuario elige aquí qué avisos quiere
        recibir. Se abre desde la fila "Notificaciones" en Perfil. -->
+  <!-- ═══════════════════ PERSONALIZACIÓN ═══════════════════
+       Se abre desde la fila "Personalización" en Perfil. Cada usuario elige
+       su propia mezcla de colores, tamaño de letra y forma de tarjetas/
+       banners. Todo se guarda en localStorage bajo una clave única por
+       correo (ver CLAVE_PERSONALIZACION() en el JS), así que la elección de
+       un usuario nunca afecta lo que ve otro usuario en el mismo celular. -->
+  <div class="form-screen hidden" id="screenPersonalizacion">
+    <div class="form-top">
+      <div class="back-circle" onclick="volverDesdePersonalizacion()"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <h2>Personalización</h2>
+    </div>
+    <div class="form-card">
+      <p class="sub">Elige cómo se ve Nexo para ti. Estos cambios solo se aplican a tu cuenta.</p>
+
+      <p class="sec-label-p" style="margin-top:0">MEZCLA DE COLORES</p>
+      <div class="personal-swatch-grid" id="personalColores"></div>
+
+      <p class="sec-label-p">TAMAÑO DE LETRA</p>
+      <div class="personal-opciones" id="personalTamanos"></div>
+
+      <p class="sec-label-p">FORMA DE TARJETAS Y BANNERS</p>
+      <div class="personal-opciones" id="personalFormas"></div>
+
+      <button class="btn-outline" style="margin-top:18px" onclick="restablecerPersonalizacion()">Restablecer diseño por defecto</button>
+    </div>
+  </div>
+
   <div class="form-screen hidden" id="screenNotificaciones">
     <div class="form-top">
       <div class="back-circle" onclick="volverDesdeNotificaciones()"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
@@ -3137,9 +3219,12 @@ function renderInicio(){
   // con al menos un negocio/servicio marcado esPremium.
   const esCuentaPremium = obtenerMisNegocios().some(n => n.esPremium);
   document.getElementById('bannerDirectorioPremium').classList.toggle('hidden', !esCuentaPremium);
-  // Tema visual dorado/azul en TODA la app (encabezado, barra inferior,
-  // chips) para cuentas Premium.
+  // Tema visual (negro/azul metálico/blanco/azul claro) en TODA la app
+  // (encabezado, barra inferior, chips) para cuentas Premium.
   aplicarTemaPremium();
+  // Mezcla de colores, tamaño de letra y forma de tarjetas propias de la
+  // cuenta activa (ver PERSONALIZACIÓN más abajo en el JS).
+  aplicarPersonalizacion();
 }
 
 // Opciones de radio para "Negocios cerca de mí". 0 significa "sin límite"
@@ -3241,6 +3326,126 @@ function obtenerMisNegocios(){
 function aplicarTemaPremium(){
   const esCuentaPremium = obtenerMisNegocios().some(n => n.esPremium);
   document.body.classList.toggle('tema-premium', esCuentaPremium);
+}
+
+/* ═══════════════════ PERSONALIZACIÓN POR USUARIO ═══════════════════
+   Cada cuenta (identificada por su correo) guarda su propia mezcla de
+   colores, tamaño de letra y forma de tarjetas/banners en localStorage,
+   bajo una clave única para esa cuenta. Así, si dos personas usan la
+   misma app en el mismo celular, cada una ve SU propio diseño y nunca el
+   de la otra. Los invitados no personalizan nada: siempre ven el diseño
+   por defecto (o el Premium, si corresponde). */
+const PALETAS_PERSONALIZACION = [
+  { id:'defecto',  nombre:'Azul Nexo',  primary:'#1C4A87', primary2:'#0D2C55' },
+  { id:'negro',    nombre:'Negro metálico', primary:'#2A5FAE', primary2:'#0B0E14' },
+  { id:'esmeralda',nombre:'Esmeralda',  primary:'#1F6642', primary2:'#0F3A26' },
+  { id:'purpura',  nombre:'Púrpura',    primary:'#4A3FA0', primary2:'#241C5C' },
+  { id:'coral',    nombre:'Coral',      primary:'#C4433F', primary2:'#7A1F1C' },
+  { id:'dorado',   nombre:'Dorado',     primary:'#C4881F', primary2:'#7A5312' },
+  { id:'celeste',  nombre:'Celeste',    primary:'#3E8FD9', primary2:'#1C4A87' },
+  { id:'grafito',  nombre:'Grafito',    primary:'#5A6B8C', primary2:'#1F2C46' },
+];
+const PERSONALIZACION_DEFECTO = { paleta:'defecto', tamano:'mediana', forma:'redondeada' };
+
+function clavePersonalizacion(){
+  if(!state.user || state.user.mode !== 'user' || !state.user.email) return null;
+  return 'nexo_personalizacion_' + state.user.email.toLowerCase();
+}
+
+function obtenerPersonalizacion(){
+  const clave = clavePersonalizacion();
+  if(!clave) return { ...PERSONALIZACION_DEFECTO };
+  try{
+    const raw = localStorage.getItem(clave);
+    if(!raw) return { ...PERSONALIZACION_DEFECTO };
+    return { ...PERSONALIZACION_DEFECTO, ...JSON.parse(raw) };
+  }catch(e){ return { ...PERSONALIZACION_DEFECTO }; }
+}
+
+function guardarPersonalizacion(cambios){
+  const clave = clavePersonalizacion();
+  if(!clave) return; // los invitados no pueden guardar personalización propia
+  const actual = obtenerPersonalizacion();
+  const nueva = { ...actual, ...cambios };
+  try{ localStorage.setItem(clave, JSON.stringify(nueva)); }catch(e){ /* no es grave */ }
+  aplicarPersonalizacion();
+}
+
+// Aplica la personalización guardada de la cuenta activa a TODA la app:
+// color del aplicativo (variables --primary/--primary-2), tamaño de letra
+// y forma de las tarjetas/banners. Se llama al iniciar sesión, al abrir la
+// app y cada vez que el usuario cambia una opción en "Personalización".
+function aplicarPersonalizacion(){
+  const cfg = obtenerPersonalizacion();
+  const paleta = PALETAS_PERSONALIZACION.find(p => p.id === cfg.paleta) || PALETAS_PERSONALIZACION[0];
+
+  if(cfg.paleta === 'defecto'){
+    document.documentElement.style.removeProperty('--primary');
+    document.documentElement.style.removeProperty('--primary-2');
+    document.documentElement.style.removeProperty('--grad-blue');
+  }else{
+    document.documentElement.style.setProperty('--primary', paleta.primary);
+    document.documentElement.style.setProperty('--primary-2', paleta.primary2);
+    document.documentElement.style.setProperty('--grad-blue', `linear-gradient(135deg, ${paleta.primary}, ${paleta.primary2})`);
+  }
+
+  document.body.classList.remove('letra-pequena', 'letra-mediana', 'letra-grande');
+  document.body.classList.add('letra-' + (cfg.tamano || 'mediana'));
+
+  document.body.classList.remove('forma-cuadrada', 'forma-redondeada', 'forma-ondulada');
+  document.body.classList.add('forma-' + (cfg.forma || 'redondeada'));
+}
+
+function irAPersonalizacion(){
+  if(!state.user || state.user.mode === 'guest'){
+    mostrarAlerta('Crea una cuenta para personalizar tu propio diseño de Nexo.');
+    return;
+  }
+  document.getElementById('mainShell').classList.add('hidden');
+  document.getElementById('bottomnav').classList.add('hidden');
+  mostrarPantalla('screenPersonalizacion');
+  renderPersonalizacion();
+}
+
+function volverDesdePersonalizacion(){
+  document.getElementById('screenPersonalizacion').classList.add('hidden');
+  document.getElementById('mainShell').classList.remove('hidden');
+  document.getElementById('bottomnav').classList.remove('hidden');
+  mostrarTab('tabPerfil');
+}
+
+function renderPersonalizacion(){
+  const cfg = obtenerPersonalizacion();
+
+  const colores = document.getElementById('personalColores');
+  colores.innerHTML = PALETAS_PERSONALIZACION.map(p => `
+    <div class="personal-swatch ${cfg.paleta === p.id ? 'active' : ''}" onclick="guardarPersonalizacion({paleta:'${p.id}'}); renderPersonalizacion();">
+      <div class="dot" style="background:linear-gradient(135deg, ${p.primary}, ${p.primary2})"></div>
+      <span>${escapeHtml(p.nombre)}</span>
+    </div>`).join('');
+
+  const tamanos = [
+    { id:'pequena', nombre:'Pequeño' },
+    { id:'mediana', nombre:'Mediano' },
+    { id:'grande',  nombre:'Grande' },
+  ];
+  document.getElementById('personalTamanos').innerHTML = tamanos.map(t => `
+    <div class="personal-opt ${cfg.tamano === t.id ? 'active' : ''}" onclick="guardarPersonalizacion({tamano:'${t.id}'}); renderPersonalizacion();">${t.nombre}</div>`).join('');
+
+  const formas = [
+    { id:'cuadrada',   nombre:'Cuadradas' },
+    { id:'redondeada', nombre:'Redondeadas' },
+    { id:'ondulada',   nombre:'Onduladas' },
+  ];
+  document.getElementById('personalFormas').innerHTML = formas.map(f => `
+    <div class="personal-opt ${cfg.forma === f.id ? 'active' : ''}" onclick="guardarPersonalizacion({forma:'${f.id}'}); renderPersonalizacion();">${f.nombre}</div>`).join('');
+}
+
+function restablecerPersonalizacion(){
+  const clave = clavePersonalizacion();
+  if(clave){ try{ localStorage.removeItem(clave); }catch(e){} }
+  aplicarPersonalizacion();
+  renderPersonalizacion();
 }
 
 async function irARegistrarNegocio(){
@@ -5211,6 +5416,7 @@ function renderPerfil(){
     <p class="sec-label-p">MI CUENTA</p>
     <div class="settings-list">
       <div class="settings-row" onclick="irAMisDatos()"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg></div><span>Mis datos</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="settings-row" onclick="irAPersonalizacion()"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 22a9.6 8.5 0 010-17 8.5 8 0 016 2c1.5 1.5.5 3-1 3h-1a2.5 2.5 0 000 5c1.5 0 2 1.5 1 3-.5.6-2.5 4-5 4z"/></svg></div><span>Personalización</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
       <div class="settings-row" onclick="irANotificaciones()"><div class="ic"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></div><span>Notificaciones</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
       <div class="settings-row" onclick="mostrarTab('tabFavoritos')"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg></div><span>Mis favoritos (${state.favoritos.size})</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
       <div class="settings-row" onclick="irAMiPremium()"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.3L21 9l-5 4.6L17.3 21 12 17.6 6.7 21 8 13.6 3 9l6.1-.7z"/></svg></div><span>Mi plan Premium${esPremiumActual ? ' <span class="premium-badge" style="margin-left:6px">★ Premium</span>' : ''}</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
@@ -5343,6 +5549,7 @@ function cerrarSesion(){
   document.getElementById('mainShell').classList.add('hidden');
   document.getElementById('bottomnav').classList.add('hidden');
   document.body.classList.remove('tema-premium');
+  aplicarPersonalizacion(); // sin sesión, vuelve al diseño por defecto
   mostrarPantalla('screenWelcome');
 }
 function cerrarSesionYMostrar(pantalla){
@@ -5356,6 +5563,7 @@ function cerrarSesionYMostrar(pantalla){
   const sesion = leerSesionGuardada();
   if(sesion){
     state.user = sesion;
+    aplicarPersonalizacion(); // aplica de una vez la mezcla de colores/letra/forma de esta cuenta
     iniciarApp().catch(function(){ /* si algo falla, la red de seguridad de window.onerror ya cubre el resto */ });
   }
 })();
