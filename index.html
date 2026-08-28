@@ -38,7 +38,7 @@
   @keyframes pulseDot{0%,100%{box-shadow:0 0 0 0 rgba(196,67,63,.45)}50%{box-shadow:0 0 0 6px rgba(196,67,63,0)}}
 
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-  html,body{height:100%; overscroll-behavior-y:contain;}
+  html,body{height:100%;}
   body.mapa-arrastrando{ overflow:hidden !important; }
   body.bloqueo-scroll-temporal{ overflow:hidden !important; }
 
@@ -2741,18 +2741,16 @@ async function reenviarCodigoRecuperacion(){
 })();
 
 /* ─────────── evitar el gesto de "jalar para refrescar" en TODA la app ───────────
-   El mismo problema de arriba (el CSS overscroll-behavior-y de html,body no lo
-   respetan del todo algunos navegadores/WebView de Android) también pasa fuera
-   de los mapas: al llegar arriba del todo y seguir bajando el dedo (el gesto
-   normal para terminar de subir en la pantalla), el navegador lo confunde con
-   "jalar para refrescar" y saca su rueda, cortando el scroll. Este refuerzo
-   solo actúa cuando la página ya está en el tope y el dedo se mueve hacia abajo;
-   en cuanto hay algo de scroll o el dedo sube, se desactiva solo — así nunca
-   estorba el scroll normal, solo el gesto de refresco accidental. (El valor de
-   overscroll-behavior-y se dejó en "contain" y no en "none": así sí se sigue
-   bloqueando que el gesto se le escape al navegador, pero se conserva el
-   rebote elástico nativo en los bordes, que es lo que evita que el scroll se
-   sienta "trabado" al revertir dirección justo arriba o abajo del todo.) */
+   Este bloqueo reemplaza por completo al CSS overscroll-behavior-y (que se
+   quitó): esa propiedad frena el rebote elástico nativo en LOS DOS bordes de
+   la página (arriba y abajo), no solo arriba, y eso dejaba el scroll
+   "atascado" al revertir dirección justo en cualquiera de los dos extremos,
+   necesitando un flick rápido para que el navegador lo reconociera. Aquí en
+   cambio se interviene solo por JS, y solo en el caso puntual que hay que
+   evitar: cuando la página ya está en el tope de arriba y el dedo sigue
+   bajando (que es cuando el navegador lo confunde con "jalar para
+   refrescar"). En cualquier otro momento —incluida la parte de abajo— no se
+   toca nada y el scroll queda 100% nativo, con su rebote normal. */
 let _pullRefreshInicioY = null;
 (function bloquearPullToRefreshGlobal(){
   const enElTope = () => (window.scrollY || document.documentElement.scrollTop || 0) <= 0;
