@@ -195,17 +195,48 @@
   body.tema-premium .precio-premium-box b{ color:var(--premium-blue-light); }
   body.tema-premium .premium-directorio-banner{ background:var(--grad-premium); }
 
+  /* ═══════ Fondo general en negro para cuentas Premium ═══════
+     --paper y --surface son las variables que pintan TODO el fondo de la
+     app (detrás de las tarjetas, los botones de categoría, la lista de
+     Perfil, los formularios, etc.). Hasta ahora quedaban blancas incluso
+     con el tema Premium activo, así que una cuenta Premium se veía igual
+     que una gratuita apenas bajabas del encabezado. Al redefinir estas
+     variables dentro de body.tema-premium, TODO lo que ya usa var(--paper)
+     o var(--surface) en la hoja de estilos se oscurece automáticamente,
+     sin tener que tocar cada componente uno por uno. También se ajustan
+     los textos (--ink/--muted) y bordes (--line) para que sigan
+     leyéndose bien sobre el fondo oscuro. */
+  body.tema-premium{
+    --paper:#05070A; --surface:#12182B; --line:#26304A;
+    --ink:#F3F7FC; --ink-2:#D7E1F2; --muted:#94A2BF; --muted-2:#66738F;
+    --shadow:0 6px 20px rgba(0,0,0,0.45); --shadow-lg:0 20px 48px rgba(0,0,0,0.6);
+  }
+  /* Un par de fondos que estaban fijos en blanco/celeste claro (no usaban
+     var(--surface)) y por eso se quedaban blancos aunque el resto ya se
+     hubiera puesto negro. */
+  body.tema-premium .destacar-row.activo{ background:linear-gradient(135deg,var(--premium-black),var(--premium-blue-1)); border-color:var(--premium-blue-2); }
+  body.tema-premium .personal-opt.active{ background:var(--premium-blue-1); color:#fff; }
+  body.tema-premium .modal-btn-outline{ background:var(--paper); }
+
+  /* Cada botón de categoría se tiñe apenas con SU propio color de acento
+     (el mismo del ícono) mezclado con el fondo oscuro, para que no se vea
+     un negro plano y liso en los seis, sino que combine con el detalle de
+     color de cada uno — ver --cat-tint, puesto por JS en renderCategorias(). */
+  body.tema-premium .cat-btn{
+    background:radial-gradient(135% 160% at 50% -25%, color-mix(in srgb, var(--cat-tint, var(--premium-blue-2)) 22%, var(--surface)) 0%, var(--surface) 65%);
+  }
+
   /* ═══════ Animaciones táctiles para los botones de Inicio y del resto de
      la app: pequeño "pop" al presionar para dar sensación de respuesta
      inmediata, además del efecto de entrada que ya tenían algunas tarjetas.
      Son solo transform/box-shadow/filter (nada de layout ni JS), así que no
      cambian el tamaño real de nada ni interfieren con los clics/onclick. ═══════ */
-  .cat-btn, .nav-item, .quick-search, .premium-directorio-banner, .biz-card, .biz-row,
+  .nav-item, .quick-search, .premium-directorio-banner, .biz-card, .biz-row,
   .hdr-notif, .chip, .btn-primary, .btn-outline, .settings-row,
   .personal-swatch .dot, .personal-opt, .sub-chip, .pago-row{
     transition:transform .16s cubic-bezier(.34,1.56,.64,1), box-shadow .16s ease, background .16s ease, filter .16s ease;
   }
-  .cat-btn:active, .quick-search:active, .premium-directorio-banner:active,
+  .quick-search:active, .premium-directorio-banner:active,
   .biz-card:active, .biz-row:active, .hdr-notif:active, .chip:active,
   .btn-primary:active, .btn-outline:active, .settings-row:active,
   .personal-opt:active, .sub-chip:active, .pago-row:active{ transform:scale(.95); filter:brightness(.97); }
@@ -213,7 +244,8 @@
   .nav-item:active .n-icon-wrap{ transform:scale(.88); }
   .btn-primary:active, .btn-mejorar-plan:active{ box-shadow:0 4px 10px rgba(15,26,46,0.18); }
   @keyframes nexoPop{ 0%{ transform:scale(.9); opacity:.6; } 60%{ transform:scale(1.04); opacity:1; } 100%{ transform:scale(1); } }
-  .cat-btn, .biz-card{ animation:fadeInUp .35s ease both; }
+  .biz-card{ animation:fadeInUp .35s ease both; }
+  .cat-btn{ animation:fadeInUp .35s ease both; }
   .personal-swatch .dot, .personal-opt{ animation:fadeInUp .3s ease both; }
 
   /* ═══════ Personalización por usuario: tamaño de letra y forma de
@@ -262,14 +294,26 @@
 
   /* Categorías — mismo patrón visual que el quick-grid de la app cívica */
   .cat-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:24px; }
+  /* Botón de categoría estilo "Duolingo": tiene un pequeño "labio" sólido
+     abajo (box-shadow) que simula grosor/volumen. Al presionarlo, el botón
+     baja y ese labio desaparece — parece que se hunde de verdad — y al
+     soltar vuelve a su lugar con un pequeño rebote. Es 100% CSS
+     (transform + box-shadow), no toca el onclick ni cambia el tamaño real
+     del botón, así que no interfiere en nada del funcionamiento. */
   .cat-btn{
     background:var(--surface); border-radius:var(--radius-sm); padding:15px 8px 12px; text-align:center;
-    box-shadow:var(--shadow); border:1px solid var(--line); transition:transform .18s, box-shadow .18s;
+    border:1px solid var(--line); position:relative;
+    box-shadow:0 4px 0 0 rgba(15,26,46,0.16), var(--shadow);
+    transition:transform .14s cubic-bezier(.34,1.56,.64,1), box-shadow .14s cubic-bezier(.34,1.56,.64,1), background .18s ease;
   }
-  .cat-btn:hover{ transform:translateY(-3px); box-shadow:0 14px 28px rgba(15,26,46,0.14); }
+  body.tema-premium .cat-btn{ box-shadow:0 4px 0 0 rgba(0,0,0,0.5), var(--shadow); }
+  .cat-btn:hover{ transform:translateY(-2px); box-shadow:0 6px 0 0 rgba(15,26,46,0.16), 0 14px 28px rgba(15,26,46,0.14); }
+  body.tema-premium .cat-btn:hover{ box-shadow:0 6px 0 0 rgba(0,0,0,0.5), 0 14px 28px rgba(0,0,0,0.35); }
+  .cat-btn:active{ transform:translateY(4px); box-shadow:0 0 0 0 rgba(15,26,46,0.16), var(--shadow); }
   .cat-btn.active{ border-color:var(--primary); }
   .cat-btn .c-icon-wrap{ width:38px; height:38px; margin:0 auto 8px; border-radius:11px; display:flex; align-items:center; justify-content:center; transition:transform .25s cubic-bezier(.34,1.56,.64,1); }
   .cat-btn:hover .c-icon-wrap{ transform:rotate(-6deg) scale(1.08); }
+  .cat-btn:active .c-icon-wrap{ transform:scale(.9); }
   .cat-btn svg{ width:18px; height:18px; stroke:#fff; stroke-width:2.1; }
   .cat-btn .c-label{ font-size:10.5px; font-weight:700; color:var(--muted); }
 
@@ -2028,12 +2072,12 @@ const TAM_NOMBRE_AJUSTE = { sm: -2, md: 0, lg: 3 };
 function tamNombrePx(base, tam){ return base + (TAM_NOMBRE_AJUSTE[tam] || 0); }
 
 const CATEGORIAS_INFO = [
-  { nombre:'Comida',    icon:'M4 3v8a3 3 0 003 3v7M4 3a2 2 0 00-2 2v4a2 2 0 002 2M4 3v10M17 3c-2 0-3 3-3 6s1 5 3 5 3-2 3-5-1-6-3-6zm0 0v15', grad:'var(--grad-signal)' },
-  { nombre:'Belleza',   icon:'M12 3l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7z', grad:'var(--grad-violet)' },
-  { nombre:'Salud',     icon:'M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z', grad:'var(--grad-green)' },
-  { nombre:'Servicios', icon:'M14.7 6.3a4 4 0 11-5.4 5.4l-6 6V21h3.3l6-6a4 4 0 015.4-5.4z', grad:'var(--grad-blue)' },
-  { nombre:'Tienda',    icon:'M3 9l9-6 9 6v11a1 1 0 01-1 1H4a1 1 0 01-1-1z', grad:'var(--grad-gold)' },
-  { nombre:'Educación', icon:'M22 10L12 5 2 10l10 5 10-5zM6 12v5c0 1.5 2.5 3 6 3s6-1.5 6-3v-5', grad:'var(--grad-slate)' }
+  { nombre:'Comida',    icon:'M4 3v8a3 3 0 003 3v7M4 3a2 2 0 00-2 2v4a2 2 0 002 2M4 3v10M17 3c-2 0-3 3-3 6s1 5 3 5 3-2 3-5-1-6-3-6zm0 0v15', grad:'var(--grad-signal)', tint:'#E07B2E' },
+  { nombre:'Belleza',   icon:'M12 3l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7z', grad:'var(--grad-violet)', tint:'#7C6FE0' },
+  { nombre:'Salud',     icon:'M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z', grad:'var(--grad-green)', tint:'#3FAE7C' },
+  { nombre:'Servicios', icon:'M14.7 6.3a4 4 0 11-5.4 5.4l-6 6V21h3.3l6-6a4 4 0 015.4-5.4z', grad:'var(--grad-blue)', tint:'#2A5FAE' },
+  { nombre:'Tienda',    icon:'M3 9l9-6 9 6v11a1 1 0 01-1 1H4a1 1 0 01-1-1z', grad:'var(--grad-gold)', tint:'#C4881F' },
+  { nombre:'Educación', icon:'M22 10L12 5 2 10l10 5 10-5zM6 12v5c0 1.5 2.5 3 6 3s6-1.5 6-3v-5', grad:'var(--grad-slate)', tint:'#5A6B8C' }
 ];
 function catInfo(nombre){ return CATEGORIAS_INFO.find(c=>c.nombre===nombre) || CATEGORIAS_INFO[3]; }
 // Texto de promoción que ve cualquier usuario: siempre parte del % de
@@ -3202,7 +3246,7 @@ function actualizarCorazonDetalle(id){
 /* ─────────── INICIO ─────────── */
 function renderCategorias(){
   document.getElementById('catGrid').innerHTML = CATEGORIAS_INFO.map(c => `
-    <div class="cat-btn ${state.categoriaActiva===c.nombre?'active':''}" onclick="filtrarCategoria('${c.nombre}')">
+    <div class="cat-btn ${state.categoriaActiva===c.nombre?'active':''}" style="--cat-tint:${c.tint}" onclick="filtrarCategoria('${c.nombre}')">
       <div class="c-icon-wrap" style="background:${c.grad}"><svg viewBox="0 0 24 24" stroke-width="1.7"><path d="${c.icon}"/></svg></div>
       <div class="c-label">${c.nombre}</div>
     </div>`).join('');
