@@ -743,7 +743,8 @@
       </div>
       <div class="field">
         <label>Contraseña</label>
-        <div class="inp-wrap"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg><input id="loginPass" type="password" maxlength="8" placeholder="Exactamente 8 caracteres"></div>
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg><input id="loginPass" type="password" placeholder="Tu contraseña"></div>
+        <p class="form-footer" style="margin:6px 0 0; text-align:right"><b onclick="irARecuperarPassword()">¿Olvidaste tu contraseña?</b></p>
       </div>
       <p id="loginError" class="form-error hidden"></p>
       <button class="btn-primary" id="btnLogin" style="margin-top:6px" onclick="iniciarSesion()">Iniciar sesión</button>
@@ -769,7 +770,7 @@
       </div>
       <div class="field">
         <label>Contraseña</label>
-        <div class="inp-wrap"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg><input id="regPass" type="password" maxlength="8" placeholder="Exactamente 8 caracteres"></div>
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg><input id="regPass" type="password" placeholder="Mínimo 6 caracteres"></div>
       </div>
       <label class="check-row">
         <input type="checkbox" id="regAceptaTerminos">
@@ -800,6 +801,46 @@
       <p id="verifyError" class="form-error hidden"></p>
       <button class="btn-primary" id="btnVerify" style="margin-top:6px" onclick="verificarCodigo()">Verificar y continuar</button>
       <p class="form-footer">¿No te llegó? <b id="btnReenviar" onclick="reenviarCodigo()">Reenviar código</b></p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ RECUPERAR CONTRASEÑA: PASO 1 (correo) ═══════════════════ -->
+  <div class="form-screen hidden" id="screenForgotPass">
+    <div class="form-top">
+      <div class="back-circle" onclick="mostrarPantalla('screenLogin')"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <h2>Recuperar contraseña</h2>
+    </div>
+    <div class="form-card">
+      <p class="sub">Ingresa el correo de tu cuenta y te enviaremos un código para restablecer tu contraseña.</p>
+      <div class="field">
+        <label>Correo electrónico</label>
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><input id="forgotEmail" type="email" placeholder="tucorreo@gmail.com o @hotmail.com"></div>
+      </div>
+      <p id="forgotError" class="form-error hidden"></p>
+      <button class="btn-primary" id="btnForgot" style="margin-top:6px" onclick="solicitarRecuperacion()">Enviar código</button>
+      <p class="form-footer">¿Recordaste tu contraseña? <b onclick="mostrarPantalla('screenLogin')">Inicia sesión</b></p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ RECUPERAR CONTRASEÑA: PASO 2 (código + nueva contraseña) ═══════════════════ -->
+  <div class="form-screen hidden" id="screenResetPass">
+    <div class="form-top">
+      <div class="back-circle" onclick="mostrarPantalla('screenForgotPass')"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <h2>Restablecer contraseña</h2>
+    </div>
+    <div class="form-card">
+      <p class="sub">Te enviamos un código de 6 dígitos a <b id="resetEmailTxt"></b>. Ingrésalo junto con tu nueva contraseña.</p>
+      <div class="field">
+        <label>Código de verificación</label>
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><input id="resetCodigo" type="text" inputmode="numeric" maxlength="6" placeholder="123456"></div>
+      </div>
+      <div class="field">
+        <label>Nueva contraseña</label>
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg><input id="resetPassNueva" type="password" placeholder="Mínimo 6 caracteres"></div>
+      </div>
+      <p id="resetError" class="form-error hidden"></p>
+      <button class="btn-primary" id="btnReset" style="margin-top:6px" onclick="restablecerPassword()">Cambiar contraseña</button>
+      <p class="form-footer">¿No te llegó? <b id="btnReenviarReset" onclick="reenviarCodigoRecuperacion()">Reenviar código</b></p>
     </div>
   </div>
 
@@ -1167,11 +1208,11 @@
       <p class="pers-sec-label">Cambiar contraseña (opcional)</p>
       <div class="field">
         <label>Contraseña actual</label>
-        <div class="inp-wrap"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg><input id="datosPassActual" type="password" maxlength="8" placeholder="Tu contraseña actual"></div>
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg><input id="datosPassActual" type="password" placeholder="Tu contraseña actual"></div>
       </div>
       <div class="field">
         <label>Contraseña nueva</label>
-        <div class="inp-wrap"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg><input id="datosPassNueva" type="password" maxlength="8" placeholder="Exactamente 8 caracteres"></div>
+        <div class="inp-wrap"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg><input id="datosPassNueva" type="password" placeholder="Mínimo 6 caracteres"></div>
       </div>
 
       <p id="datosError" class="form-error hidden"></p>
@@ -2101,7 +2142,7 @@ async function iniciarSesion(){
   const pass  = document.getElementById('loginPass').value;
 
   if(!esEmailValidoJS(email)){ mostrarError('loginError', 'Ingresa un correo de Gmail (@gmail.com) o Hotmail (@hotmail.com) válido.'); return; }
-  if(pass.length !== 8){ mostrarError('loginError', 'La contraseña debe tener exactamente 8 caracteres.'); return; }
+  if(!pass){ mostrarError('loginError', 'Ingresa tu contraseña.'); return; }
 
   const btn = document.getElementById('btnLogin');
   btn.disabled = true; btn.textContent = 'Ingresando…';
@@ -2132,7 +2173,7 @@ async function crearCuenta(){
 
   if(!esNombreValidoJS(nombre)){ mostrarError('regError', 'Ingresa tu nombre completo (nombre y apellido, solo letras).'); return; }
   if(!esEmailValidoJS(email)){ mostrarError('regError', 'Ingresa un correo de Gmail (@gmail.com) o Hotmail (@hotmail.com) válido.'); return; }
-  if(pass.length !== 8){ mostrarError('regError', 'La contraseña debe tener exactamente 8 caracteres.'); return; }
+  if(pass.length < 6){ mostrarError('regError', 'La contraseña debe tener al menos 6 caracteres.'); return; }
   if(!document.getElementById('regAceptaTerminos').checked || !document.getElementById('regAceptaPrivacidad').checked){
     mostrarError('regError', 'Debes aceptar los Términos y condiciones y la Política de privacidad para crear tu cuenta.');
     return;
@@ -2179,6 +2220,68 @@ async function reenviarCodigo(){
 
   if(!r.ok){ mostrarError('verifyError', r.error || 'No se pudo reenviar el código.'); return; }
   mostrarError('verifyError', 'Te enviamos un código nuevo. Revisa tu correo.');
+}
+
+/* ─────────── recuperar / restablecer contraseña olvidada ─────────── */
+let recoveryEmailPendiente = '';
+
+function irARecuperarPassword(){
+  ocultarError('forgotError');
+  document.getElementById('forgotEmail').value = document.getElementById('loginEmail').value.trim();
+  mostrarPantalla('screenForgotPass');
+}
+
+async function solicitarRecuperacion(){
+  ocultarError('forgotError');
+  const email = document.getElementById('forgotEmail').value.trim();
+  if(!esEmailValidoJS(email)){ mostrarError('forgotError', 'Ingresa un correo de Gmail (@gmail.com) o Hotmail (@hotmail.com) válido.'); return; }
+
+  const btn = document.getElementById('btnForgot');
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  const r = await apiPost('solicitarRecuperacion', { email });
+  btn.disabled = false; btn.textContent = 'Enviar código';
+
+  if(!r.ok){ mostrarError('forgotError', r.error || 'No se pudo enviar el código.'); return; }
+
+  recoveryEmailPendiente = email;
+  document.getElementById('resetEmailTxt').textContent = email;
+  document.getElementById('resetCodigo').value = '';
+  document.getElementById('resetPassNueva').value = '';
+  ocultarError('resetError');
+  mostrarPantalla('screenResetPass');
+}
+
+async function restablecerPassword(){
+  ocultarError('resetError');
+  const codigo = document.getElementById('resetCodigo').value.trim();
+  const passNueva = document.getElementById('resetPassNueva').value;
+
+  if(!/^\d{6}$/.test(codigo)){ mostrarError('resetError', 'Ingresa el código de 6 dígitos que te enviamos.'); return; }
+  if(passNueva.length < 6){ mostrarError('resetError', 'La nueva contraseña debe tener al menos 6 caracteres.'); return; }
+
+  const btn = document.getElementById('btnReset');
+  btn.disabled = true; btn.textContent = 'Cambiando…';
+  const r = await apiPost('restablecerPassword', { email: recoveryEmailPendiente, codigo, password_nueva: passNueva });
+  btn.disabled = false; btn.textContent = 'Cambiar contraseña';
+
+  if(!r.ok){ mostrarError('resetError', r.error || 'No se pudo cambiar la contraseña.'); return; }
+
+  document.getElementById('loginEmail').value = recoveryEmailPendiente;
+  document.getElementById('loginPass').value = '';
+  mostrarPantalla('screenLogin');
+  mostrarError('loginError', 'Tu contraseña se cambió correctamente. Inicia sesión con tu nueva contraseña.');
+}
+
+async function reenviarCodigoRecuperacion(){
+  ocultarError('resetError');
+  const btn = document.getElementById('btnReenviarReset');
+  const textoOriginal = btn.textContent;
+  btn.textContent = 'Enviando…';
+  const r = await apiPost('solicitarRecuperacion', { email: recoveryEmailPendiente });
+  btn.textContent = textoOriginal;
+
+  if(!r.ok){ mostrarError('resetError', r.error || 'No se pudo reenviar el código.'); return; }
+  mostrarError('resetError', 'Te enviamos un código nuevo. Revisa tu correo.');
 }
 
 // En las filas horizontales que se deslizan con el dedo (Destacados,
@@ -3579,7 +3682,7 @@ async function guardarMisDatos(){
   const passNueva = document.getElementById('datosPassNueva').value;
 
   if(!esNombreValidoJS(nombre)){ mostrarError('datosError', 'Ingresa tu nombre completo (nombre y apellido, solo letras).'); return; }
-  if(passNueva && passNueva.length !== 8){ mostrarError('datosError', 'La contraseña nueva debe tener exactamente 8 caracteres.'); return; }
+  if(passNueva && passNueva.length < 6){ mostrarError('datosError', 'La contraseña nueva debe tener al menos 6 caracteres.'); return; }
   if(passNueva && !passActual){ mostrarError('datosError', 'Ingresa tu contraseña actual para poder cambiarla.'); return; }
 
   const payload = { email: state.user.email, nombre };
