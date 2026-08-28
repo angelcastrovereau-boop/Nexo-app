@@ -35,7 +35,7 @@
   @keyframes pulseDot{0%,100%{box-shadow:0 0 0 0 rgba(196,67,63,.45)}50%{box-shadow:0 0 0 6px rgba(196,67,63,0)}}
 
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-  html,body{height:100%; overscroll-behavior-y:contain;}
+  html,body{height:100%; overscroll-behavior-y:none;}
   body{font-family:var(--font-body);background:var(--paper);color:var(--ink);display:flex;justify-content:center;}
   #app{width:100%;max-width:430px;min-height:100vh;background:var(--paper);position:relative;overflow-x:hidden;}
   .iframe-banner{
@@ -259,10 +259,10 @@
   /* ═══════ Explorar (mapa ilustrado — 100% local, sin red externa) ═══════ */
   .map-wrap{
     margin:14px 0 16px; height:290px; border-radius:20px; overflow:hidden; position:relative; border:1px solid var(--line);
-    box-shadow:var(--shadow); overscroll-behavior:contain; touch-action:none;
+    box-shadow:var(--shadow); overscroll-behavior:none; touch-action:none;
   }
   #realMap{
-    width:100%; height:100%; position:relative; overflow:hidden; overscroll-behavior:contain; touch-action:none;
+    width:100%; height:100%; position:relative; overflow:hidden; overscroll-behavior:none; touch-action:none;
     background-color:#E9EEF6;
     background-image:
       linear-gradient(rgba(28,74,135,0.09) 1px, transparent 1px),
@@ -412,7 +412,7 @@
   /* ═══════ Selector de ubicación en el mapa (formulario) ═══════ */
   .mini-map-picker{
     height:170px; border-radius:14px; overflow:hidden; border:1.5px solid var(--line); position:relative; background:#E9EEF6;
-    overscroll-behavior:contain; touch-action:none;
+    overscroll-behavior:none; touch-action:none;
   }
   .mini-map-picker .picker-hint{
     position:absolute; top:8px; left:8px; z-index:500; background:rgba(255,255,255,0.9); padding:5px 9px; border-radius:8px;
@@ -2317,6 +2317,25 @@ async function reenviarCodigoRecuperacion(){
   });
 })();
 
+/* ─────────── evitar el gesto de "jalar para refrescar" sobre los mapas ───────────
+   El CSS (touch-action:none / overscroll-behavior:none en .map-wrap y
+   .mini-map-picker) ya debería bastar, pero algunos navegadores/WebView de
+   Android no lo respetan del todo cuando se arrastra el mapa hacia abajo
+   estando la página al tope. Como refuerzo, mientras el dedo esté dentro de
+   cualquiera de los mapas, se bloquea a mano el scroll nativo de la página
+   (no el de Leaflet, que sigue funcionando normal con sus propios eventos). */
+(function bloquearPullToRefreshEnMapas(){
+  let dentroDeMapa = false;
+  document.addEventListener('touchstart', e => {
+    dentroDeMapa = !!e.target.closest('.map-wrap, .mini-map-picker');
+  }, { passive:true });
+  document.addEventListener('touchmove', e => {
+    if(dentroDeMapa) e.preventDefault();
+  }, { passive:false });
+  document.addEventListener('touchend', () => { dentroDeMapa = false; }, { passive:true });
+  document.addEventListener('touchcancel', () => { dentroDeMapa = false; }, { passive:true });
+})();
+
 async function iniciarApp(){
   document.querySelectorAll('.auth-wrap, .form-screen').forEach(el => el.classList.add('hidden'));
   document.getElementById('mainShell').classList.remove('hidden');
@@ -2820,7 +2839,7 @@ function iniciarMapaDetalleNegocio(lat, lng){
     limpiarLeafletDeContenedor(contenedor);
     try{
       const mapa = L.map('detalleMapaUbicacion', { zoomControl:false, attributionControl:false, dragging:false, scrollWheelZoom:false, doubleClickZoom:false, touchZoom:false }).setView([lat, lng], 16);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom:20, subdomains:'abcd', attribution:'&copy; OpenStreetMap &copy; CARTO' }).addTo(mapa);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19, subdomains:'abc', attribution:'&copy; OpenStreetMap' }).addTo(mapa);
       L.marker([lat, lng], {
         icon: L.divIcon({ className:'', html:pinFlechaHtml(), iconSize:[28,36], iconAnchor:[14,34] })
       }).addTo(mapa);
@@ -4106,7 +4125,7 @@ function iniciarMapaPickerNegocio(lat, lng){
     try{
       contenedor.innerHTML = '<div class="picker-hint">Toca o arrastra el pin 📍</div>';
       const mapa = L.map('negMapPicker', { zoomControl:false, attributionControl:false }).setView([lat, lng], 16);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom:20, subdomains:'abcd', attribution:'&copy; OpenStreetMap &copy; CARTO' }).addTo(mapa);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19, subdomains:'abc', attribution:'&copy; OpenStreetMap' }).addTo(mapa);
       // Se usa un pin/flecha propio (SVG en línea) en vez del ícono azul por
       // defecto de Leaflet: así siempre se ve, sin depender de que carguen
       // las imágenes marker-icon.png/marker-shadow.png del CDN.
@@ -4520,10 +4539,10 @@ function construirMapaLeaflet(){
     mapaLeaflet = L.map('realMap', { zoomControl:true, attributionControl:true })
       .setView([TRUJILLO_CENTRO.lat, TRUJILLO_CENTRO.lng], 15);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      maxZoom:20,
-      subdomains:'abcd'
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom:19,
+      subdomains:'abc'
     }).addTo(mapaLeaflet);
 
     L.marker([TRUJILLO_CENTRO.lat, TRUJILLO_CENTRO.lng], {
