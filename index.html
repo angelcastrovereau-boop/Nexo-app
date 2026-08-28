@@ -36,6 +36,7 @@
 
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
   html,body{height:100%; overscroll-behavior-y:none;}
+  body.mapa-arrastrando{ overflow:hidden !important; }
   body{font-family:var(--font-body);background:var(--paper);color:var(--ink);display:flex;justify-content:center;}
   #app{width:100%;max-width:430px;min-height:100vh;background:var(--paper);position:relative;overflow-x:hidden;}
   .iframe-banner{
@@ -1509,7 +1510,6 @@
           <p class="map-note" id="mapNote">📍 Plaza de Armas de Trujillo, La Libertad — Perú. Toca "Mi ubicación" para ver los negocios ordenados por cercanía real a ti. Toca un pin para ver el detalle del negocio.</p>
 
           <div class="sec-title" id="secTituloExplorarDestacados" style="display:none"><span class="lft">⭐ Destacados cerca de ti</span></div>
-          <div class="chips-row" id="chipsModoExplorarDestacados" style="display:none"></div>
           <div class="hscroll" id="rowExplorarDestacados"></div>
 
           <div id="rowExplorarLista"></div>
@@ -1956,11 +1956,10 @@ const state = {
   selectorModo:null, selectorLista:[], vinoDelSelector:false,
   miUbicacion:null, geoWatchId:null, marcadorMiUbicacion:null, circuloMiUbicacion:null,
   radioCercaKm:3,
-  // "Destacados cerca de ti" en Explorar: modoExplorarDestacados decide si
-  // se ve cualquier negocio destacado/recomendado o solo Premium.
-  // premiumRotacionIdx e intervaloPremiumRotacion turnan qué tanda de
-  // negocios Premium se muestra (ver rotarPremiumExplorar()).
-  modoExplorarDestacados:'todos', premiumRotacionIdx:0, intervaloPremiumRotacion:null
+  // "Destacados cerca de ti" en Explorar: premiumRotacionIdx e
+  // intervaloPremiumRotacion turnan qué tanda de negocios Premium se
+  // muestra arriba de la fila (ver rotarPremiumExplorar()).
+  premiumRotacionIdx:0, intervaloPremiumRotacion:null
 };
 
 // Red de seguridad: si un error inesperado en cualquier parte del código
@@ -2335,6 +2334,20 @@ async function reenviarCodigoRecuperacion(){
   document.addEventListener('touchend', () => { dentroDeMapa = false; }, { passive:true });
   document.addEventListener('touchcancel', () => { dentroDeMapa = false; }, { passive:true });
 })();
+
+// Refuerzo adicional (más confiable que el touchmove de arriba): engancha
+// directo a los eventos reales de arrastre/zoom de Leaflet. Mientras el
+// mapa se está arrastrando o haciendo pellizco-zoom, el body queda con
+// overflow:hidden — así, aunque el navegador intente "jalar para
+// refrescar", no hay ninguna superficie de scroll nativa que jalar. Se
+// llama una vez por cada mapa Leaflet que se crea en la app (el de
+// Explorar y el selector de ubicación al publicar un negocio).
+function bindMapaBloqueoScroll(mapa){
+  const activar = () => document.body.classList.add('mapa-arrastrando');
+  const desactivar = () => document.body.classList.remove('mapa-arrastrando');
+  mapa.on('dragstart movestart zoomstart', activar);
+  mapa.on('dragend moveend zoomend', desactivar);
+}
 
 async function iniciarApp(){
   document.querySelectorAll('.auth-wrap, .form-screen').forEach(el => el.classList.add('hidden'));
@@ -2963,30 +2976,14 @@ function renderRowCerca(){
 }
 function vacio(msg){ return `<p style="font-size:11.5px;color:var(--muted);padding:6px 2px">${msg}</p>`; }
 
-// Botones "Negocios" / "★ Premium" para "Destacados cerca de ti" en
-// Explorar: el primero muestra los destacados/recomendados de siempre
-// (ordenados por cercanía), el segundo filtra solo a los que pagaron el
-// plan Premium. Cambiar de modo reinicia la rotación (ver más abajo).
-const MODOS_EXPLORAR_DESTACADOS = [ {id:'todos', label:'Negocios'}, {id:'premium', label:'★ Premium'} ];
-function renderChipsModoExplorarDestacados(){
-  const cont = document.getElementById('chipsModoExplorarDestacados');
-  if(!cont) return;
-  cont.innerHTML = MODOS_EXPLORAR_DESTACADOS.map(o => `<div class="chip ${state.modoExplorarDestacados===o.id?'active':''}" onclick="seleccionarModoExplorarDestacados('${o.id}')">${o.label}</div>`).join('');
-}
-function seleccionarModoExplorarDestacados(modo){
-  if(state.modoExplorarDestacados === modo) return;
-  state.modoExplorarDestacados = modo;
-  state.premiumRotacionIdx = 0;
-  renderChipsModoExplorarDestacados();
-  renderExplorar();
-}
-
 // Cuántos negocios Premium se muestran a la vez en "Destacados cerca de
 // ti" (Explorar) y cada cuánto se turnan por el siguiente grupo. La idea:
 // si hay más negocios Premium cerca que cupos visibles, en vez de mostrar
 // siempre a los mismos (los más cercanos), se van rotando en tandas para
 // que TODAS las cuentas Premium de la zona reciban visibilidad, no solo
-// las más cercanas al usuario.
+// las más cercanas al usuario. Estas cuentas Premium aparecen siempre
+// primero en "Destacados cerca de ti"; el resto de negocios/servicios
+// destacados va justo después, sin rotar.
 const PREMIUM_EXPLORAR_CUPOS = 5;
 const PREMIUM_EXPLORAR_ROTACION_MS = 8000;
 function pararRotacionPremiumExplorar(){
@@ -4125,6 +4122,7 @@ function iniciarMapaPickerNegocio(lat, lng){
     try{
       contenedor.innerHTML = '<div class="picker-hint">Toca o arrastra el pin 📍</div>';
       const mapa = L.map('negMapPicker', { zoomControl:false, attributionControl:false }).setView([lat, lng], 16);
+      bindMapaBloqueoScroll(mapa);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19, subdomains:'abc', attribution:'&copy; OpenStreetMap' }).addTo(mapa);
       // Se usa un pin/flecha propio (SVG en línea) en vez del ícono azul por
       // defecto de Leaflet: así siempre se ve, sin depender de que carguen
@@ -4538,6 +4536,7 @@ function construirMapaLeaflet(){
     limpiarLeafletDeContenedor(contenedor);
     mapaLeaflet = L.map('realMap', { zoomControl:true, attributionControl:true })
       .setView([TRUJILLO_CENTRO.lat, TRUJILLO_CENTRO.lng], 15);
+    bindMapaBloqueoScroll(mapaLeaflet);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -4854,57 +4853,46 @@ function renderExplorar(){
   if(mapaLeaflet){ pintarMarcadoresNegocios(); setTimeout(() => mapaLeaflet.invalidateSize(), 80); }
   document.getElementById('rowExplorarLista').innerHTML = [...NEGOCIOS].sort((a,b)=>distanciaKm(a)-distanciaKm(b)).map(filaVertical).join('');
 
-  // "Destacados cerca de ti": los negocios/servicios ya destacados por sus
-  // calificaciones, pero ordenados aquí por CERCANÍA real al usuario (no por
-  // qué tan bien calificados están) — así, dentro de Explorar, primero ve
-  // los destacados que de verdad tiene a la mano. Solo tiene sentido con la
-  // ubicación activada; sin ella no hay una cercanía real que mostrar.
+  // "Destacados cerca de ti": una sola fila, ordenada por cercanía real al
+  // usuario, con las cuentas Premium activas SIEMPRE primero (arriba de
+  // todas las demás) y, a continuación, el resto de negocios/servicios
+  // destacados o recomendados de siempre. Antes existía un botón para
+  // alternar entre "Negocios" y "★ Premium" como dos listas separadas, pero
+  // era innecesario: ahora se ve todo junto en el orden correcto de una
+  // sola vez. Solo tiene sentido con la ubicación activada; sin ella no hay
+  // una cercanía real que mostrar.
   //
-  // Los botones "Negocios" / "★ Premium" filtran esta lista: "Negocios"
-  // deja el comportamiento de siempre (destacados/recomendados por
-  // cercanía); "★ Premium" muestra solo cuentas Premium activas cerca y,
-  // si hay más de PREMIUM_EXPLORAR_CUPOS, las va rotando en tandas para
-  // que todas las cuentas que pagaron reciban visibilidad, no solo las
-  // más cercanas al usuario.
+  // Si hay más cuentas Premium cerca que PREMIUM_EXPLORAR_CUPOS, esas se
+  // siguen rotando en tandas cada pocos segundos (ver iniciarRotacionPremiumExplorar)
+  // para que todas las que pagaron reciban visibilidad, no solo las más
+  // cercanas al usuario. El resto de negocios (no Premium) se muestra
+  // completo debajo, sin rotar.
   const tituloDestacadosExplorar = document.getElementById('secTituloExplorarDestacados');
-  const chipsModoExplorar = document.getElementById('chipsModoExplorarDestacados');
   const rowDestacadosExplorar = document.getElementById('rowExplorarDestacados');
   if(!state.miUbicacion){
     tituloDestacadosExplorar.style.display = 'none';
-    chipsModoExplorar.style.display = 'none';
     rowDestacadosExplorar.innerHTML = '';
     pararRotacionPremiumExplorar();
     return;
   }
 
-  renderChipsModoExplorarDestacados();
+  const premiumCerca = NEGOCIOS.filter(n => n.esPremium && n.destacarActivo).sort((a,b)=>distanciaKm(a)-distanciaKm(b));
+  const idsPremium = new Set(premiumCerca.map(n => n.id));
+  const restoDestacados = NEGOCIOS.filter(n => (n.destacado || n.servicioReco) && !idsPremium.has(n.id)).sort((a,b)=>distanciaKm(a)-distanciaKm(b));
 
-  if(state.modoExplorarDestacados === 'premium'){
-    chipsModoExplorar.style.display = 'flex';
-    const premiumCerca = NEGOCIOS.filter(n => n.esPremium && n.destacarActivo).sort((a,b)=>distanciaKm(a)-distanciaKm(b));
-    tituloDestacadosExplorar.style.display = 'flex';
-    if(premiumCerca.length === 0){
-      pararRotacionPremiumExplorar();
-      rowDestacadosExplorar.innerHTML = `<p style="font-size:11.5px;color:var(--muted);padding:2px 2px 12px">Todavía no hay negocios Premium registrados cerca de ti.</p>`;
-      return;
-    }
-    const totalGrupos = Math.ceil(premiumCerca.length / PREMIUM_EXPLORAR_CUPOS);
-    if(totalGrupos <= 1){
-      pararRotacionPremiumExplorar();
-      rowDestacadosExplorar.innerHTML = premiumCerca.map(tarjetaHorizontal).join('');
-      return;
-    }
-    const idx = state.premiumRotacionIdx % totalGrupos;
-    const grupo = premiumCerca.slice(idx * PREMIUM_EXPLORAR_CUPOS, idx * PREMIUM_EXPLORAR_CUPOS + PREMIUM_EXPLORAR_CUPOS);
-    rowDestacadosExplorar.innerHTML = grupo.map(tarjetaHorizontal).join('');
-    iniciarRotacionPremiumExplorar(totalGrupos);
+  tituloDestacadosExplorar.style.display = (premiumCerca.length || restoDestacados.length) ? 'flex' : 'none';
+
+  let grupoPremiumVisible = premiumCerca;
+  const totalGruposPremium = Math.ceil(premiumCerca.length / PREMIUM_EXPLORAR_CUPOS);
+  if(totalGruposPremium > 1){
+    const idx = state.premiumRotacionIdx % totalGruposPremium;
+    grupoPremiumVisible = premiumCerca.slice(idx * PREMIUM_EXPLORAR_CUPOS, idx * PREMIUM_EXPLORAR_CUPOS + PREMIUM_EXPLORAR_CUPOS);
+    iniciarRotacionPremiumExplorar(totalGruposPremium);
   }else{
     pararRotacionPremiumExplorar();
-    chipsModoExplorar.style.display = 'flex';
-    const destacadosCerca = NEGOCIOS.filter(n => n.destacado || n.servicioReco).sort((a,b)=>distanciaKm(a)-distanciaKm(b));
-    tituloDestacadosExplorar.style.display = destacadosCerca.length ? 'flex' : 'none';
-    rowDestacadosExplorar.innerHTML = destacadosCerca.map(tarjetaHorizontal).join('');
   }
+
+  rowDestacadosExplorar.innerHTML = [...grupoPremiumVisible, ...restoDestacados].map(tarjetaHorizontal).join('');
 }
 function toggleListaExplorar(){
   const lista = document.getElementById('rowExplorarLista');
