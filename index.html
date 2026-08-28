@@ -693,9 +693,23 @@
   .nav-item.active{ color:var(--primary); }
   .nav-item.active .n-icon-wrap{ background:var(--grad-blue); transform:translateY(-3px); box-shadow:0 6px 14px rgba(28,74,135,0.4); }
   .nav-item.active svg{ stroke:#fff; stroke-width:2.2; }
+
+/* ═══════════ Banner de estado de conexión (offline / señal débil / de vuelta) ═══════════ */
+.conn-banner{
+  position:fixed; top:0; left:0; right:0; z-index:99999;
+  padding:9px 16px; padding-top:calc(9px + env(safe-area-inset-top,0px));
+  font-size:12.5px; font-weight:700; text-align:center; color:#fff;
+  transform:translateY(-100%); transition:transform .35s ease;
+  box-shadow:0 2px 10px rgba(0,0,0,.12);
+}
+.conn-banner.show{ transform:translateY(0); }
+.conn-banner.offline{ background:#5B6472; }
+.conn-banner.weak{ background:#C97A1E; }
+.conn-banner.online{ background:#2E9E5B; }
 </style>
 </head>
 <body>
+<div class="conn-banner" id="connBanner"></div>
 <div id="app">
 
   <!-- ═══════════════════ AVISO: ABRIR FUERA DEL IFRAME DE SITES ═══════════════════
@@ -1616,6 +1630,153 @@ const ADMIN_EMAIL = 'angelcastrovereau@gmail.com';
 // varias partes del HTML.
 const PRECIO_PREMIUM_TEXTO = 'S/ 7 al mes';
 
+/* ═══════════════════════════ BANNER DE CONEXIÓN ═══════════════════════════
+   Un aviso arriba de la pantalla que cambia según el estado de la conexión:
+   - "offline": el navegador detecta que no hay internet en absoluto
+     (evento 'offline', o navigator.onLine === false).
+   - "weak": el navegador CREE que hay internet, pero una petición real al
+     backend falló igual (típico de señal de celular débil/inestable).
+   - "online": acabas de recuperar la conexión después de estar sin ella.
+   No se le pone timeout al aviso de "offline"/"weak": se queda visible
+   mientras el problema siga. El de "online" sí se oculta solo, para no
+   quedar estorbando una vez que ya todo volvió a la normalidad. */
+let bannerTimeoutId = null;
+let sinConexionAntes = !navigator.onLine;
+// Refleja el último estado real de la conexión ('offline' | 'weak' | 'online'):
+// lo usa también el modo "datos ligeros" para saber si conviene ahorrar datos.
+let estadoConexionActual = navigator.onLine ? 'online' : 'offline';
+
+function mostrarBannerConexion(texto, tipo, autoOcultarMs){
+  estadoConexionActual = tipo;
+  const el = document.getElementById('connBanner');
+  if(!el) return;
+  el.textContent = texto;
+  el.className = 'conn-banner show ' + tipo;
+  if(bannerTimeoutId){ clearTimeout(bannerTimeoutId); bannerTimeoutId = null; }
+  if(autoOcultarMs){
+    bannerTimeoutId = setTimeout(() => { el.classList.remove('show'); }, autoOcultarMs);
+  }
+}
+function ocultarBannerConexion(){
+  estadoConexionActual = 'online';
+  const el = document.getElementById('connBanner');
+  if(el) el.classList.remove('show');
+  if(bannerTimeoutId){ clearTimeout(bannerTimeoutId); bannerTimeoutId = null; }
+}
+
+// Se llama tanto al abrir la app como cada vez que el navegador avisa que
+// cambió la conexión (eventos 'online'/'offline'). Si justo se recuperó la
+// señal, se aprovecha para traer los negocios y favoritos más recientes de
+// una vez, sin esperar al siguiente refresco automático.
+function actualizarBannerPorEstadoNavegador(){
+  if(!navigator.onLine){
+    sinConexionAntes = true;
+    mostrarBannerConexion('📡 Sin conexión — mostrando lo último guardado', 'offline');
+  }else if(sinConexionAntes){
+    sinConexionAntes = false;
+    mostrarBannerConexion('✅ Ya volviste a estar en línea', 'online', 3500);
+    if(typeof cargarNegociosConReintento === 'function') cargarNegociosConReintento();
+  }
+}
+window.addEventListener('online', actualizarBannerPorEstadoNavegador);
+window.addEventListener('offline', actualizarBannerPorEstadoNavegador);
+// Chequeo inicial: si la app se abre y el celular YA está sin señal (por
+// ejemplo, modo avión desde antes de abrirla), esto muestra el aviso desde
+// el primer segundo, incluso en las pantallas de inicio de sesión, sin
+// esperar a que el navegador dispare el evento 'offline' (que solo avisa de
+// CAMBIOS de estado, no del estado con el que arrancó la página).
+if(!navigator.onLine) mostrarBannerConexion('📡 Sin conexión — mostrando lo último guardado', 'offline');
+
+/* ═══════════════════════ CACHÉ LOCAL (último dato visto) ═══════════════════════
+   Guarda en el celular (localStorage) la última lista de negocios y de
+   favoritos que se cargaron con éxito desde el backend. Así, si se abre la
+   app sin señal, en vez de pantalla en blanco o los 10 negocios de muestra,
+   se ve lo último real que había cargado antes. Esto NUNCA reemplaza al
+   backend: apenas hay conexión, se vuelve a pedir todo de nuevo y se
+   sobreescribe la caché. */
+const CACHE_KEY_NEGOCIOS = 'nexo_cache_negocios_v1';
+const CACHE_KEY_FAVORITOS = 'nexo_cache_favoritos_v1';
+const CACHE_KEY_FECHA = 'nexo_cache_fecha_v1';
+
+function guardarCacheLocal(){
+  try{
+    localStorage.setItem(CACHE_KEY_NEGOCIOS, JSON.stringify(NEGOCIOS));
+    localStorage.setItem(CACHE_KEY_FAVORITOS, JSON.stringify(Array.from(state.favoritos)));
+    localStorage.setItem(CACHE_KEY_FECHA, new Date().toISOString());
+  }catch(e){
+    // localStorage lleno o bloqueado (modo incógnito, etc.): no es grave,
+    // simplemente esta vez no queda caché para la próxima apertura sin señal.
+  }
+}
+
+function leerCacheLocal(){
+  try{
+    const negRaw = localStorage.getItem(CACHE_KEY_NEGOCIOS);
+    if(!negRaw) return null;
+    const negocios = JSON.parse(negRaw);
+    if(!Array.isArray(negocios) || !negocios.length) return null;
+    const favRaw = localStorage.getItem(CACHE_KEY_FAVORITOS);
+    const favoritos = favRaw ? JSON.parse(favRaw) : [];
+    return { negocios, favoritos, fecha: localStorage.getItem(CACHE_KEY_FECHA) || null };
+  }catch(e){
+    return null;
+  }
+}
+
+// Si hay algo guardado de una sesión anterior, se pinta de inmediato al
+// abrir la app (antes de esperar respuesta del backend). En cuanto llegue
+// la respuesta real de la red, cargarNegocios() reemplaza esto igual que
+// siempre — aquí solo evitamos la pantalla en blanco mientras tanto.
+function aplicarCacheLocalSiHay(){
+  const cache = leerCacheLocal();
+  if(!cache) return;
+  NEGOCIOS = cache.negocios;
+  if(state.user && state.user.mode === 'user' && (!state.favoritos || !state.favoritos.size)){
+    state.favoritos = new Set(cache.favoritos.map(String));
+  }
+}
+
+/* ═══════════════════════ MODO "DATOS LIGEROS" ═══════════════════════
+   Pensado para planes de datos limitados o señal mala. Se activa de dos
+   maneras (basta con una de las dos):
+   1) A mano, desde Perfil → "Modo datos ligeros" — queda guardado y activo
+      en todas las sesiones hasta que la persona lo apague.
+   2) Automáticamente, mientras la conexión esté "débil" o sin señal (ver
+      estadoConexionActual arriba) — apenas la señal vuelve a ser buena, se
+      desactiva solo, sin tocar la preferencia manual de la persona.
+   Con esto activo: el mapa de Explorar y el mini-mapa del detalle no cargan
+   Leaflet ni piden tiles (usan el mapa ilustrado 100% local, o un enlace a
+   Google Maps), las fotos de negocio no se descargan en las listas
+   (Inicio/Explorar/Buscar/Favoritos) — se ve el ícono de categoría en su
+   lugar — y las fotos que TÚ subas al publicar un negocio se comprimen más
+   (más chicas y de menor calidad) antes de enviarlas. La foto sí se sigue
+   viendo completa en el Detalle, porque ahí la persona ya pidió
+   expresamente ver ese negocio. */
+const CLAVE_DATOS_LIGEROS = 'nexo_datos_ligeros';
+function leerPrefDatosLigeros(){
+  try{ return localStorage.getItem(CLAVE_DATOS_LIGEROS) === '1'; }catch(e){ return false; }
+}
+function guardarPrefDatosLigeros(valor){
+  try{ localStorage.setItem(CLAVE_DATOS_LIGEROS, valor ? '1' : '0'); }catch(e){ /* no es grave */ }
+}
+let datosLigerosManual = leerPrefDatosLigeros();
+
+function modoLigeroActivo(){
+  return datosLigerosManual || estadoConexionActual === 'weak' || estadoConexionActual === 'offline';
+}
+
+// Se llama desde el interruptor en Perfil. Vuelve a pintar lo que depende
+// del modo (mapa de Explorar y las tarjetas con foto) para que el cambio se
+// note al toque, sin tener que salir y volver a entrar a la pestaña.
+function alternarDatosLigerosManual(activar){
+  datosLigerosManual = !!activar;
+  guardarPrefDatosLigeros(datosLigerosManual);
+  if(mapaLeaflet){ try{ mapaLeaflet.remove(); }catch(e){} mapaLeaflet = null; }
+  const tabExplorarVisible = document.getElementById('tabExplorar') && document.getElementById('tabExplorar').classList.contains('active');
+  if(tabExplorarVisible) iniciarMapaSiHaceFalta();
+  renderInicio(); renderExplorar(); renderBusqueda(); renderFavoritos();
+}
+
 // Llama al backend en Apps Script. Se usa Content-Type "text/plain" a propósito:
 // así el navegador no envía una petición OPTIONS de pre-vuelo (que Apps Script
 // no responde), evitando errores de CORS.
@@ -1629,8 +1790,20 @@ async function apiPost(action, data){
       headers:{ 'Content-Type':'text/plain;charset=utf-8' },
       body: JSON.stringify(Object.assign({ action }, data))
     });
-    return await res.json();
+    const json = await res.json();
+    // La petición sí llegó y volvió: si el banner seguía mostrando un aviso
+    // de problema de conexión, ya no aplica.
+    if(!sinConexionAntes) ocultarBannerConexion();
+    return json;
   }catch(err){
+    if(navigator.onLine){
+      // El navegador cree que hay señal, pero esta petición concreta falló:
+      // típico de una conexión débil o inestable, no de estar sin internet.
+      mostrarBannerConexion('📶 Conexión débil — reintentando…', 'weak', 5000);
+    }else{
+      sinConexionAntes = true;
+      mostrarBannerConexion('📡 Sin conexión — mostrando lo último guardado', 'offline');
+    }
     return { ok:false, error:'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.' };
   }
 }
@@ -1894,6 +2067,10 @@ async function cargarNegocios(){
       renderCategorias(); renderInicio(); renderExplorar(); renderBusqueda(); renderFavoritos(); renderPerfil();
       actualizarBadgeNotificaciones();
     }
+    // Cada refresco exitoso (sea el inicial o uno automático de fondo) deja
+    // actualizada la caché local, para que la próxima vez que se abra la
+    // app sin señal, lo que se muestre sea lo más reciente posible.
+    guardarCacheLocal();
     // Si justo estás viendo el detalle de un negocio que alguien (o tú mismo
     // desde la Sheet) acaba de eliminar, esta recarga automática ya lo quitó
     // de todas las listas — pero si te quedas parado en su pantalla de
@@ -2365,6 +2542,13 @@ async function iniciarApp(){
   // este dispositivo, esto es lo que dispara el permiso del navegador.
   if(leerPrefUbicacion() !== false) activarMiUbicacion(true);
 
+  // Si ya se había cargado algo en una sesión anterior, se pinta enseguida
+  // (esto es justo lo que se ve si se abre la app sin señal): mejor mostrar
+  // lo último guardado que dejar los 10 negocios de muestra o una pantalla
+  // en blanco mientras se intenta conectar con el backend.
+  aplicarCacheLocalSiHay();
+  actualizarBannerPorEstadoNavegador();
+
   renderCategorias();
   renderInicio();
   renderExplorar();
@@ -2387,6 +2571,7 @@ async function iniciarApp(){
     );
   }
   await Promise.all(tareas);
+  guardarCacheLocal();
   iniciarRefrescoAutomaticoNegocios();
   renderCategorias(); renderInicio(); renderExplorar(); renderBusqueda(); renderFavoritos(); renderPerfil();
 }
@@ -2429,8 +2614,13 @@ function tarjetaHorizontal(n){
   // ENCIMA de la foto en vez de quedar oculto detrás. Ahora es foto O
   // ícono, nunca los dos a la vez. Si la foto falla al cargar (onerror),
   // se vuelve a mostrar el ícono como respaldo.
-  const coverImg = n.foto
-    ? `<img src="${escapeHtml(n.foto)}" alt="${escapeHtml(n.nombre)}" onerror="this.remove();this.nextElementSibling && (this.nextElementSibling.style.display='')">`
+  // Si la foto del negocio falla al cargar (onerror), se vuelve a mostrar el
+  // ícono como respaldo. Con el modo "datos ligeros" activo (a mano, o solo
+  // mientras la señal esté débil o sin conexión), directamente no se pide la
+  // foto en las listas: se ve el ícono de categoría, para no gastar datos en
+  // imágenes que además podrían tardar mucho o no cargar con esa señal.
+  const coverImg = (n.foto && !modoLigeroActivo())
+    ? `<img src="${escapeHtml(n.foto)}" alt="${escapeHtml(n.nombre)}" loading="lazy" onerror="this.remove();this.nextElementSibling && (this.nextElementSibling.style.display='')">`
     : '';
   const coverIcon = `<svg viewBox="0 0 24 24" stroke-width="1.7" style="${n.foto ? 'display:none' : ''}"><path d="${c.icon}"/></svg>`;
   return `
@@ -2451,8 +2641,8 @@ function tarjetaHorizontal(n){
 function filaVertical(n){
   const c = catInfo(n.categoria);
   const esFav = state.favoritos.has(String(n.id));
-  const coverImgSm = n.foto
-    ? `<img src="${escapeHtml(n.foto)}" alt="${escapeHtml(n.nombre)}" onerror="this.remove();this.nextElementSibling && (this.nextElementSibling.style.display='')">`
+  const coverImgSm = (n.foto && !modoLigeroActivo())
+    ? `<img src="${escapeHtml(n.foto)}" alt="${escapeHtml(n.nombre)}" loading="lazy" onerror="this.remove();this.nextElementSibling && (this.nextElementSibling.style.display='')">`
     : '';
   const coverIconSm = `<svg viewBox="0 0 24 24" stroke-width="1.7" style="${n.foto ? 'display:none' : ''}"><path d="${c.icon}"/></svg>`;
   return `
@@ -2843,8 +3033,18 @@ async function likeComentarioClick(negocioId, comentarioId){
 }
 
 // Mini-mapa de solo lectura que muestra la ubicación exacta (con pin) del
-// negocio abierto en el detalle, junto con sus coordenadas debajo.
+// negocio abierto en el detalle, junto con sus coordenadas debajo. Con el
+// modo "datos ligeros" activo, ni siquiera se intenta cargar Leaflet ni los
+// tiles: se deja un enlace directo a Google Maps (no gasta datos hasta que
+// la persona lo toque a propósito).
 function iniciarMapaDetalleNegocio(lat, lng){
+  const contenedor = document.getElementById('detalleMapaUbicacion');
+  if(modoLigeroActivo()){
+    if(contenedor){
+      contenedor.innerHTML = `<div class="picker-hint-fallback">🌱 Modo datos ligeros activo.<br><a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener">Ver esta ubicación en Google Maps</a></div>`;
+    }
+    return;
+  }
   const dibujar = () => {
     const contenedor = document.getElementById('detalleMapaUbicacion');
     if(!contenedor) return; // la pantalla pudo cerrarse antes de que cargara Leaflet
@@ -3099,11 +3299,11 @@ async function renderMiPremium(){
   document.getElementById('miPremiumEstado').innerHTML = esPremium
     ? `<div class="premium-hero">
          <h4>★ Tu cuenta es Premium</h4>
-         <p>Todos tus negocios y servicios publicados aparecen con la insignia Premium y saltan directo a "Negocios destacados" y "Servicios recomendados". Para promocionarlos con prioridad, entra al banner "Negocios y servicios Premium" en Inicio.</p>
+         <p>Todos tus negocios y servicios publicados aparecen con la insignia Premium y saltan directo a "Negocios destacados" y "Servicios recomendados". Además, puedes tener hasta 1 negocio y 2 servicios publicados a la vez (el doble de servicios que el plan gratuito). Para promocionarlos con prioridad, entra al banner "Negocios y servicios Premium" en Inicio.</p>
        </div>`
     : `<div class="premium-hero">
          <h4>Aún no tienes Premium</h4>
-         <p>Con el plan Premium, tus negocios y servicios saltan directo a "Negocios destacados" y "Servicios recomendados", con insignia especial, sin depender de calificaciones.</p>
+         <p>Con el plan Premium, tus negocios y servicios saltan directo a "Negocios destacados" y "Servicios recomendados", con insignia especial, sin depender de calificaciones. También puedes publicar hasta 2 servicios a la vez (con el plan gratuito solo 1; el negocio se mantiene en 1 con ambos planes).</p>
          <div class="precio-premium-box"><span>Plan Premium</span><b>${PRECIO_PREMIUM_TEXTO}</b></div>
          <button class="btn-mejorar-plan" onclick="irAMejorarPlan()"><svg class="icon" viewBox="0 0 24 24" width="17" height="17" stroke="#fff"><path d="M12 2l2.9 6.3L21 9l-5 4.6L17.3 21 12 17.6 6.7 21 8 13.6 3 9l6.1-.7z"/></svg>Mejorar plan</button>
        </div>`;
@@ -3914,15 +4114,28 @@ function volverDesdeTipoRegistro(){
   document.getElementById('bottomnav').classList.remove('hidden');
 }
 
-// Límite de publicaciones por cuenta: como máximo 2 "negocio" y 1
-// "servicio" (3 en total). Coincide con el límite real que aplica el
-// backend en crearNegocio() — este chequeo de aquí es solo para avisar al
-// instante, sin esperar la respuesta del servidor. Si el dueño elimina una
-// publicación, obtenerMisNegocios() (que lee de NEGOCIOS en memoria, ya
-// actualizado por eliminarNegocioActual()/adminEliminarNegocio()) refleja
-// el cupo libre de inmediato.
-const MAX_NEGOCIOS_POR_CUENTA = 2;
-const MAX_SERVICIOS_POR_CUENTA = 1;
+// Límite de publicaciones por cuenta: como máximo 1 "negocio" y 1
+// "servicio" con el plan gratuito; con el plan Premium el límite de
+// servicios sube a 2 (el de negocio se mantiene en 1). Coincide con el
+// límite real que aplica el backend en crearNegocio() — este chequeo de
+// aquí es solo para avisar al instante, sin esperar la respuesta del
+// servidor. Si el dueño elimina una publicación, obtenerMisNegocios() (que
+// lee de NEGOCIOS en memoria, ya actualizado por
+// eliminarNegocioActual()/adminEliminarNegocio()) refleja el cupo libre de
+// inmediato.
+const MAX_NEGOCIOS_POR_CUENTA = 1;
+
+// La cuenta es Premium si CUALQUIERA de sus propios negocios/servicios ya
+// tiene esPremium=true (el backend propaga ese valor a todos los de la
+// misma cuenta apenas el administrador activa uno). Con eso alcanza para
+// saber cuántos servicios le corresponden a esta cuenta.
+function cuentaEsPremium(){
+  if(!state.user || state.user.mode !== 'user') return false;
+  return obtenerMisNegocios().some(n => n.esPremium);
+}
+function maxServiciosPorCuenta(){
+  return cuentaEsPremium() ? 2 : 1;
+}
 
 // Clasifica una publicación de la cuenta como "servicio" (tiene tipo, o su
 // categoría es "Servicios") o como "negocio" (cualquier otra categoría) —
@@ -3936,15 +4149,18 @@ function elegirTipoRegistro(modo){
   const misNegocios = obtenerMisNegocios();
   const totalNegocios = misNegocios.filter(n => !esPublicacionServicio(n)).length;
   const totalServicios = misNegocios.filter(esPublicacionServicio).length;
+  const maxServicios = maxServiciosPorCuenta();
 
-  if(modo === 'servicio' && totalServicios >= MAX_SERVICIOS_POR_CUENTA){
+  if(modo === 'servicio' && totalServicios >= maxServicios){
     volverDesdeTipoRegistro();
-    mostrarAlerta(`Ya tienes ${MAX_SERVICIOS_POR_CUENTA} servicio publicado, que es el máximo por cuenta. Elimínalo desde "Mi negocio" para poder publicar otro.`);
+    mostrarAlerta(cuentaEsPremium()
+      ? `Ya tienes ${maxServicios} servicios publicados, que es el máximo con tu plan Premium. Elimina uno desde "Mi negocio" para poder publicar otro.`
+      : `Ya tienes 1 servicio publicado, que es el máximo con el plan gratuito. Mejora a Premium para publicar hasta 2, o elimínalo desde "Mi negocio" para publicar otro.`);
     return;
   }
   if(modo === 'negocio' && totalNegocios >= MAX_NEGOCIOS_POR_CUENTA){
     volverDesdeTipoRegistro();
-    mostrarAlerta(`Ya tienes ${MAX_NEGOCIOS_POR_CUENTA} negocios publicados, que es el máximo por cuenta. Elimina uno desde "Mi negocio" para poder publicar otro.`);
+    mostrarAlerta(`Ya tienes 1 negocio publicado, que es el máximo por cuenta. Elimínalo desde "Mi negocio" para poder publicar otro.`);
     return;
   }
   abrirFormularioNegocio(modo, null);
@@ -4481,6 +4697,8 @@ function renderMapaEstatico(){
 // zoom, etc. Se carga en tiempo de ejecución (en vez de un <script src> fijo en
 // el <head>) para no romper la app si el entorno bloquea el script o los tiles:
 // en ese caso, cae automáticamente al mapa ilustrado local (renderMapaEstatico).
+// Con el modo "datos ligeros" activo directamente se usa ese mismo mapa
+// ilustrado desde el inicio, sin intentar cargar Leaflet ni los tiles.
 let mapaLeaflet = null;
 let capaMarcadores = null;
 let leafletEstado = 'sin-cargar'; // 'sin-cargar' | 'cargando' | 'listo' | 'error'
@@ -4523,6 +4741,7 @@ function cargarLeaflet(onListo, onError){
 
 function iniciarMapaSiHaceFalta(){
   if(mapaLeaflet) return;
+  if(modoLigeroActivo()){ renderMapaEstatico(); return; }
   if(leafletEstado === 'error'){ renderMapaEstatico(); return; }
   cargarLeaflet(construirMapaLeaflet, () => { leafletEstado = 'error'; renderMapaEstatico(); });
 }
