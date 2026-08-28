@@ -2687,6 +2687,31 @@ async function reenviarCodigoRecuperacion(){
   document.addEventListener('touchcancel', () => { dentroDeMapa = false; }, { passive:true });
 })();
 
+/* ─────────── evitar el gesto de "jalar para refrescar" en TODA la app ───────────
+   El mismo problema de arriba (el CSS overscroll-behavior-y:none de html,body
+   no lo respetan del todo algunos navegadores/WebView de Android) también pasa
+   fuera de los mapas: al llegar arriba del todo y seguir bajando el dedo (el
+   gesto normal para terminar de subir en la pantalla), el navegador lo confunde
+   con "jalar para refrescar" y saca su rueda, cortando el scroll. Este refuerzo
+   solo actúa cuando la página ya está en el tope y el dedo se mueve hacia abajo;
+   en cuanto hay algo de scroll o el dedo sube, se desactiva solo — así nunca
+   estorba el scroll normal, solo el gesto de refresco accidental. */
+(function bloquearPullToRefreshGlobal(){
+  let inicioY = null;
+  const enElTope = () => (window.scrollY || document.documentElement.scrollTop || 0) <= 0;
+  document.addEventListener('touchstart', e => {
+    inicioY = enElTope() ? e.touches[0].clientY : null;
+  }, { passive:true });
+  document.addEventListener('touchmove', e => {
+    if(inicioY === null) return;
+    if(!enElTope()){ inicioY = null; return; }
+    const deltaY = e.touches[0].clientY - inicioY;
+    if(deltaY > 0) e.preventDefault(); // dedo bajando estando arriba del todo = gesto de refrescar
+  }, { passive:false });
+  document.addEventListener('touchend', () => { inicioY = null; }, { passive:true });
+  document.addEventListener('touchcancel', () => { inicioY = null; }, { passive:true });
+})();
+
 // Refuerzo adicional (más confiable que el touchmove de arriba): engancha
 // directo a los eventos reales de arrastre/zoom de Leaflet. Mientras el
 // mapa se está arrastrando o haciendo pellizco-zoom, el body queda con
