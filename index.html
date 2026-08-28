@@ -40,6 +40,7 @@
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
   html,body{height:100%; overscroll-behavior-y:none;}
   body.mapa-arrastrando{ overflow:hidden !important; }
+  body.bloqueo-scroll-temporal{ overflow:hidden !important; }
   body{font-family:var(--font-body);background:var(--paper);color:var(--ink);display:flex;justify-content:center;}
   #app{width:100%;max-width:430px;min-height:100vh;background:var(--paper);position:relative;overflow-x:hidden;}
   .iframe-banner{
@@ -2696,21 +2697,40 @@ async function reenviarCodigoRecuperacion(){
    solo actúa cuando la página ya está en el tope y el dedo se mueve hacia abajo;
    en cuanto hay algo de scroll o el dedo sube, se desactiva solo — así nunca
    estorba el scroll normal, solo el gesto de refresco accidental. */
+let _pullRefreshInicioY = null;
 (function bloquearPullToRefreshGlobal(){
-  let inicioY = null;
   const enElTope = () => (window.scrollY || document.documentElement.scrollTop || 0) <= 0;
   document.addEventListener('touchstart', e => {
-    inicioY = enElTope() ? e.touches[0].clientY : null;
+    _pullRefreshInicioY = enElTope() ? e.touches[0].clientY : null;
   }, { passive:true });
   document.addEventListener('touchmove', e => {
-    if(inicioY === null) return;
-    if(!enElTope()){ inicioY = null; return; }
-    const deltaY = e.touches[0].clientY - inicioY;
+    if(_pullRefreshInicioY === null) return;
+    if(!enElTope()){ _pullRefreshInicioY = null; return; }
+    const deltaY = e.touches[0].clientY - _pullRefreshInicioY;
     if(deltaY > 0) e.preventDefault(); // dedo bajando estando arriba del todo = gesto de refrescar
   }, { passive:false });
-  document.addEventListener('touchend', () => { inicioY = null; }, { passive:true });
-  document.addEventListener('touchcancel', () => { inicioY = null; }, { passive:true });
+  document.addEventListener('touchend', () => { _pullRefreshInicioY = null; }, { passive:true });
+  document.addEventListener('touchcancel', () => { _pullRefreshInicioY = null; }, { passive:true });
 })();
+
+// Al cambiar de pestaña (mostrarTab hace scrollTo(0,0) de golpe), si justo
+// antes el dedo venía con inercia de scroll en la pestaña anterior, Android
+// se queda con su propio gesto nativo de "jalar para refrescar" armado por
+// dentro un par de segundos, aunque el bloqueo de arriba ya esté activo.
+// Este truco lo obliga a soltarlo al toque: por un instante (dos frames) se
+// bloquea el scroll nativo del body por completo con overflow:hidden, lo que
+// reinicia el motor de rebote/overscroll del navegador, y enseguida se
+// libera — imperceptible para quien usa la app, pero limpia ese estado
+// pegado que causaba la incomodidad justo después de cambiar de pestaña.
+function reiniciarGuardaPullToRefresh(){
+  _pullRefreshInicioY = null;
+  document.body.classList.add('bloqueo-scroll-temporal');
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      document.body.classList.remove('bloqueo-scroll-temporal');
+    });
+  });
+}
 
 // Refuerzo adicional (más confiable que el touchmove de arriba): engancha
 // directo a los eventos reales de arrastre/zoom de Leaflet. Mientras el
@@ -2794,6 +2814,7 @@ function mostrarTab(id){
   document.getElementById(id).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.tab === id));
   window.scrollTo(0,0);
+  reiniciarGuardaPullToRefresh();
   if(id !== 'tabExplorar') pararRotacionPremiumExplorar();
   if(id === 'tabFavoritos') renderFavoritos();
   if(id === 'tabPerfil') renderPerfil();
