@@ -1828,7 +1828,7 @@ const CONFIG = {
   // espacios (ej. Perú: '51987654321'). Se usa en Ayuda y soporte → Perfil.
   WHATSAPP_SOPORTE: '51938528215',
   // 👉 Correo que verán los usuarios para escribirte desde Ayuda y soporte.
-  EMAIL_SOPORTE: 'angelcastrovereau@gmail.com',
+  EMAIL_SOPORTE: 'nexo.aplicativo4C@gmail.com',
   // 👉 Número de WhatsApp y de Yape para pagar el plan Premium (botón
   // "Mejorar plan"). En formato internacional SIN "+" para el enlace de
   // WhatsApp, y tal cual para mostrarlo como número de Yape.
@@ -1845,7 +1845,7 @@ const CONFIG = {
 // tener permisos de administrador: podrás ver, editar y eliminar los
 // negocios de CUALQUIER persona desde la pestaña "Perfil". Debe ser
 // exactamente el mismo correo que pusiste en ADMIN_EMAIL dentro de Code.gs.
-const ADMIN_EMAIL = 'angelcastrovereau@gmail.com';
+const ADMIN_EMAIL = 'nexo.aplicativo4C@gmail.com';
 
 // 👉 Precio mensual del plan Premium, tal como se muestra en "Mi plan
 // Premium" y en "Mejorar plan" (pantalla de pago). Cámbialo aquí si el
@@ -2727,44 +2727,62 @@ async function reenviarCodigoRecuperacion(){
    Android no lo respetan del todo cuando se arrastra el mapa hacia abajo
    estando la página al tope. Como refuerzo, mientras el dedo esté dentro de
    cualquiera de los mapas, se bloquea a mano el scroll nativo de la página
-   (no el de Leaflet, que sigue funcionando normal con sus propios eventos). */
+   (no el de Leaflet, que sigue funcionando normal con sus propios eventos).
+   IMPORTANTE: el listener de touchmove (passive:false) solo se conecta
+   MIENTRAS el dedo está realmente dentro del mapa, y se desconecta apenas
+   suelta — no queda escuchando todo el documento todo el tiempo. Un
+   touchmove no-pasivo permanente obliga al navegador a consultarlo en cada
+   pixel de CUALQUIER scroll de la app (aunque no haga nada casi siempre),
+   lo que en Android vuelve tosco el scroll normal, sobre todo cerca de los
+   bordes con movimientos lentos — jalando y soltando el listener solo
+   cuando hace falta, el resto del tiempo el scroll queda 100% nativo. */
 (function bloquearPullToRefreshEnMapas(){
-  let dentroDeMapa = false;
+  function onMoveDentroDeMapa(e){ e.preventDefault(); }
+  function soltar(){
+    document.removeEventListener('touchmove', onMoveDentroDeMapa, { passive:false });
+  }
   document.addEventListener('touchstart', e => {
-    dentroDeMapa = !!e.target.closest('.map-wrap, .mini-map-picker');
+    if(e.target.closest('.map-wrap, .mini-map-picker')){
+      document.addEventListener('touchmove', onMoveDentroDeMapa, { passive:false });
+    }
   }, { passive:true });
-  document.addEventListener('touchmove', e => {
-    if(dentroDeMapa) e.preventDefault();
-  }, { passive:false });
-  document.addEventListener('touchend', () => { dentroDeMapa = false; }, { passive:true });
-  document.addEventListener('touchcancel', () => { dentroDeMapa = false; }, { passive:true });
+  document.addEventListener('touchend', soltar, { passive:true });
+  document.addEventListener('touchcancel', soltar, { passive:true });
 })();
 
 /* ─────────── evitar el gesto de "jalar para refrescar" en TODA la app ───────────
-   Este bloqueo reemplaza por completo al CSS overscroll-behavior-y (que se
-   quitó): esa propiedad frena el rebote elástico nativo en LOS DOS bordes de
-   la página (arriba y abajo), no solo arriba, y eso dejaba el scroll
-   "atascado" al revertir dirección justo en cualquiera de los dos extremos,
-   necesitando un flick rápido para que el navegador lo reconociera. Aquí en
-   cambio se interviene solo por JS, y solo en el caso puntual que hay que
-   evitar: cuando la página ya está en el tope de arriba y el dedo sigue
-   bajando (que es cuando el navegador lo confunde con "jalar para
-   refrescar"). En cualquier otro momento —incluida la parte de abajo— no se
-   toca nada y el scroll queda 100% nativo, con su rebote normal. */
+   Bloquea solo el caso puntual que hay que evitar: la página ya está en el
+   tope de arriba y el dedo sigue bajando (que es cuando el navegador lo
+   confunde con "jalar para refrescar"). En cualquier otro momento —incluida
+   la parte de abajo— no se toca nada y el scroll queda 100% nativo, con su
+   rebote normal.
+   Igual que en los mapas: el touchmove no-pasivo solo se conecta cuando el
+   gesto arranca arriba del todo, y se desconecta apenas deja de estar arriba
+   o el dedo se levanta — nunca queda escuchando el documento de forma
+   permanente, que era lo que volvía tosco el scroll cerca del borde de
+   abajo (el navegador tenía que consultar el listener en cada pixel de
+   CUALQUIER scroll de la app, incluso ahí donde nunca hacía nada). */
 let _pullRefreshInicioY = null;
 (function bloquearPullToRefreshGlobal(){
   const enElTope = () => (window.scrollY || document.documentElement.scrollTop || 0) <= 0;
-  document.addEventListener('touchstart', e => {
-    _pullRefreshInicioY = enElTope() ? e.touches[0].clientY : null;
-  }, { passive:true });
-  document.addEventListener('touchmove', e => {
+  function onMove(e){
     if(_pullRefreshInicioY === null) return;
-    if(!enElTope()){ _pullRefreshInicioY = null; return; }
+    if(!enElTope()){ soltar(); return; }
     const deltaY = e.touches[0].clientY - _pullRefreshInicioY;
     if(deltaY > 0) e.preventDefault(); // dedo bajando estando arriba del todo = gesto de refrescar
-  }, { passive:false });
-  document.addEventListener('touchend', () => { _pullRefreshInicioY = null; }, { passive:true });
-  document.addEventListener('touchcancel', () => { _pullRefreshInicioY = null; }, { passive:true });
+  }
+  function soltar(){
+    document.removeEventListener('touchmove', onMove, { passive:false });
+    _pullRefreshInicioY = null;
+  }
+  document.addEventListener('touchstart', e => {
+    if(enElTope()){
+      _pullRefreshInicioY = e.touches[0].clientY;
+      document.addEventListener('touchmove', onMove, { passive:false });
+    }
+  }, { passive:true });
+  document.addEventListener('touchend', soltar, { passive:true });
+  document.addEventListener('touchcancel', soltar, { passive:true });
 })();
 
 // Al cambiar de pestaña (mostrarTab hace scrollTo(0,0) de golpe), si justo
