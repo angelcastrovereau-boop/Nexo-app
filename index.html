@@ -227,7 +227,6 @@
   body.tema-premium .precio-premium-box{ background:linear-gradient(135deg,var(--premium-black) 0%,var(--premium-blue-1) 100%); border-color:var(--premium-blue-2); }
   body.tema-premium .precio-premium-box span{ color:rgba(255,255,255,0.7); }
   body.tema-premium .precio-premium-box b{ color:var(--premium-blue-light); }
-  body.tema-premium .premium-directorio-banner{ background:var(--grad-premium); }
 
   /* ═══════ Fondo general en negro para cuentas Premium ═══════
      --paper y --surface son las variables que pintan TODO el fondo de la
@@ -286,12 +285,12 @@
      inmediata, además del efecto de entrada que ya tenían algunas tarjetas.
      Son solo transform/box-shadow/filter (nada de layout ni JS), así que no
      cambian el tamaño real de nada ni interfieren con los clics/onclick. ═══════ */
-  .nav-item, .quick-search, .premium-directorio-banner, .biz-card, .biz-row,
+  .nav-item, .quick-search, .biz-card, .biz-row,
   .hdr-notif, .chip, .btn-primary, .btn-outline, .settings-row,
   .personal-swatch .dot, .personal-opt, .sub-chip, .pago-row{
     transition:transform .16s cubic-bezier(.34,1.56,.64,1), box-shadow .16s ease, background .16s ease, filter .16s ease;
   }
-  .quick-search:active, .premium-directorio-banner:active,
+  .quick-search:active,
   .biz-card:active, .biz-row:active, .hdr-notif:active, .chip:active,
   .btn-primary:active, .btn-outline:active, .settings-row:active,
   .personal-opt:active, .sub-chip:active, .pago-row:active{ transform:scale(.95); filter:brightness(.97); }
@@ -311,10 +310,10 @@
   body.letra-grande #app{ zoom:1.14; }
 
   body.forma-cuadrada .biz-card, body.forma-cuadrada .cat-btn,
-  body.forma-cuadrada .premium-directorio-banner, body.forma-cuadrada .biz-row{ border-radius:4px !important; }
+  body.forma-cuadrada .biz-row{ border-radius:4px !important; }
   body.forma-redondeada .biz-card, body.forma-redondeada .cat-btn,
-  body.forma-redondeada .premium-directorio-banner, body.forma-redondeada .biz-row{ border-radius:18px !important; }
-  body.forma-ondulada .biz-card, body.forma-ondulada .premium-directorio-banner{
+  body.forma-redondeada .biz-row{ border-radius:18px !important; }
+  body.forma-ondulada .biz-card{
     border-radius:26px 8px 26px 8px !important;
   }
   body.forma-ondulada .cat-btn{ border-radius:50% 12px 50% 12px !important; }
@@ -512,20 +511,6 @@
   .personalizar-banner p{ color:rgba(255,255,255,0.7); font-size:10.5px; margin-top:2px; }
   .personalizar-banner svg.chev{ position:relative; z-index:1; stroke:#fff; width:18px; height:18px; flex-shrink:0; }
 
-  /* ═══════ Banner "Negocios y servicios Premium" (en Inicio, visible para todos) ═══════ */
-  .premium-directorio-banner{
-    display:flex; align-items:center; gap:13px; border-radius:16px; padding:16px; margin:4px 0 22px;
-    background:linear-gradient(135deg,#0D2C55 0%,#1C4A87 55%,#3E8FD9 120%);
-    box-shadow:0 10px 24px rgba(13,44,85,0.28); position:relative; overflow:hidden; cursor:pointer;
-  }
-  .premium-directorio-banner::before{ content:'★'; position:absolute; right:-8px; top:-18px; font-size:86px; color:rgba(255,255,255,0.10); }
-  .premium-directorio-banner .ic{ position:relative; z-index:1; width:42px; height:42px; border-radius:12px; background:linear-gradient(135deg,#F4C95D,#C4881F); display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 6px 14px rgba(196,136,31,.35); }
-  .premium-directorio-banner .ic svg{ width:21px; height:21px; stroke:#fff; fill:none; }
-  .premium-directorio-banner .tx{ position:relative; z-index:1; flex:1; }
-  .premium-directorio-banner h4{ color:#fff; font-family:var(--font-display); font-size:13.5px; font-weight:700; }
-  .premium-directorio-banner p{ color:rgba(255,255,255,0.75); font-size:10.5px; margin-top:2px; }
-  .premium-directorio-banner svg.chev{ position:relative; z-index:1; stroke:#fff; width:18px; height:18px; flex-shrink:0; }
-
   .pers-sec-label{ font-family:var(--font-mono); font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--primary); margin:20px 0 10px; }
   .pers-sec-label:first-child{ margin-top:0; }
 
@@ -618,6 +603,31 @@
   .modal-btn-primary{ background:var(--ink-panel); color:#fff; }
   .modal-btn-outline{ background:var(--paper); color:var(--primary); border:1.5px solid var(--line); }
   .modal-btn-danger{ background:var(--danger); color:#fff; }
+
+  /* ═══════ Notificación flotente (toast tipo push, ver mostrarNotifFlotante) ═══════ */
+  .notif-flotante{
+    position:fixed; top:14px; left:50%; transform:translateX(-50%) translateY(-140%);
+    width:min(360px, calc(100% - 24px)); z-index:10000; display:flex; align-items:flex-start; gap:11px;
+    background:var(--surface); border-radius:16px; padding:13px 14px; box-shadow:var(--shadow-lg);
+    border:1px solid var(--line); cursor:pointer; transition:transform .32s cubic-bezier(.34,1.4,.64,1);
+  }
+  .notif-flotante.mostrar{ transform:translateX(-50%) translateY(0); }
+  .notif-flotante .ic{
+    width:34px; height:34px; border-radius:10px; background:var(--grad-signal); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:16px;
+  }
+  .notif-flotante .tx{ min-width:0; }
+  .notif-flotante h4{ font-family:var(--font-display); font-size:12.5px; font-weight:700; color:var(--ink); }
+  .notif-flotante p{ font-size:11.5px; color:var(--muted); margin-top:2px; line-height:1.4; }
+
+  /* ═══════ Aviso "prueba de Promociones vencida" en Personalizar ═══════ */
+  .promo-bloqueada{
+    margin-top:8px; border-radius:14px; padding:14px; background:var(--paper); border:1.5px dashed var(--line);
+  }
+  .promo-bloqueada .encabezado{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .promo-bloqueada .encabezado span.lock{ font-size:15px; }
+  .promo-bloqueada .encabezado h4{ font-family:var(--font-display); font-size:12.5px; font-weight:700; color:var(--ink); }
+  .promo-bloqueada p{ font-size:11.5px; color:var(--muted); line-height:1.5; margin-bottom:10px; }
 
   /* ═══════ Panel de administrador (pestaña Perfil) ═══════ */
   .admin-neg-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
@@ -1292,11 +1302,18 @@
       <p class="pers-sec-label" style="margin-top:16px">Etiquetas (elige hasta 3)</p>
       <div class="tam-chips" id="persEtiquetasChips" style="flex-wrap:wrap"></div>
 
-      <div class="field" style="margin-top:20px">
+      <!-- El botón/checkbox de Promociones es un beneficio Premium: toda cuenta
+           nueva puede usarlo gratis por 14 días exactos desde su registro
+           (ver puedeUsarPromociones() en el JS). Mientras esté disponible se
+           ve "bloquePromoDisponible"; si venció la prueba y la cuenta no es
+           Premium, se oculta y se ve "bloquePromoBloqueada" en su lugar
+           (toggle hecho en abrirFormularioPersonalizar()). -->
+      <div id="bloquePromoDisponible" class="field" style="margin-top:20px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
           <input type="checkbox" id="negTienePromo" onchange="togglePromoNegocio()" style="width:16px;height:16px;accent-color:var(--primary)">
           Tengo una promoción activa
         </label>
+        <p class="hidden" id="avisoPromoPrueba" style="font-size:10.5px;color:var(--signal-dark);margin-top:6px;line-height:1.4"></p>
         <div class="hidden" id="campoPromoRank" style="margin-top:10px">
           <label style="display:block;font-family:var(--font-mono);font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--primary);margin-bottom:4px">Porcentaje de descuento</label>
           <p style="font-size:11px;color:var(--muted);margin-bottom:6px;line-height:1.4">Elige el % de descuento. Todos los usuarios de Nexo lo verán en tu tarjeta y en "Promociones del día".</p>
@@ -1325,6 +1342,14 @@
         <div class="promo-bar hidden" id="promoBarPreview">
           <span>🔥</span><span id="promoBarTexto">20% de descuento</span>
         </div>
+      </div>
+
+      <!-- Se muestra en vez del bloque de arriba cuando ya venció la prueba
+           gratuita de 14 días y la cuenta no es Premium. -->
+      <div id="bloquePromoBloqueada" class="promo-bloqueada hidden" style="margin-top:20px">
+        <div class="encabezado"><span class="lock">🔒</span><h4>Promociones es un beneficio Premium</h4></div>
+        <p id="txtPromoBloqueada">Tu prueba gratuita de 14 días para usar el botón de Promociones ya terminó. Hazte Premium para seguir creando promociones para tu negocio o servicio.</p>
+        <button class="btn-mejorar-plan" onclick="irAMejorarPlan()"><svg class="icon" viewBox="0 0 24 24" width="17" height="17" stroke="#fff"><path d="M12 2l2.9 6.3L21 9l-5 4.6L17.3 21 12 17.6 6.7 21 8 13.6 3 9l6.1-.7z"/></svg>Mejorar plan</button>
       </div>
 
       <p id="persError" class="form-error hidden" style="margin-top:16px"></p>
@@ -1679,22 +1704,6 @@
             <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
           </div>
 
-          <!-- ═══════════════════ BANNER "Negocios y servicios Premium" ═══════════════════
-               Visible SOLO para cuentas que ya pagaron el plan Premium (se oculta con
-               la clase "hidden" y se muestra desde renderInicio() según
-               obtenerMisNegocios().some(n => n.esPremium)) — no es un beneficio de
-               cuentas gratuitas, aunque ya tengan un negocio o servicio publicado. Al
-               tocarlo abre un directorio que agrupa por cuenta dueña todos los negocios
-               y servicios de cuentas Premium, ordenados por cercanía real. Si alguna de
-               esas cuentas es la del propio usuario, ve además el interruptor de
-               "estrella" para promocionarlos (ver irADirectorioPremium() en el JS).
-               Reemplaza al antiguo botón "Promocionar mis negocios" que vivía en Perfil. -->
-          <div class="premium-directorio-banner hidden" id="bannerDirectorioPremium" onclick="irADirectorioPremium()">
-            <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.3L21 9l-5 4.6L17.3 21 12 17.6 6.7 21 8 13.6 3 9l6.1-.7z"/></svg></div>
-            <div class="tx"><h4>Negocios y servicios Premium</h4><p>Descubre las cuentas Premium cerca de ti</p></div>
-            <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
-          </div>
-
           <p class="sec-title"><span class="lft">Categorías</span></p>
           <div class="cat-grid" id="catGrid"></div>
 
@@ -1786,6 +1795,20 @@
     <div class="modal-card">
       <p class="modal-msg" id="miniModalMsg"></p>
       <div class="modal-actions" id="miniModalActions"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ NOTIFICACIÓN FLOTANTE (toast) ═══════════════════
+       Tarjeta que aparece deslizándose desde arriba, como una notificación
+       real del sistema, y se oculta sola a los pocos segundos o al tocarla.
+       Usada por mostrarNotifFlotante() — hoy solo para avisar que venció la
+       prueba gratuita del botón de Promociones (ver puedeUsarPromociones()
+       en el JS), pero sirve para cualquier aviso corto dentro de la app. -->
+  <div class="notif-flotante hidden" id="notifFlotante" onclick="ocultarNotifFlotante()">
+    <div class="ic" id="notifFlotanteIcono">🔔</div>
+    <div class="tx">
+      <h4 id="notifFlotanteTitulo">Nexo</h4>
+      <p id="notifFlotanteMsg"></p>
     </div>
   </div>
 
@@ -2408,6 +2431,32 @@ if(estaEnIframe()){
 // nunca (pareciendo que "no pasaba nada" al tocar algo) y un confirm() podía
 // no dejar avanzar la acción (pareciendo que "borrar no funciona"). Este
 // modal propio no depende del navegador, así que funciona siempre.
+// Notificación flotente tipo push (toast): aparece deslizándose desde
+// arriba y se oculta sola tras "duracionMs". No bloquea la app como
+// mostrarAlerta(), así que sirve para avisos que no necesitan que la
+// persona confirme nada, como el vencimiento de la prueba de Promociones.
+let notifFlotanteTimeout = null;
+function mostrarNotifFlotante(msg, opciones){
+  const opts = opciones || {};
+  const el = document.getElementById('notifFlotante');
+  document.getElementById('notifFlotanteTitulo').textContent = opts.titulo || 'Nexo';
+  document.getElementById('notifFlotanteMsg').textContent = msg;
+  document.getElementById('notifFlotanteIcono').textContent = opts.icono || '🔔';
+  el.classList.remove('hidden');
+  // Forzar reflow para que la transición de "aparecer" se vea siempre,
+  // incluso si se llama dos veces seguidas.
+  void el.offsetWidth;
+  el.classList.add('mostrar');
+  if(notifFlotanteTimeout) clearTimeout(notifFlotanteTimeout);
+  notifFlotanteTimeout = setTimeout(ocultarNotifFlotante, opts.duracionMs || 6000);
+}
+function ocultarNotifFlotante(){
+  const el = document.getElementById('notifFlotante');
+  el.classList.remove('mostrar');
+  if(notifFlotanteTimeout) clearTimeout(notifFlotanteTimeout);
+  setTimeout(() => el.classList.add('hidden'), 320);
+}
+
 function mostrarAlerta(msg, textoBoton){
   const overlay = document.getElementById('miniModalOverlay');
   document.getElementById('miniModalMsg').textContent = msg;
@@ -2562,7 +2611,7 @@ async function iniciarSesion(){
     mostrarError('loginError', r.error || 'No se pudo iniciar sesión.');
     return;
   }
-  state.user = { mode:'user', id:r.user.id, nombre:r.user.nombre, email:r.user.email, tieneNegocio:false, notif: r.user.notif || { promos:true, negocios:true, favoritos:true } };
+  state.user = { mode:'user', id:r.user.id, nombre:r.user.nombre, email:r.user.email, fechaRegistro:r.user.fechaRegistro || '', tieneNegocio:false, notif: r.user.notif || { promos:true, negocios:true, favoritos:true } };
   guardarSesion();
   await iniciarApp();
   iniciarTutorialSiEsNuevo(); // si esta cuenta se había quedado a la mitad del tutorial, lo retoma aquí
@@ -2608,7 +2657,7 @@ async function verificarCodigo(){
   btn.disabled = false; btn.textContent = 'Verificar y continuar';
 
   if(!r.ok){ mostrarError('verifyError', r.error || 'No se pudo verificar el código.'); return; }
-  state.user = { mode:'user', id:r.user.id, nombre:r.user.nombre, email:r.user.email, tieneNegocio:false, notif: r.user.notif || { promos:true, negocios:true, favoritos:true } };
+  state.user = { mode:'user', id:r.user.id, nombre:r.user.nombre, email:r.user.email, fechaRegistro:r.user.fechaRegistro || '', tieneNegocio:false, notif: r.user.notif || { promos:true, negocios:true, favoritos:true } };
   guardarSesion();
   await iniciarApp();
   iniciarTutorialSiEsNuevo();
@@ -3523,12 +3572,6 @@ function renderInicio(){
   // registrar más de un negocio o servicio, uno tras otro.
   banner.style.display = state.user ? 'flex' : 'none';
   document.getElementById('tarjetaPersonalizar').classList.toggle('hidden', !esDueno);
-  // El banner "Negocios y servicios Premium" es un BENEFICIO exclusivo de
-  // las cuentas que ya pagaron el plan Premium (no de cuentas gratuitas,
-  // aunque tengan un negocio o servicio publicado): solo lo ven cuentas
-  // con al menos un negocio/servicio marcado esPremium.
-  const esCuentaPremium = obtenerMisNegocios().some(n => n.esPremium);
-  document.getElementById('bannerDirectorioPremium').classList.toggle('hidden', !esCuentaPremium);
   // Tema visual (negro/azul metálico/blanco/azul claro) en TODA la app
   // (encabezado, barra inferior, chips) para cuentas Premium.
   aplicarTemaPremium();
@@ -3636,6 +3679,100 @@ function obtenerMisNegocios(){
 function aplicarTemaPremium(){
   const esCuentaPremium = obtenerMisNegocios().some(n => n.esPremium);
   document.body.classList.toggle('tema-premium', esCuentaPremium);
+}
+
+// Reusa la misma regla que aplicarTemaPremium()/etc: la cuenta es Premium si
+// al menos uno de sus negocios/servicios tiene esPremium activo.
+function esCuentaPremiumActual(){
+  return obtenerMisNegocios().some(n => n.esPremium);
+}
+
+/* ═══════════════════ Prueba gratuita del botón "Promociones" ═══════════════════
+   El botón de Promociones (armar una promoción para un negocio/servicio, en
+   la pantalla Personalizar) es un beneficio del plan Premium. Para que toda
+   cuenta nueva pueda probarlo, se habilita gratis por 14 días exactos desde
+   la fecha de registro de ESA cuenta (state.user.fechaRegistro, que llega
+   del servidor en login/verificarCodigo — ver Code.gs). Pasados los 14 días,
+   si la cuenta no es Premium, el botón se oculta y se avisa con una
+   notificación flotente (ver mostrarNotifFlotante) más un bloque fijo en la
+   propia pantalla. */
+const DIAS_PRUEBA_PROMOCIONES = 14;
+
+function fechaRegistroComoDate(){
+  if(!state.user || !state.user.fechaRegistro) return null;
+  const d = new Date(state.user.fechaRegistro);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// true mientras la cuenta esté dentro de sus primeros 14 días desde el
+// registro. Si no se conoce la fecha de registro (cuentas antiguas
+// migradas sin ese dato), se considera vencida por seguridad.
+function pruebaPromoVigente(){
+  const inicio = fechaRegistroComoDate();
+  if(!inicio) return false;
+  const finMs = inicio.getTime() + DIAS_PRUEBA_PROMOCIONES * 24 * 60 * 60 * 1000;
+  return Date.now() < finMs;
+}
+
+function fechaFinPruebaPromo(){
+  const inicio = fechaRegistroComoDate();
+  if(!inicio) return null;
+  return new Date(inicio.getTime() + DIAS_PRUEBA_PROMOCIONES * 24 * 60 * 60 * 1000);
+}
+
+// Puede usar el botón de Promociones si ya es Premium, o si todavía está
+// dentro de su prueba gratuita de 14 días desde que creó la cuenta.
+function puedeUsarPromociones(){
+  return esCuentaPremiumActual() || pruebaPromoVigente();
+}
+
+// Cuántos días completos le quedan a la cuenta de su prueba gratuita
+// (0 si ya venció o si no se conoce su fecha de registro).
+function diasRestantesPruebaPromo(){
+  const fin = fechaFinPruebaPromo();
+  if(!fin) return 0;
+  const restanteMs = fin.getTime() - Date.now();
+  return Math.max(0, Math.ceil(restanteMs / (24 * 60 * 60 * 1000)));
+}
+
+// Fecha corta en español a partir de un objeto Date (ej. "17 sep"), para
+// mostrar el día EXACTO en que vence o venció la prueba de cada cuenta.
+function formatearFechaCortaDate(date){
+  if(!date) return '';
+  const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return `${date.getDate()} ${meses[date.getMonth()]}`;
+}
+
+// Revisa el estado de la prueba de Promociones para la pantalla
+// "Personalizar" ya abierta: muestra el bloque correcto (disponible /
+// bloqueada), el aviso de días restantes, y si justo venció avisa además
+// con una notificación flotante (una sola vez por sesión, para no ser
+// repetitivo si la persona reabre la pantalla varias veces).
+function actualizarEstadoPromoEnPersonalizar(){
+  const disponible = puedeUsarPromociones();
+  const esPremium = esCuentaPremiumActual();
+  document.getElementById('bloquePromoDisponible').classList.toggle('hidden', !disponible);
+  document.getElementById('bloquePromoBloqueada').classList.toggle('hidden', disponible);
+
+  const avisoPrueba = document.getElementById('avisoPromoPrueba');
+  if(disponible && !esPremium){
+    const dias = diasRestantesPruebaPromo();
+    avisoPrueba.textContent = `🎁 Prueba gratis: te ${dias === 1 ? 'queda 1 día' : `quedan ${dias} días`} para usar Promociones sin ser Premium (vence el ${formatearFechaCortaDate(fechaFinPruebaPromo())}).`;
+    avisoPrueba.classList.remove('hidden');
+  } else {
+    avisoPrueba.classList.add('hidden');
+  }
+
+  if(!disponible){
+    const fin = fechaFinPruebaPromo();
+    document.getElementById('txtPromoBloqueada').textContent = fin
+      ? `Tu prueba gratuita del botón de Promociones venció el ${formatearFechaCortaDate(fin)}. Hazte Premium para seguir creando promociones para tu negocio o servicio.`
+      : 'Promociones es un beneficio exclusivo del plan Premium. Hazte Premium para poder usarlo.';
+    if(!state.notifPromoExpiradaMostrada){
+      state.notifPromoExpiradaMostrada = true;
+      mostrarNotifFlotante('Tu prueba gratuita de 14 días para usar el botón de Promociones ha expirado. Hazte Premium para seguir usándolo.', { titulo:'Prueba de Promociones vencida', icono:'🔒' });
+    }
+  }
 }
 
 /* ═══════════════════ PERSONALIZACIÓN POR USUARIO ═══════════════════
@@ -4270,6 +4407,8 @@ function abrirFormularioPersonalizar(negocio){
   document.getElementById('campoPromoFechas').classList.toggle('hidden', !(tienePromo && esCuentaPremium));
   document.getElementById('avisoPromoFechasPremium').classList.toggle('hidden', !(tienePromo && !esCuentaPremium));
 
+  actualizarEstadoPromoEnPersonalizar();
+
   actualizarPreviewPersonalizar();
   mostrarPantalla('screenPersonalizar');
 }
@@ -4552,13 +4691,19 @@ async function guardarPersonalizacion(){
   ocultarError('persSuccess');
   if(!state.personalizandoId){ mostrarError('persError', 'No se encontró el negocio a personalizar.'); return; }
 
-  const tienePromo = document.getElementById('negTienePromo').checked;
-  const promoTxt = document.getElementById('negPromoTxt').value.trim();
-  const promoRank = parseInt(document.getElementById('negPromoRank').value, 10) || 20;
+  // Si venció la prueba gratis y la cuenta no es Premium, el bloque de
+  // Promociones está oculto: no se lee del formulario (podría traer un
+  // valor viejo del checkbox escondido), se conserva tal cual estaba
+  // guardado el negocio antes de abrir esta pantalla.
+  const puedePromocionar = puedeUsarPromociones();
+  const negocioPrevioPromo = state.personalizando || {};
+  const tienePromo = puedePromocionar ? document.getElementById('negTienePromo').checked : !!negocioPrevioPromo.promo;
+  const promoTxt = puedePromocionar ? document.getElementById('negPromoTxt').value.trim() : (negocioPrevioPromo.promoTxt || '');
+  const promoRank = puedePromocionar ? (parseInt(document.getElementById('negPromoRank').value, 10) || 20) : (negocioPrevioPromo.promoRank || 20);
   const esCuentaPremium = obtenerMisNegocios().some(n => n.esPremium);
-  const promoInicio = esCuentaPremium ? document.getElementById('negPromoInicio').value : '';
-  const promoFin = esCuentaPremium ? document.getElementById('negPromoFin').value : '';
-  if(esCuentaPremium && promoInicio && promoFin && promoFin < promoInicio){
+  const promoInicio = (puedePromocionar && esCuentaPremium) ? document.getElementById('negPromoInicio').value : (negocioPrevioPromo.promoInicio || '');
+  const promoFin = (puedePromocionar && esCuentaPremium) ? document.getElementById('negPromoFin').value : (negocioPrevioPromo.promoFin || '');
+  if(puedePromocionar && esCuentaPremium && promoInicio && promoFin && promoFin < promoInicio){
     mostrarError('persError', 'La fecha de fin no puede ser antes que la fecha de inicio.');
     return;
   }
