@@ -3690,32 +3690,66 @@ function esCuentaPremiumActual(){
 /* ═══════════════════ Prueba gratuita del botón "Promociones" ═══════════════════
    El botón de Promociones (armar una promoción para un negocio/servicio, en
    la pantalla Personalizar) es un beneficio del plan Premium. Para que toda
-   cuenta nueva pueda probarlo, se habilita gratis por 14 días exactos desde
-   la fecha de registro de ESA cuenta (state.user.fechaRegistro, que llega
-   del servidor en login/verificarCodigo — ver Code.gs). Pasados los 14 días,
-   si la cuenta no es Premium, el botón se oculta y se avisa con una
-   notificación flotente (ver mostrarNotifFlotante) más un bloque fijo en la
-   propia pantalla. */
+   cuenta nueva pueda probarlo, se habilita gratis por 14 días exactos.
+
+   IMPORTANTE: el conteo de 14 días arranca la PRIMERA VEZ que esa cuenta
+   entra a la app y este código llega a revisarlo — NO desde
+   state.user.fechaRegistro. Se guarda una marca de tiempo en localStorage,
+   por cuenta (misma idea que clavePersonalizacion() más abajo), la primera
+   vez que se calcula. Así:
+     - Cuentas nuevas: su prueba arranca prácticamente al registrarse (que es
+       cuando abren la app por primera vez), igual que antes.
+     - Cuentas que YA existían en la base de datos antes de que este botón
+       existiera: su fecha_registro real es antigua y usarla haría que la
+       prueba apareciera vencida desde el primer momento. Con la marca local,
+       a esas cuentas la prueba les arranca recién cuando abren la app tras
+       esta actualización, dándoles sus 14 días completos igual que a
+       cualquiera.
+   Pasados los 14 días, si la cuenta no es Premium, el botón se oculta y se
+   avisa con una notificación flotante (ver mostrarNotifFlotante) más un
+   bloque fijo en la propia pantalla. */
 const DIAS_PRUEBA_PROMOCIONES = 14;
 
-function fechaRegistroComoDate(){
-  if(!state.user || !state.user.fechaRegistro) return null;
-  const d = new Date(state.user.fechaRegistro);
-  return isNaN(d.getTime()) ? null : d;
+function claveInicioPruebaPromo(){
+  if(!state.user || state.user.mode !== 'user' || !state.user.email) return null;
+  return 'nexo_inicio_prueba_promo_' + state.user.email.toLowerCase();
 }
 
-// true mientras la cuenta esté dentro de sus primeros 14 días desde el
-// registro. Si no se conoce la fecha de registro (cuentas antiguas
-// migradas sin ese dato), se considera vencida por seguridad.
+// Devuelve (y crea si hace falta) la fecha en que empezó a correr la
+// prueba gratuita de Promociones PARA ESTA CUENTA en ESTE dispositivo.
+// La primera vez que se llama para una cuenta, se fija "ahora" como inicio
+// y se guarda; las siguientes veces se reusa la misma fecha guardada.
+function fechaInicioPruebaPromo(){
+  const clave = claveInicioPruebaPromo();
+  if(!clave) return null;
+  try{
+    const guardada = localStorage.getItem(clave);
+    if(guardada){
+      const d = new Date(guardada);
+      if(!isNaN(d.getTime())) return d;
+    }
+    const ahora = new Date();
+    localStorage.setItem(clave, ahora.toISOString());
+    return ahora;
+  }catch(e){
+    // localStorage no disponible: no podemos recordar el inicio entre
+    // aperturas, así que usamos "ahora" solo para esta sesión (mejor que
+    // negarle la prueba por completo).
+    return new Date();
+  }
+}
+
+// true mientras la cuenta esté dentro de sus primeros 14 días desde que
+// esta app empezó a contarle la prueba (ver fechaInicioPruebaPromo).
 function pruebaPromoVigente(){
-  const inicio = fechaRegistroComoDate();
+  const inicio = fechaInicioPruebaPromo();
   if(!inicio) return false;
   const finMs = inicio.getTime() + DIAS_PRUEBA_PROMOCIONES * 24 * 60 * 60 * 1000;
   return Date.now() < finMs;
 }
 
 function fechaFinPruebaPromo(){
-  const inicio = fechaRegistroComoDate();
+  const inicio = fechaInicioPruebaPromo();
   if(!inicio) return null;
   return new Date(inicio.getTime() + DIAS_PRUEBA_PROMOCIONES * 24 * 60 * 60 * 1000);
 }
