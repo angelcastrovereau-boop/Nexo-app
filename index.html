@@ -1229,7 +1229,7 @@
         <div class="inp-wrap"><svg viewBox="0 0 24 24"><path d="M4 21V9l8-6 8 6v12"/></svg><input id="negDireccion" type="text" placeholder="Referencia o dirección en Trujillo"></div>
       </div>
 
-      <div class="field">
+      <div class="field" id="campoUbicacionNegocio">
         <label>Ubicación en el mapa</label>
         <div class="inp-wrap" style="margin-bottom:8px">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
@@ -1815,8 +1815,12 @@
   <!-- ═══════════════════ TUTORIAL DE BIENVENIDA (solo cuentas nuevas) ═══════════════════
        Coach marks: señala botones reales de la app en su lugar, uno por uno,
        en vez de meter pantallas de bienvenida antes de dejar entrar a la
-       persona. Se arma en iniciarTutorial() (ver JS) recorriendo
-       PASOS_TUTORIAL y ubicando cada elemento con getBoundingClientRect(). -->
+       persona. Este mismo overlay se reutiliza para los DOS tutoriales de
+       la app: el "principal" (Inicio + Ayuda y soporte + Plan Premium) y el
+       de "registroNegocio" (campos del formulario al publicar por primera
+       vez). Se arma en iniciarTutorial() (ver JS) recorriendo
+       PASOS_TUTORIAL_PRINCIPAL o PASOS_TUTORIAL_REGISTRO según cuál esté
+       activo, y ubicando cada elemento con getBoundingClientRect(). -->
   <div class="tutorial-backdrop hidden" id="tutorialOverlay" onclick="siguientePasoTutorial()">
     <div class="tutorial-hueco" id="tutorialHueco"></div>
     <div class="tutorial-burbuja" id="tutorialBurbuja" onclick="event.stopPropagation()">
@@ -2930,48 +2934,102 @@ async function cargarNegociosConReintento(){
 }
 
 /* ─────────── tutorial de bienvenida (coach marks) — solo cuentas nuevas ───────────
-   Se dispara SOLO desde verificarCodigo(): ese es el único momento en el que
-   una cuenta entra a la app por primera vez (justo después de registrarse y
-   confirmar el correo). Un inicio de sesión normal (iniciarSesion) nunca pasa
-   por ahí para una cuenta ya verificada antes, así que a un usuario existente
-   jamás le vuelve a salir. Por las dudas (o si alguna vez se abre el flujo dos
-   veces) igual se guarda una marca en localStorage por correo. */
-const PASOS_TUTORIAL = [
+   Hay dos recorridos independientes, cada uno con su propia marca de
+   "visto" en localStorage POR CORREO, y cada uno se muestra UNA SOLA VEZ
+   por cuenta en toda la vida de esa cuenta:
+
+     • "principal": recorre Inicio (buscador, banner de registro, barra
+       inferior) y termina abriendo el tab Perfil para señalar "Ayuda y
+       soporte" y "Mi plan Premium" — los dos botones que no se ven apenas
+       se entra a la app, solo al abrir esa pestaña. Se dispara SOLO desde
+       verificarCodigo(): ese es el único momento en el que una cuenta
+       entra a la app por primera vez (justo después de registrarse y
+       confirmar el correo). Un inicio de sesión normal (iniciarSesion)
+       nunca pasa por ahí para una cuenta ya verificada antes, así que a un
+       usuario existente jamás le vuelve a salir.
+
+     • "registroNegocio": explica los campos clave del formulario (foto,
+       categoría/tipo, ubicación en el mapa y el botón de publicar) la
+       PRIMERA vez que la cuenta publica un negocio o servicio nuevo. Se
+       dispara desde abrirFormularioNegocio() solo cuando es una
+       publicación nueva (no al editar una que ya existe).
+
+   Ninguno de los dos vuelve a salir por cerrar sesión y volver a entrar, ni
+   por mejorar la cuenta a Premium: la marca de "visto" no se borra nunca,
+   solo se guarda al completar el recorrido o al tocar "Saltar". Por las
+   dudas (o si alguna vez se dispara el flujo dos veces) la marca es lo
+   único que decide si vuelve a salir o no. */
+const PASOS_TUTORIAL_PRINCIPAL = [
   { selector:'.quick-search', titulo:'🔍 Busca lo que necesites', texto:'Encuentra negocios, servicios o categorías cerca de ti en segundos.' },
   { selector:'#bannerRegistrar', titulo:'📋 Registra tu negocio', texto:'¿Tienes un negocio o servicio? Publícalo aquí y llega a más vecinos de tu comunidad.' },
   { selector:'.nav-item[data-tab="tabExplorar"]', titulo:'🗺️ Explora el mapa', texto:'Descubre los negocios más cercanos a tu ubicación en tiempo real.' },
   { selector:'.nav-item[data-tab="tabFavoritos"]', titulo:'❤️ Tus favoritos', texto:'Guarda aquí los negocios que más te gusten para encontrarlos rápido después.' },
   { selector:'.nav-item[data-tab="tabPerfil"]', titulo:'👤 Tu perfil', texto:'Personaliza la app, mejora a Premium y administra tu cuenta desde aquí.' },
+  // Estos dos últimos pasos necesitan el tab Perfil abierto para existir en
+  // pantalla, por eso llevan "tab": pintarPasoTutorial() lo abre solo antes
+  // de buscar el elemento.
+  { tab:'tabPerfil', selector:'[onclick="irAAyudaSoporte()"]', titulo:'🆘 Ayuda y soporte', texto:'¿Tienes un problema o una duda? Escríbenos por WhatsApp, correo o cuéntanos el detalle desde aquí y te respondemos.' },
+  { tab:'tabPerfil', selector:'[onclick="irAMiPremium()"]', titulo:'★ Plan Premium', texto:'Destaca tu negocio o servicio, crea promociones con fecha de vencimiento y aparece primero frente a tus vecinos.' },
 ];
+const PASOS_TUTORIAL_REGISTRO = [
+  { selector:'.foto-upload', titulo:'📸 Agrega una foto', texto:'Una buena foto ayuda a que más vecinos confíen y elijan tu negocio o servicio. Es opcional, pero se nota la diferencia.' },
+  // La categoría (negocio) o el tipo (servicio) nunca están visibles los
+  // dos a la vez: se elige el que corresponda según lo que se esté
+  // registrando en este momento.
+  { selector:() => document.getElementById('campoTipoServicio') && !document.getElementById('campoTipoServicio').classList.contains('hidden') ? '#campoTipoServicio' : '#campoCategoriaNegocio',
+    titulo:'🏷️ Elige la categoría correcta', texto:'Así apareces en el filtro adecuado y los vecinos que buscan justo lo que ofreces te encuentran más fácil.' },
+  { selector:'#campoUbicacionNegocio', titulo:'📍 Marca tu ubicación', texto:'Toca o arrastra el pin sobre el mapa para ubicar tu negocio o servicio. Así apareces en "Explorar" cerca de tus vecinos.' },
+  { selector:'#btnNegocio', titulo:'✅ Publica cuando estés listo', texto:'Al completar tus datos, toca aquí para publicarlo. Podrás editar todo después desde "Mi negocio" en tu perfil.' },
+];
+let tutorialActivo = null; // 'principal' | 'registroNegocio' | null: cuál de los dos está abierto ahora mismo
 let tutorialPasoActual = 0;
 
-function claveTutorialVisto(){
-  return state.user && state.user.email ? 'nexoTutorialVisto_' + state.user.email.toLowerCase() : null;
+function pasosDelTutorial(id){
+  return id === 'registroNegocio' ? PASOS_TUTORIAL_REGISTRO : PASOS_TUTORIAL_PRINCIPAL;
+}
+function claveTutorialVisto(id){
+  if(!state.user || !state.user.email) return null; // sin cuenta con email (invitado), no aplica
+  const sufijo = id === 'registroNegocio' ? 'Registro' : '';
+  return 'nexoTutorial' + sufijo + 'Visto_' + state.user.email.toLowerCase();
 }
 // Guarda en qué paso se quedó (se actualiza cada vez que se pinta un paso
 // nuevo), para poder retomar ahí si la persona cierra la app a la mitad del
 // tutorial en vez de tener que volver a empezar desde el paso 1.
-function claveTutorialPaso(){
-  return state.user && state.user.email ? 'nexoTutorialPaso_' + state.user.email.toLowerCase() : null;
+function claveTutorialPaso(id){
+  if(!state.user || !state.user.email) return null;
+  const sufijo = id === 'registroNegocio' ? 'Registro' : '';
+  return 'nexoTutorial' + sufijo + 'Paso_' + state.user.email.toLowerCase();
 }
-function yaVioTutorial(){
-  const clave = claveTutorialVisto();
-  if(!clave) return true; // sin cuenta con email (invitado), no aplica
+function yaVioTutorial(id){
+  const clave = claveTutorialVisto(id);
+  if(!clave) return true;
   try{ return localStorage.getItem(clave) === '1'; }catch(e){ return true; }
 }
 function iniciarTutorialSiEsNuevo(){
-  if(yaVioTutorial()) return;
-  mostrarTab('tabInicio');
+  iniciarTutorial('principal');
+}
+// Se llama desde abrirFormularioNegocio() solo cuando se abre el formulario
+// en blanco para una publicación NUEVA (no al editar una ya existente).
+function iniciarTutorialRegistroSiEsNuevo(){
+  iniciarTutorial('registroNegocio');
+}
+function iniciarTutorial(id){
+  if(tutorialActivo) return; // ya hay un tutorial abierto, no se solapan
+  if(yaVioTutorial(id)) return;
+  tutorialActivo = id;
+
+  if(id === 'principal') mostrarTab('tabInicio');
 
   let pasoGuardado = 0;
-  const clavePaso = claveTutorialPaso();
+  const clavePaso = claveTutorialPaso(id);
   if(clavePaso){
     try{ pasoGuardado = parseInt(localStorage.getItem(clavePaso), 10) || 0; }catch(e){ pasoGuardado = 0; }
   }
-  tutorialPasoActual = Math.max(0, Math.min(pasoGuardado, PASOS_TUTORIAL.length - 1));
+  tutorialPasoActual = Math.max(0, Math.min(pasoGuardado, pasosDelTutorial(id).length - 1));
 
-  // Pequeña espera para que el tab Inicio termine de pintarse (categorías,
-  // banners, etc.) y getBoundingClientRect() lea posiciones reales.
+  // Pequeña espera para que la pantalla termine de pintarse (categorías,
+  // banners, campos del formulario, etc.) y getBoundingClientRect() lea
+  // posiciones reales.
   setTimeout(() => {
     document.body.classList.add('tutorial-activo');
     document.getElementById('tutorialOverlay').classList.remove('hidden');
@@ -2979,19 +3037,30 @@ function iniciarTutorialSiEsNuevo(){
   }, 450);
 }
 function pintarPasoTutorial(){
-  const paso = PASOS_TUTORIAL[tutorialPasoActual];
-  const el = document.querySelector(paso.selector);
+  if(!tutorialActivo) return;
+  const pasos = pasosDelTutorial(tutorialActivo);
+  const paso = pasos[tutorialPasoActual];
+
+  // Algunos pasos (los de Perfil) necesitan esa pestaña abierta antes de
+  // poder ubicar el elemento en pantalla.
+  if(paso.tab){
+    const activa = document.querySelector('.tab-panel.active');
+    if(!activa || activa.id !== paso.tab) mostrarTab(paso.tab);
+  }
+
+  const selectorReal = typeof paso.selector === 'function' ? paso.selector() : paso.selector;
+  const el = selectorReal ? document.querySelector(selectorReal) : null;
   if(!el){
     // Si algún elemento no está (p.ej. banner oculto en esta cuenta), se
     // salta ese paso en vez de romper el tutorial.
-    if(tutorialPasoActual < PASOS_TUTORIAL.length - 1){ tutorialPasoActual++; pintarPasoTutorial(); }
+    if(tutorialPasoActual < pasos.length - 1){ tutorialPasoActual++; pintarPasoTutorial(); }
     else cerrarTutorial();
     return;
   }
   // Se guarda el progreso apenas se pinta el paso (no solo al terminar):
   // así, si la persona cierra la app justo aquí, la próxima vez retoma
   // exactamente en este mismo paso en vez de perder lo avanzado.
-  const clavePaso = claveTutorialPaso();
+  const clavePaso = claveTutorialPaso(tutorialActivo);
   if(clavePaso){ try{ localStorage.setItem(clavePaso, String(tutorialPasoActual)); }catch(e){} }
 
   const r = el.getBoundingClientRect();
@@ -3012,22 +3081,24 @@ function pintarPasoTutorial(){
   left = Math.max(12, Math.min(left, window.innerWidth - 276));
   burbuja.style.left = left + 'px';
 
-  document.getElementById('tutorialPuntos').innerHTML = PASOS_TUTORIAL
+  document.getElementById('tutorialPuntos').innerHTML = pasos
     .map((_, i) => `<span class="${i === tutorialPasoActual ? 'activo' : ''}"></span>`).join('');
   document.getElementById('tutorialBtnSiguiente').textContent =
-    tutorialPasoActual === PASOS_TUTORIAL.length - 1 ? '¡Listo!' : 'Siguiente';
+    tutorialPasoActual === pasos.length - 1 ? '¡Listo!' : 'Siguiente';
 }
 function siguientePasoTutorial(){
-  if(tutorialPasoActual < PASOS_TUTORIAL.length - 1){ tutorialPasoActual++; pintarPasoTutorial(); }
+  const pasos = pasosDelTutorial(tutorialActivo);
+  if(tutorialPasoActual < pasos.length - 1){ tutorialPasoActual++; pintarPasoTutorial(); }
   else cerrarTutorial();
 }
 function cerrarTutorial(){
   document.getElementById('tutorialOverlay').classList.add('hidden');
   document.body.classList.remove('tutorial-activo');
-  const clave = claveTutorialVisto();
+  const clave = claveTutorialVisto(tutorialActivo);
   if(clave){ try{ localStorage.setItem(clave, '1'); }catch(e){} }
-  const clavePaso = claveTutorialPaso();
+  const clavePaso = claveTutorialPaso(tutorialActivo);
   if(clavePaso){ try{ localStorage.removeItem(clavePaso); }catch(e){} } // ya no hace falta, quedó completo/saltado
+  tutorialActivo = null;
 }
 // Si la persona gira el celular o cambia de tamaño de ventana mientras el
 // tutorial está abierto, se recalcula la posición para que el resaltado
@@ -4959,6 +5030,12 @@ function abrirFormularioNegocio(modo, negocioExistente){
     try{ iniciarMapaPickerNegocio(latInicial, lngInicial); }
     catch(mapErr){ console.error('Error al iniciar el mapa del formulario:', mapErr); }
   }, 60);
+
+  // Mini-tutorial del formulario: solo la primera vez que esta cuenta
+  // PUBLICA algo nuevo (negocioExistente vacío). Al editar un negocio o
+  // servicio que ya tiene, o al entrar por el Panel de administrador, no
+  // se dispara.
+  if(!negocioExistente) iniciarTutorialRegistroSiEsNuevo();
  }catch(err){
   console.error('Error abriendo el formulario de negocio:', err);
   document.querySelectorAll('.form-screen').forEach(el => el.classList.add('hidden'));
