@@ -1510,6 +1510,41 @@
     </div>
   </div>
 
+  <!-- ═══════════════════ ACERCA DE NEXO ═══════════════════
+       Pantalla informativa de la app. Antes el botón "Acerca de Nexo" del
+       Perfil de invitado era puramente decorativo (sin onclick); ahora
+       abre esto, tanto para invitados como para cuentas con sesión
+       iniciada (ver irAAcercaDeNexo()). Reutiliza verLegal()/volverDesdeLegal()
+       para Términos y Privacidad, pasando 'screenAcercaDeNexo' como
+       pantalla de origen para que "atrás" regrese aquí y no al registro. -->
+  <div class="form-screen hidden" id="screenAcercaDeNexo">
+    <div class="form-top">
+      <div class="back-circle" onclick="volverDesdeAcercaDeNexo()"><svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <h2>Acerca de Nexo</h2>
+    </div>
+    <div class="form-card">
+      <div style="text-align:center;padding:6px 0 18px">
+        <div style="font-family:var(--font-display);font-weight:700;font-size:28px;color:var(--primary);letter-spacing:-.3px">Nexo</div>
+        <p style="font-size:12px;color:var(--muted);margin-top:2px">Negocios y servicios de tu comunidad</p>
+      </div>
+      <p class="sub" style="margin-top:0">Nexo conecta a los negocios y servicios de tu barrio con los vecinos que los buscan: encuentra, publica y recomienda todo desde un mismo lugar.</p>
+
+      <p class="sec-label-p">LA APP</p>
+      <div class="settings-list">
+        <div class="settings-row" style="cursor:default"><div class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></div><span>Versión</span><small id="acercaVersionTxt" style="color:var(--muted);font-size:12.5px">1.0.0</small></div>
+        <div class="settings-row" onclick="irAAyudaSoporte()"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg></div><span>Ayuda y soporte</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+      </div>
+
+      <p class="sec-label-p">LEGAL</p>
+      <div class="settings-list">
+        <div class="settings-row" onclick="verLegal('terminos','screenAcercaDeNexo')"><div class="ic"><svg viewBox="0 0 24 24"><path d="M9 12h6M9 16h6M9 8h6"/><rect x="5" y="3" width="14" height="18" rx="2"/></svg></div><span>Términos y condiciones</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+        <div class="settings-row" onclick="verLegal('privacidad','screenAcercaDeNexo')"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6z"/></svg></div><span>Política de privacidad</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+      </div>
+
+      <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:26px">Hecho con cariño para tu comunidad 🏘️</p>
+    </div>
+  </div>
+
   <!-- ═══════════════════ CENTRO DE NOTIFICACIONES ═══════════════════
        Esto es lo que abre la campanita del header: primero lo NUEVO desde
        la última vez que la persona lo abrió (promociones recién puestas y
@@ -1856,6 +1891,11 @@ const CONFIG = {
   WHATSAPP_SOPORTE: '51938528215',
   // 👉 Correo que verán los usuarios para escribirte desde Ayuda y soporte.
   EMAIL_SOPORTE: 'nexo.aplicativo4C@gmail.com',
+  // 👉 Versión de la app que se muestra en "Acerca de Nexo" → Perfil.
+  // Súbela cada vez que publiques cambios importantes, así como referencia
+  // para ti y para saber qué versión tiene instalada cada usuario si te
+  // reporta un problema por soporte.
+  VERSION_APP: '1.0.0',
   // 👉 Número de WhatsApp y de Yape para pagar el plan Premium (botón
   // "Mejorar plan"). En formato internacional SIN "+" para el enlace de
   // WhatsApp, y tal cual para mostrarlo como número de Yape.
@@ -2489,14 +2529,20 @@ function mostrarPantalla(id){
   document.getElementById(id).classList.remove('hidden');
 }
 
-// Muestra Términos y condiciones o Política de privacidad desde el checkbox
-// de "Crear cuenta". No marca el checkbox automáticamente: el usuario debe
-// volver y marcarlo él mismo tras leer, para que la aceptación sea real.
-function verLegal(tipo){
+// Muestra Términos y condiciones o Política de privacidad. Se usa desde dos
+// lugares: el checkbox de "Crear cuenta" (antes de iniciar sesión) y desde
+// "Acerca de Nexo" en Perfil (con la app ya abierta). "origen" recuerda a
+// qué pantalla volver — por defecto 'screenRegister', para no romper las
+// dos llamadas ya existentes del checkbox, que no pasan ese segundo
+// parámetro. No marca el checkbox automáticamente: el usuario debe volver
+// y marcarlo él mismo tras leer, para que la aceptación sea real.
+let origenLegal = 'screenRegister';
+function verLegal(tipo, origen){
+  origenLegal = origen || 'screenRegister';
   mostrarPantalla(tipo === 'privacidad' ? 'screenPrivacidad' : 'screenTerminos');
 }
 function volverDesdeLegal(){
-  mostrarPantalla('screenRegister');
+  mostrarPantalla(origenLegal);
 }
 
 /* ─────────── mantener la sesión iniciada entre aperturas de la app ───────────
@@ -4635,6 +4681,21 @@ function volverDesdeAyudaSoporte(){
   mostrarTab('tabPerfil');
 }
 
+// "Acerca de Nexo": disponible tanto para invitados como para cuentas con
+// sesión iniciada, desde la sección GENERAL de Perfil.
+function irAAcercaDeNexo(){
+  document.getElementById('acercaVersionTxt').textContent = CONFIG.VERSION_APP || '1.0.0';
+  document.getElementById('mainShell').classList.add('hidden');
+  document.getElementById('bottomnav').classList.add('hidden');
+  mostrarPantalla('screenAcercaDeNexo');
+}
+function volverDesdeAcercaDeNexo(){
+  document.getElementById('screenAcercaDeNexo').classList.add('hidden');
+  document.getElementById('mainShell').classList.remove('hidden');
+  document.getElementById('bottomnav').classList.remove('hidden');
+  mostrarTab('tabPerfil');
+}
+
 async function enviarReporteSoporte(){
   ocultarError('soporteError');
   document.getElementById('soporteGuardado').classList.add('hidden');
@@ -5968,7 +6029,7 @@ function renderPerfil(){
       <p class="sec-label-p">GENERAL</p>
       <div class="settings-list">
         <div class="settings-row" onclick="irAAyudaSoporte()"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg></div><span>Ayuda y soporte</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
-        <div class="settings-row"><div class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></div><span>Acerca de Nexo</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+        <div class="settings-row" onclick="irAAcercaDeNexo()"><div class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></div><span>Acerca de Nexo</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
       </div>`;
     return;
   }
@@ -6012,6 +6073,7 @@ function renderPerfil(){
     <p class="sec-label-p">GENERAL</p>
     <div class="settings-list">
       <div class="settings-row" onclick="irAAyudaSoporte()"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg></div><span>Ayuda y soporte</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="settings-row" onclick="irAAcercaDeNexo()"><div class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></div><span>Acerca de Nexo</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
       <div class="settings-row danger" onclick="cerrarSesion()"><div class="ic"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></div><span>Cerrar sesión</span></div>
     </div>`;
 
