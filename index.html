@@ -599,6 +599,8 @@
   }
   .modal-msg{ font-size:14px; color:var(--ink); line-height:1.55; margin-bottom:18px; white-space:pre-line; }
   .modal-actions{ display:flex; gap:10px; }
+  .modal-actions.vertical{ flex-direction:column; }
+  .modal-actions.vertical button{ width:100%; }
   .modal-actions button{ flex:1; padding:12px; border-radius:10px; font-size:13.5px; font-weight:700; text-align:center; }
   .modal-btn-primary{ background:var(--ink-panel); color:#fff; }
   .modal-btn-outline{ background:var(--paper); color:var(--primary); border:1.5px solid var(--line); }
@@ -696,6 +698,10 @@
   .comment-name{ font-size:12px; font-weight:700; color:var(--ink); }
   .comment-txt{ font-size:12.5px; color:var(--ink-2); line-height:1.5; margin-top:3px; }
   .comment-like{ display:flex; align-items:center; gap:4px; font-family:var(--font-mono); font-size:11px; font-weight:700; color:var(--muted); flex-shrink:0; padding:2px; }
+  .comment-actions{ display:flex; flex-direction:column; align-items:flex-end; gap:7px; flex-shrink:0; }
+  .comment-report{ font-size:12.5px; opacity:.45; cursor:pointer; line-height:1; padding:2px; }
+  .comment-report:active{ opacity:.9; }
+  .comment-report.ya-reportado{ opacity:.9; }
   .comment-like svg{ width:13px; height:13px; stroke:var(--muted); fill:none; }
   .comment-like.liked svg{ fill:var(--danger); stroke:var(--danger); }
   .comment-form{ display:flex; gap:8px; margin-top:12px; align-items:flex-end; }
@@ -1768,9 +1774,9 @@
         <h2 id="greetTitulo">Hola 👋</h2>
         <p id="greetSub">Descubre lo mejor de tu comunidad hoy</p>
       </div>
-      <div class="hdr-banner">
+      <div class="hdr-banner" id="hdrBannerPromos">
         <svg viewBox="0 0 24 24"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg>
-        <p><strong>3 promociones</strong> activas cerca de ti hoy. Toca "Promociones del día" para verlas.</p>
+        <p id="hdrBannerPromosTexto"><strong>3 promociones</strong> activas cerca de ti hoy. Toca "Promociones del día" para verlas.</p>
       </div>
     </div>
 
@@ -2594,7 +2600,9 @@ function ocultarNotifFlotante(){
 function mostrarAlerta(msg, textoBoton){
   const overlay = document.getElementById('miniModalOverlay');
   document.getElementById('miniModalMsg').textContent = msg;
-  document.getElementById('miniModalActions').innerHTML = `<button class="modal-btn-primary" id="miniModalOk">${textoBoton || 'Entendido'}</button>`;
+  const acciones = document.getElementById('miniModalActions');
+  acciones.classList.remove('vertical');
+  acciones.innerHTML = `<button class="modal-btn-primary" id="miniModalOk">${textoBoton || 'Entendido'}</button>`;
   overlay.classList.remove('hidden');
   return new Promise(resolve => {
     document.getElementById('miniModalOk').onclick = () => { overlay.classList.add('hidden'); resolve(); };
@@ -2603,13 +2611,37 @@ function mostrarAlerta(msg, textoBoton){
 function mostrarConfirmacion(msg, textoConfirmar){
   const overlay = document.getElementById('miniModalOverlay');
   document.getElementById('miniModalMsg').textContent = msg;
-  document.getElementById('miniModalActions').innerHTML = `
+  const acciones = document.getElementById('miniModalActions');
+  acciones.classList.remove('vertical');
+  acciones.innerHTML = `
     <button class="modal-btn-outline" id="miniModalCancelar">Cancelar</button>
     <button class="modal-btn-danger" id="miniModalConfirmar">${textoConfirmar || 'Eliminar'}</button>`;
   overlay.classList.remove('hidden');
   return new Promise(resolve => {
     document.getElementById('miniModalCancelar').onclick = () => { overlay.classList.add('hidden'); resolve(false); };
     document.getElementById('miniModalConfirmar').onclick = () => { overlay.classList.add('hidden'); resolve(true); };
+  });
+}
+// Muestra una lista corta de opciones (por ejemplo, los motivos para
+// reportar un comentario) reutilizando el mismo mini-modal de alertas y
+// confirmaciones, pero en vertical y con tantos botones como opciones se
+// pasen. Devuelve el "id" de la opción elegida, o null si cancela.
+function mostrarOpciones(msg, opciones){
+  const overlay = document.getElementById('miniModalOverlay');
+  document.getElementById('miniModalMsg').textContent = msg;
+  const acciones = document.getElementById('miniModalActions');
+  acciones.classList.add('vertical');
+  acciones.innerHTML = opciones.map(o => `<button class="modal-btn-outline" data-op="${escapeHtml(o.id)}">${escapeHtml(o.label)}</button>`).join('')
+    + `<button class="modal-btn-outline" data-op="__cancelar" style="color:var(--muted)">Cancelar</button>`;
+  overlay.classList.remove('hidden');
+  return new Promise(resolve => {
+    acciones.querySelectorAll('button').forEach(btn => {
+      btn.onclick = () => {
+        overlay.classList.add('hidden');
+        acciones.classList.remove('vertical');
+        resolve(btn.dataset.op === '__cancelar' ? null : btn.dataset.op);
+      };
+    });
   });
 }
 
@@ -3592,7 +3624,11 @@ async function calificarNegocioClick(id, puntuacion){
    de 5, aparece un botón "Ver otros 5 destacados" que trae la siguiente
    tanda (y, al llegar al final, vuelve a empezar desde los primeros 5). */
 const COMENTARIOS_POR_PAGINA = 5;
+// Debe coincidir con UMBRAL_OCULTAR_COMENTARIO en Code.gs — es solo para
+// mostrar el número correcto en el aviso del Panel de administrador.
+const UMBRAL_OCULTAR_COMENTARIO = 3;
 const likesDadosLocal = new Set(); // ids de comentarios a los que YA se les dio like en esta sesión (evita doble clic accidental)
+const reportadosLocal = new Set(); // ids de comentarios que YA se reportaron en esta sesión (evita reportes repetidos sin sentido desde la misma pantalla)
 // Guarda, por negocio, en qué tanda de 5 va la persona ahora mismo (offset)
 // y cuántos comentarios hay en total, para poder calcular "la próxima
 // tanda" y mostrar u ocultar el botón de "ver más".
@@ -3624,6 +3660,7 @@ function pintarComentarios(negocioId, comentarios){
   }
   const lista = comentarios.map(c => {
     const yaLike = likesDadosLocal.has(c.id);
+    const yaReportado = reportadosLocal.has(c.id);
     return `
     <div class="comment-item">
       <div class="comment-head">
@@ -3631,9 +3668,12 @@ function pintarComentarios(negocioId, comentarios){
           <div class="comment-name">${escapeHtml(c.nombre || 'Vecino de Nexo')}</div>
           <div class="comment-txt">${escapeHtml(c.texto)}</div>
         </div>
-        <div class="comment-like ${yaLike?'liked':''}" onclick="likeComentarioClick('${negocioId}','${c.id}')">
-          <svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg>
-          <span>${c.likes || 0}</span>
+        <div class="comment-actions">
+          <div class="comment-like ${yaLike?'liked':''}" onclick="likeComentarioClick('${negocioId}','${c.id}')">
+            <svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg>
+            <span>${c.likes || 0}</span>
+          </div>
+          <div class="comment-report ${yaReportado?'ya-reportado':''}" onclick="reportarComentarioClick('${negocioId}','${c.id}')" title="Reportar comentario">🚩</div>
         </div>
       </div>
     </div>`;
@@ -3693,6 +3733,36 @@ async function likeComentarioClick(negocioId, comentarioId){
   }else{
     likesDadosLocal.delete(comentarioId);
     mostrarAlerta((r && r.error) || 'No se pudo registrar tu "me gusta". Inténtalo de nuevo.');
+  }
+}
+
+// Reportar un comentario ajeno: pide sesión iniciada, pregunta el motivo con
+// una lista corta (para no exigirle escribir a nadie) y lo manda al backend.
+// Si el comentario acumula suficientes reportes, el propio backend lo oculta
+// solo — acá no hace falta calcular nada, solo avisar que se envió.
+async function reportarComentarioClick(negocioId, comentarioId){
+  if(!state.user || state.user.mode === 'guest'){ mostrarAlerta('Inicia sesión para poder reportar un comentario.'); return; }
+  if(reportadosLocal.has(comentarioId)){ mostrarAlerta('Ya reportaste este comentario. El equipo de Nexo lo va a revisar.'); return; }
+
+  const motivo = await mostrarOpciones('¿Por qué quieres reportar este comentario?', [
+    { id:'Lenguaje ofensivo o insultos', label:'Lenguaje ofensivo o insultos' },
+    { id:'Spam o publicidad', label:'Spam o publicidad' },
+    { id:'Información falsa sobre el negocio', label:'Información falsa sobre el negocio' },
+    { id:'Otro motivo', label:'Otro motivo' },
+  ]);
+  if(!motivo) return;
+
+  const r = await apiPost('reportarComentario', { comentario_id: comentarioId, negocio_id: String(negocioId), email: state.user.email, motivo });
+  if(r && r.ok){
+    reportadosLocal.add(comentarioId);
+    const cont = document.getElementById('listaComentarios-' + negocioId);
+    if(cont){
+      const btn = cont.querySelector(`.comment-report[onclick*="'${comentarioId}'"]`);
+      if(btn) btn.classList.add('ya-reportado');
+    }
+    mostrarAlerta(r.yaReportado ? 'Ya habías reportado este comentario. Gracias.' : 'Gracias, tu reporte fue enviado al equipo de Nexo.');
+  }else{
+    mostrarAlerta((r && r.error) || 'No se pudo enviar tu reporte. Inténtalo de nuevo.');
   }
 }
 
@@ -3777,6 +3847,7 @@ function renderInicio(){
   document.getElementById('rowPromos').innerHTML = NEGOCIOS.filter(n=>n.promo).sort((a,b)=>b.promoRank-a.promoRank).map(tarjetaHorizontal).join('') || vacio('Sin promociones activas hoy.');
   renderChipsRadioCerca();
   renderRowCerca();
+  actualizarBannerPromos();
   document.getElementById('rowNuevos').innerHTML = NEGOCIOS.filter(n=>n.nuevo).map(tarjetaHorizontal).join('') || vacio('Aún no hay negocios nuevos.');
   const serviciosOrganicos = ordenarPorRecomendacion(NEGOCIOS.filter(n=>n.servicioReco));
   document.getElementById('rowServicios').innerHTML = conPremiumCerca(serviciosOrganicos, n => n.categoria === 'Servicios').map(tarjetaHorizontal).join('') || vacio('Todavía no hay servicios recomendados: hacen falta más calificaciones.');
@@ -3792,6 +3863,49 @@ function renderInicio(){
   // Mezcla de colores, tamaño de letra y forma de tarjetas propias de la
   // cuenta activa (ver PERSONALIZACIÓN más abajo en el JS).
   aplicarPersonalizacion();
+}
+
+// Radio (en km) que usamos para decidir si una promoción cuenta como
+// "cerca de ti" en el banner del encabezado. Solo tiene sentido si ya
+// tenemos la ubicación real de la persona (ver state.miUbicacion).
+const RADIO_BANNER_PROMOS_KM = 5;
+
+// Actualiza el banner del encabezado ("N promociones activas cerca de ti")
+// con datos REALES en vez del texto fijo que traía antes. La cantidad sale
+// siempre de NEGOCIOS.filter(n=>n.promo), que ya refleja las promociones
+// vigentes de verdad (el backend apaga solo las que vencieron, ver
+// promo_inicio/promo_fin en Code.gs). Si tenemos la ubicación activada,
+// contamos solo las que están a menos de RADIO_BANNER_PROMOS_KM; si no,
+// contamos todas las promociones activas en la ciudad y lo decimos así,
+// sin inventar una cercanía que no podemos medir. Si no hay ninguna
+// promoción activa, el banner se oculta en vez de mentir con un número.
+function actualizarBannerPromos(){
+  const cont = document.getElementById('hdrBannerPromos');
+  const texto = document.getElementById('hdrBannerPromosTexto');
+  if(!cont || !texto) return;
+
+  const promos = NEGOCIOS.filter(n => n.promo);
+  if(promos.length === 0){
+    cont.classList.add('hidden');
+    return;
+  }
+
+  let cantidad = promos.length;
+  let ubicacionFrase = 'en tu ciudad';
+  if(state.miUbicacion){
+    const cercanas = promos.filter(n => distanciaKm(n) <= RADIO_BANNER_PROMOS_KM);
+    cantidad = cercanas.length;
+    ubicacionFrase = `cerca de ti (a menos de ${RADIO_BANNER_PROMOS_KM} km)`;
+  }
+
+  if(cantidad === 0){
+    cont.classList.add('hidden');
+    return;
+  }
+
+  cont.classList.remove('hidden');
+  const plural = cantidad === 1 ? 'promoción' : 'promociones';
+  texto.innerHTML = `<strong>${cantidad} ${plural}</strong> activa${cantidad === 1 ? '' : 's'} ${ubicacionFrase} hoy. Toca "Promociones del día" para verlas.`;
 }
 
 // Opciones de radio para "Negocios cerca de mí". 0 significa "sin límite"
@@ -6264,6 +6378,10 @@ function renderPerfil(){
       </div>
     </div>
     <div class="admin-neg-list" id="adminNegList"></div>
+
+    <p class="sec-label-p" style="margin-top:20px">COMENTARIOS REPORTADOS</p>
+    <p style="font-size:11px;color:var(--muted);margin:-6px 0 12px;line-height:1.5">Comentarios que uno o más usuarios marcaron como inapropiados. Los que llegan a ${UMBRAL_OCULTAR_COMENTARIO} reportes se ocultan solos hasta que los revises.</p>
+    <div class="admin-neg-list" id="adminReportesList"></div>
     ` : ''}
     <p class="sec-label-p">GENERAL</p>
     <div class="settings-list">
@@ -6272,7 +6390,7 @@ function renderPerfil(){
       <div class="settings-row danger" onclick="cerrarSesion()"><div class="ic"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></div><span>Cerrar sesión</span></div>
     </div>`;
 
-  if(esAdminActual) renderAdminListaNegocios();
+  if(esAdminActual){ renderAdminListaNegocios(); cargarComentariosReportadosAdmin(); }
 }
 
 /* ─────────── Panel de administrador ───────────
@@ -6335,6 +6453,56 @@ function renderAdminListaNegocios(){
   cont.innerHTML = lista.length
     ? lista.map(filaAdminNegocio).join('')
     : '<p style="font-size:11.5px;color:var(--muted);padding:6px 2px">Sin negocios que coincidan con la búsqueda.</p>';
+}
+
+/* ─────────── Moderación de comentarios (Panel de administrador) ───────────
+   Trae del backend los comentarios que tienen reportes pendientes,
+   agrupados uno por comentario (con su cantidad de reportes y motivos), y
+   deja elegir entre eliminarlo o descartar el reporte y mantenerlo visible. */
+async function cargarComentariosReportadosAdmin(){
+  const cont = document.getElementById('adminReportesList');
+  if(!cont) return;
+  cont.innerHTML = '<p style="font-size:11.5px;color:var(--muted);padding:6px 2px">Cargando…</p>';
+  const r = await apiPost('listarComentariosReportados', { email: state.user.email });
+  if(!cont.isConnected) return; // el usuario pudo haber salido de Perfil mientras cargaba
+  if(!r || !r.ok){
+    cont.innerHTML = '<p style="font-size:11.5px;color:var(--muted);padding:6px 2px">No se pudieron cargar los reportes.</p>';
+    return;
+  }
+  if(!r.reportes || !r.reportes.length){
+    cont.innerHTML = '<p style="font-size:11.5px;color:var(--muted);padding:6px 2px">No hay comentarios reportados pendientes. 🎉</p>';
+    return;
+  }
+  cont.innerHTML = r.reportes.map(filaReporteComentario).join('');
+}
+function filaReporteComentario(rep){
+  return `
+    <div class="admin-neg-row">
+      <div class="body">
+        <h4>${escapeHtml(rep.autorComentario || 'Vecino de Nexo')}${rep.oculto ? '<span class="premium-badge" style="background:var(--danger)">Oculto</span>' : ''}</h4>
+        <p>"${escapeHtml(rep.textoComentario)}"</p>
+        <p style="color:var(--muted-2);font-size:10.5px;margin-top:2px">${rep.cantidadReportes} reporte${rep.cantidadReportes===1?'':'s'} · ${escapeHtml([...new Set(rep.motivos)].join(', '))}</p>
+      </div>
+      <div class="acciones">
+        <button onclick="resolverReporteClick('${rep.comentarioId}','descartar')" title="Descartar reporte y mantener el comentario">✅</button>
+        <button onclick="resolverReporteClick('${rep.comentarioId}','eliminar')" title="Eliminar comentario">🗑️</button>
+      </div>
+    </div>`;
+}
+async function resolverReporteClick(comentarioId, accion){
+  const confirmado = await mostrarConfirmacion(
+    accion === 'eliminar'
+      ? '¿Eliminar este comentario para siempre? No se puede deshacer.'
+      : '¿Descartar el/los reporte(s) y dejar el comentario visible de nuevo?',
+    accion === 'eliminar' ? 'Eliminar comentario' : 'Descartar reporte'
+  );
+  if(!confirmado) return;
+
+  const r = await apiPost('resolverReporteComentario', { comentario_id: comentarioId, accion, email: state.user.email });
+  if(!r || !r.ok){ mostrarAlerta((r && r.error) || 'No se pudo procesar la acción.'); return; }
+
+  mostrarAlerta(accion === 'eliminar' ? 'Comentario eliminado.' : 'Reporte descartado: el comentario sigue visible.');
+  cargarComentariosReportadosAdmin();
 }
 
 // Abre el formulario completo de datos básicos para CUALQUIER negocio,
