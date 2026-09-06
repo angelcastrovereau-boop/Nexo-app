@@ -1351,9 +1351,31 @@
       </div>
 
       <p class="pers-sec-label" style="margin-top:20px">Horario de atención</p>
-      <div class="field" style="margin-bottom:0">
-        <div class="inp-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><input id="persHorario" type="text" placeholder="Ej. Lun a Sáb, 9:00am - 8:00pm" maxlength="60"></div>
+      <p style="font-size:10.5px;color:var(--muted);margin:0 0 8px;line-height:1.4">Elige tus días y horas para que Nexo muestre solo, en tu tarjeta y tu detalle, si estás "Abierto ahora" o "Cerrado".</p>
+      <div class="tam-chips" id="persDiasChips" style="flex-wrap:wrap"></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <div class="field" style="flex:1;margin-bottom:0">
+          <label style="display:block;font-size:10.5px;color:var(--muted);margin-bottom:4px">Abre</label>
+          <div class="inp-wrap"><input id="persHorarioApertura" type="time" oninput="actualizarPreviewPersonalizar()"></div>
+        </div>
+        <div class="field" style="flex:1;margin-bottom:0">
+          <label style="display:block;font-size:10.5px;color:var(--muted);margin-bottom:4px">Cierra</label>
+          <div class="inp-wrap"><input id="persHorarioCierre" type="time" oninput="actualizarPreviewPersonalizar()"></div>
+        </div>
       </div>
+      <p id="persHorarioPreview" style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4"></p>
+
+      <p class="pers-sec-label" style="margin-top:16px">Estado del negocio</p>
+      <div class="field" style="margin-bottom:0">
+        <div class="inp-wrap">
+          <select id="persEstadoManual" onchange="actualizarPreviewPersonalizar()" style="border:none;outline:none;flex:1;font-size:14px;background:transparent;color:var(--ink);width:100%">
+            <option value="">Automático, según mi horario</option>
+            <option value="mantenimiento">🔧 En mantenimiento</option>
+            <option value="cerrado_temporal">⏸️ Cerrado temporalmente (vacaciones, etc.)</option>
+          </select>
+        </div>
+      </div>
+      <p style="font-size:10.5px;color:var(--muted);margin-top:4px;line-height:1.4">Elige una opción distinta a "Automático" solo mientras dure la situación: no olvides volver a "Automático" cuando reabras.</p>
 
       <p class="pers-sec-label" style="margin-top:16px">WhatsApp de contacto (opcional)</p>
       <div class="field" style="margin-bottom:0">
@@ -2270,7 +2292,15 @@ function normalizarNegocio(n){
     propietarioEmail: String(n.propietario_email || '').trim(),
     color: n.color || '#D9691E',
     tamNombre: (n.tam_nombre === 'sm' || n.tam_nombre === 'lg') ? n.tam_nombre : 'md',
+    // "horario" sigue siendo el texto legible (para negocios viejos sin
+    // horario estructurado, o como respaldo). "horarioJson" es la fuente de
+    // verdad real -> { dias:['LU',...], apertura:'09:00', cierre:'18:00' } -
+    // se usa para calcular en vivo si el negocio está abierto o cerrado
+    // ahora mismo (ver estadoDeNegocio()). "estadoManual" anula ese cálculo
+    // cuando el dueño avisa "en mantenimiento" o "cerrado temporalmente".
     horario: String(n.horario || ''),
+    horarioJson: (function(){ try{ var h = n.horario_json ? JSON.parse(n.horario_json) : null; return (h && Array.isArray(h.dias) && h.apertura && h.cierre) ? h : null; }catch(e){ return null; } })(),
+    estadoManual: (n.estado_manual === 'mantenimiento' || n.estado_manual === 'cerrado_temporal') ? n.estado_manual : '',
     whatsapp: String(n.whatsapp || '').replace(/\D/g, ''),
     etiquetas: String(n.etiquetas || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean).slice(0, 3),
     // Cuenta con plan premium (activado a mano por el administrador tras
@@ -2346,6 +2376,79 @@ function textoVigenciaPromo(n){
   if(n.promoFin) return `Vigente hasta el ${formatearFechaCortaPromo(n.promoFin)}`;
   return `Vigente desde el ${formatearFechaCortaPromo(n.promoInicio)}`;
 }
+
+/* ─────────── ESTADO DEL NEGOCIO: ABIERTO / CERRADO / EN MANTENIMIENTO ───────────
+   Se calcula EN VIVO en el celular de quien está mirando la app (no viene ya
+   calculado del servidor), usando la hora del propio dispositivo: así el
+   badge "Abierto ahora" cambia solo a medida que pasan los minutos, sin
+   tener que volver a pedirle datos al backend. Se apoya en n.horarioJson
+   (días + hora de apertura/cierre) y en n.estadoManual (que el dueño puede
+   usar para anular ese cálculo, ej. mientras está de vacaciones). */
+
+const DIAS_SEMANA_JS = ['DO','LU','MA','MI','JU','VI','SA']; // índice = Date.getDay()
+const NOMBRES_DIAS_JS = { LU:'lunes', MA:'martes', MI:'miércoles', JU:'jueves', VI:'viernes', SA:'sábado', DO:'domingo' };
+
+// "09:00" -> "9:00 am". Igual que su equivalente en Code.gs, para que el
+// texto que arma el front-end (mensajes de "abre a las...") luzca igual que
+// el que ya generó el servidor al guardar el horario.
+function formatearHora12(hhmm){
+  const [h, m] = hhmm.split(':').map(Number);
+  const periodo = h >= 12 ? 'pm' : 'am';
+  let h12 = h % 12; if(h12 === 0) h12 = 12;
+  return `${h12}:${String(m).padStart(2,'0')} ${periodo}`;
+}
+
+// Devuelve { clave, texto, color } describiendo el estado del negocio EN
+// ESTE MOMENTO. "clave" es para lógica (filtros, estilos); "texto" y
+// "color" son para mostrar directo en una tarjeta o el detalle. Si el
+// negocio no tiene horario configurado y tampoco estado manual, "clave"
+// sale 'sin_horario' y no debe pintarse ningún badge (n.horario, si existe
+// como texto libre viejo, se sigue mostrando aparte, tal cual estaba).
+function estadoDeNegocio(n){
+  if(n.estadoManual === 'mantenimiento'){
+    return { clave:'mantenimiento', texto:'En mantenimiento', corto:'🔧 En mantenimiento', color:'#C4881F' };
+  }
+  if(n.estadoManual === 'cerrado_temporal'){
+    return { clave:'cerrado_temporal', texto:'Cerrado temporalmente', corto:'⏸️ Cerrado temporalmente', color:'#8891A0' };
+  }
+  const h = n.horarioJson;
+  if(!h || !Array.isArray(h.dias) || !h.dias.length || !h.apertura || !h.cierre){
+    return { clave:'sin_horario', texto:'', corto:'', color:null };
+  }
+  const ahora = new Date();
+  const hoyCodigo = DIAS_SEMANA_JS[ahora.getDay()];
+  const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
+  const [hA, mA] = h.apertura.split(':').map(Number);
+  const [hC, mC] = h.cierre.split(':').map(Number);
+  const minApertura = hA * 60 + mA;
+  const minCierre = hC * 60 + mC;
+  const hoyEsDiaAtencion = h.dias.includes(hoyCodigo);
+
+  if(hoyEsDiaAtencion && minutosAhora >= minApertura && minutosAhora < minCierre){
+    return { clave:'abierto', texto:'Abierto ahora', corto:'🟢 Abierto ahora', color:'#1F6642' };
+  }
+
+  // Cerrado: se arma un mensaje útil ("abre a las..." / "abre el lunes a
+  // las...") en vez de un simple "Cerrado" seco, buscando el próximo día
+  // de atención a partir de hoy (hoy mismo si todavía no abre, si no el
+  // próximo día marcado en h.dias).
+  let texto = 'Cerrado ahora';
+  if(hoyEsDiaAtencion && minutosAhora < minApertura){
+    texto = `Cerrado · abre hoy a las ${formatearHora12(h.apertura)}`;
+  } else {
+    for(let i = 1; i <= 7; i++){
+      const diaCheck = DIAS_SEMANA_JS[(ahora.getDay() + i) % 7];
+      if(h.dias.includes(diaCheck)){
+        texto = i === 1
+          ? `Cerrado · abre mañana a las ${formatearHora12(h.apertura)}`
+          : `Cerrado · abre el ${NOMBRES_DIAS_JS[diaCheck]} a las ${formatearHora12(h.apertura)}`;
+        break;
+      }
+    }
+  }
+  return { clave:'cerrado', texto, corto:'🔴 Cerrado', color:'#C4433F' };
+}
+
 
 // Lista completa de tipos de servicio que puede ofrecer una persona de forma
 // independiente (a diferencia de un negocio con local propio). Se usa en el
@@ -2511,7 +2614,7 @@ const state = {
   editandoNegocioId:null, negFotoBase64:null, negLat:null, negLng:null,
   mapaPickerNegocio:null, marcadorPickerNegocio:null, mapaDetalleNegocio:null,
   negocioDetalleAbierto:null,
-  personalizandoId:null, persColor:COLORES_PERSONALIZAR[0], persTam:'md', persEtiquetas:[],
+  personalizandoId:null, persColor:COLORES_PERSONALIZAR[0], persTam:'md', persEtiquetas:[], persDias:[],
   selectorModo:null, selectorLista:[], vinoDelSelector:false,
   miUbicacion:null, geoWatchId:null, marcadorMiUbicacion:null, circuloMiUbicacion:null,
   radioCercaKm:3,
@@ -3300,6 +3403,7 @@ function mostrarTab(id){
 function tarjetaHorizontal(n){
   const c = catInfo(n.categoria);
   const esFav = state.favoritos.has(String(n.id));
+  const estOpen = estadoDeNegocio(n);
   let tag = '';
   if(n.promo) tag = `<span class="tag tag-signal">${n.promoRank ? n.promoRank + '% OFF' : 'PROMO'}</span>`;
   else if(n.nuevo) tag = `<span class="tag tag-green">NUEVO</span>`;
@@ -3330,6 +3434,7 @@ function tarjetaHorizontal(n){
       <div class="info">
         <h4 style="color:${n.color || '#0F1A2E'};font-size:${tamNombrePx(12.5, n.tamNombre)}px">${escapeHtml(n.nombre)}${(n.esPremium && n.destacarActivo) ? '<span class="premium-badge">★ Premium</span>' : ''}</h4>
         <div class="meta"><span class="rt"><svg viewBox="0 0 24 24"><path d="M12 3l2.2 4.6 5 .7-3.6 3.6.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.6 5-.7z"/></svg>${textoRatingCorto(n)}</span>&nbsp;· ${escapeHtml(n.tipo || n.categoria)} · ${textoDistancia(n)}</div>
+        ${estOpen.clave !== 'sin_horario' ? `<div class="meta" style="color:${estOpen.color};font-weight:700">${estOpen.corto}</div>` : ''}
         ${Array.isArray(n.etiquetas) && n.etiquetas.length ? `<div class="card-tags">${n.etiquetas.slice(0,2).map(t => `<span class="card-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
       </div>
     </div>`;
@@ -3337,6 +3442,7 @@ function tarjetaHorizontal(n){
 function filaVertical(n){
   const c = catInfo(n.categoria);
   const esFav = state.favoritos.has(String(n.id));
+  const estOpen = estadoDeNegocio(n);
   const coverImgSm = (n.foto && !modoLigeroActivo())
     ? `<img src="${escapeHtml(n.foto)}" alt="${escapeHtml(n.nombre)}" loading="lazy" onerror="this.remove();this.nextElementSibling && (this.nextElementSibling.style.display='')">`
     : '';
@@ -3351,6 +3457,7 @@ function filaVertical(n){
           <span>· ${escapeHtml(n.tipo || n.categoria)} · ${textoDistancia(n)}</span>
           ${n.promoActiva ? `<span style="color:var(--signal-dark);font-weight:700">· ${escapeHtml(textoPromo(n))}</span>` : ''}
         </div>
+        ${estOpen.clave !== 'sin_horario' ? `<div class="meta" style="color:${estOpen.color};font-weight:700">${estOpen.corto}</div>` : ''}
       </div>
       <div class="fav-mini ${esFav?'is-fav':''}" onclick="event.stopPropagation();toggleFavorito('${n.id}')"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a5 5 0 0110-1 5 5 0 0110 1c0 5.5-7 10-7 10z"/></svg></div>
     </div>`;
@@ -3440,6 +3547,7 @@ function renderDetalleNegocio(n){
 function renderDetalleNegocioCompleto(n){
   const c = catInfo(n.categoria);
   const esFav = state.favoritos.has(String(n.id));
+  const estadoDetalle = estadoDeNegocio(n);
   const esMio = state.user && state.user.mode === 'user' && n.propietarioEmail && n.propietarioEmail.toLowerCase() === state.user.email.toLowerCase();
   // Antes se usaba "https://www.google.com/maps?q=lat,lng", que es el formato
   // viejo de Google Maps. Ese formato, al abrirse dentro del navegador
@@ -3476,6 +3584,7 @@ function renderDetalleNegocioCompleto(n){
       </div>
     </div>
     <div class="detail-card">
+      ${estadoDetalle.clave !== 'sin_horario' ? `<div class="detail-row" style="color:${estadoDetalle.color};font-weight:700">${estadoDetalle.clave === 'cerrado' ? '🔴 ' + escapeHtml(estadoDetalle.texto) : estadoDetalle.corto}</div>` : ''}
       ${n.promoActiva ? `<div class="promo-detalle ${n.esPremium ? 'promo-detalle-premium' : ''}">
         <div class="promo-detalle-head">
           <span class="promo-fire">🔥</span>
@@ -4696,10 +4805,51 @@ function toggleEtiquetaPers(tag){
   renderEtiquetasChipsPers();
 }
 
+// Días de atención para el horario estructurado (ver estadoDeNegocio() más
+// abajo): a diferencia de las etiquetas, aquí no hay límite de cuántos se
+// pueden elegir (un negocio puede atender los 7 días).
+const DIAS_HORARIO_CHIPS = [
+  {codigo:'LU', label:'Lun'}, {codigo:'MA', label:'Mar'}, {codigo:'MI', label:'Mié'},
+  {codigo:'JU', label:'Jue'}, {codigo:'VI', label:'Vie'}, {codigo:'SA', label:'Sáb'}, {codigo:'DO', label:'Dom'}
+];
+function renderDiasChipsPers(){
+  const cont = document.getElementById('persDiasChips');
+  if(!cont) return;
+  cont.innerHTML = DIAS_HORARIO_CHIPS.map(d => `
+    <div class="tam-chip ${state.persDias.includes(d.codigo) ? 'active' : ''}" style="padding:8px 14px" onclick="toggleDiaPers('${d.codigo}')">${d.label}</div>
+  `).join('');
+}
+function toggleDiaPers(codigo){
+  if(state.persDias.includes(codigo)) state.persDias = state.persDias.filter(d => d !== codigo);
+  else state.persDias.push(codigo);
+  renderDiasChipsPers();
+  actualizarPreviewPersonalizar();
+}
+
+
 // Refleja en vivo el color, tamaño y promoción que la persona está eligiendo
 // en la pantalla "Personalizar negocio o servicio", usando el nombre y la
 // categoría del negocio que se está personalizando (state.personalizando) —
 // esos datos ya no se editan aquí, solo el aspecto visual.
+// Arma el mismo texto legible que generará el servidor al guardar (ver
+// textoHorarioLegible/textoDiasHorario en Code.gs), pero en vivo, para que
+// la persona vea cómo quedará su horario ANTES de guardar.
+function textoDiasHorarioPreview(dias){
+  const orden = DIAS_HORARIO_CHIPS.map(d => d.codigo);
+  const etiquetas = {}; DIAS_HORARIO_CHIPS.forEach(d => etiquetas[d.codigo] = d.label);
+  const seleccion = orden.filter(d => dias.includes(d));
+  if(!seleccion.length) return '';
+  if(seleccion.length === 7) return 'Todos los días';
+  const grupos = [];
+  let actual = [seleccion[0]];
+  for(let i = 1; i < seleccion.length; i++){
+    if(orden.indexOf(seleccion[i]) === orden.indexOf(actual[actual.length - 1]) + 1) actual.push(seleccion[i]);
+    else { grupos.push(actual); actual = [seleccion[i]]; }
+  }
+  grupos.push(actual);
+  return grupos.map(g => g.length > 1 ? `${etiquetas[g[0]]} a ${etiquetas[g[g.length - 1]]}` : etiquetas[g[0]]).join(', ');
+}
+
 function actualizarPreviewPersonalizar(){
   const preview = document.getElementById('persPreview');
   if(!preview || !state.personalizando) return;
@@ -4720,6 +4870,22 @@ function actualizarPreviewPersonalizar(){
 
   const textoBarra = document.getElementById('promoBarTexto');
   if(textoBarra) textoBarra.textContent = textoDescuento;
+
+  const previewHorarioEl = document.getElementById('persHorarioPreview');
+  if(previewHorarioEl){
+    const aperturaVal = document.getElementById('persHorarioApertura').value;
+    const cierreVal = document.getElementById('persHorarioCierre').value;
+    const diasTxt = textoDiasHorarioPreview(state.persDias);
+    if(diasTxt && aperturaVal && cierreVal){
+      previewHorarioEl.textContent = `Se mostrará: ${diasTxt} · ${formatearHora12(aperturaVal)} - ${formatearHora12(cierreVal)}`;
+      previewHorarioEl.style.color = 'var(--muted)';
+    } else if(state.persDias.length || aperturaVal || cierreVal){
+      previewHorarioEl.textContent = 'Elige al menos un día y ambas horas para activar "Abierto ahora / Cerrado" en tu negocio.';
+      previewHorarioEl.style.color = 'var(--signal-dark)';
+    } else {
+      previewHorarioEl.textContent = '';
+    }
+  }
 }
 
 // Se llama cada vez que se mueve la barrita de porcentaje: actualiza el
@@ -4747,7 +4913,11 @@ function abrirFormularioPersonalizar(negocio){
   seleccionarTamanoPers(state.persTam, true);
 
   document.getElementById('persDescripcion').value = negocio.desc || '';
-  document.getElementById('persHorario').value = negocio.horario || '';
+  state.persDias = (negocio.horarioJson && Array.isArray(negocio.horarioJson.dias)) ? negocio.horarioJson.dias.slice() : [];
+  document.getElementById('persHorarioApertura').value = (negocio.horarioJson && negocio.horarioJson.apertura) || '';
+  document.getElementById('persHorarioCierre').value = (negocio.horarioJson && negocio.horarioJson.cierre) || '';
+  document.getElementById('persEstadoManual').value = negocio.estadoManual || '';
+  renderDiasChipsPers();
   document.getElementById('persWhatsapp').value = negocio.whatsapp || '';
   state.persEtiquetas = Array.isArray(negocio.etiquetas) ? negocio.etiquetas.slice(0, 3) : [];
   renderEtiquetasChipsPers();
@@ -5085,7 +5255,6 @@ async function guardarPersonalizacion(){
     return;
   }
   const descripcion = document.getElementById('persDescripcion').value.trim();
-  const horario = document.getElementById('persHorario').value.trim();
   const whatsapp = document.getElementById('persWhatsapp').value.replace(/\D/g, '');
   const etiquetas = state.persEtiquetas.join(', ');
 
@@ -5094,13 +5263,35 @@ async function guardarPersonalizacion(){
     return;
   }
 
+  // Horario estructurado: si eligió días pero le falta una hora (o al
+  // revés), se avisa en vez de guardar algo a medias que después no sirva
+  // para calcular "Abierto ahora". Si no eligió NADA, se guarda vacío (sin
+  // horario configurado), como estaba antes de este cambio.
+  const horarioApertura = document.getElementById('persHorarioApertura').value;
+  const horarioCierre = document.getElementById('persHorarioCierre').value;
+  const hayAlgoDeHorario = state.persDias.length || horarioApertura || horarioCierre;
+  let horarioJsonPayload = '';
+  if(hayAlgoDeHorario){
+    if(!state.persDias.length || !horarioApertura || !horarioCierre){
+      mostrarError('persError', 'Para activar el horario, elige al menos un día y ambas horas (apertura y cierre).');
+      return;
+    }
+    if(horarioCierre <= horarioApertura){
+      mostrarError('persError', 'La hora de cierre debe ser después de la hora de apertura.');
+      return;
+    }
+    horarioJsonPayload = JSON.stringify({ dias: state.persDias, apertura: horarioApertura, cierre: horarioCierre });
+  }
+  const estadoManual = document.getElementById('persEstadoManual').value;
+
   const payload = {
     id: state.personalizandoId,
     propietario_email: state.user.email,
     color: state.persColor,
     tam_nombre: state.persTam,
     descripcion: descripcion,
-    horario: horario,
+    horario_json: horarioJsonPayload,
+    estado_manual: estadoManual,
     whatsapp: whatsapp,
     etiquetas: etiquetas,
     promo: tienePromo,
@@ -5130,9 +5321,12 @@ async function guardarPersonalizacion(){
     const promoActivaLocal = tienePromo
       && (!promoInicio || hoyStr >= promoInicio)
       && (!promoFin || hoyStr <= promoFin);
+    const horarioJsonLocal = horarioJsonPayload ? JSON.parse(horarioJsonPayload) : null;
     NEGOCIOS[idx] = Object.assign({}, NEGOCIOS[idx], {
       color: state.persColor, tamNombre: state.persTam, desc: descripcion,
-      horario: horario, whatsapp: whatsapp, etiquetas: state.persEtiquetas.slice(0, 3),
+      horario: horarioJsonLocal ? `${textoDiasHorarioPreview(horarioJsonLocal.dias)} · ${formatearHora12(horarioJsonLocal.apertura)} - ${formatearHora12(horarioJsonLocal.cierre)}` : '',
+      horarioJson: horarioJsonLocal, estadoManual: estadoManual,
+      whatsapp: whatsapp, etiquetas: state.persEtiquetas.slice(0, 3),
       promo: tienePromo, promoTxt: tienePromo ? promoTxt : '',
       promoRank: tienePromo ? promoRank : 20,
       promoInicio: tienePromo ? promoInicio : '', promoFin: tienePromo ? promoFin : '',
@@ -5618,7 +5812,12 @@ async function publicarNegocio(){
     propietarioEmail: propietarioReal,
     color: negocioPrevio ? negocioPrevio.color : COLORES_PERSONALIZAR[0],
     tamNombre: negocioPrevio ? negocioPrevio.tamNombre : 'md',
+    // Este formulario (Registrar negocio/servicio) no toca el horario ni el
+    // estado manual -eso vive en "Personalizar"-, así que si ya existían se
+    // conservan tal cual hasta que cargarNegocios() traiga lo definitivo.
     horario: negocioPrevio ? negocioPrevio.horario : '',
+    horarioJson: negocioPrevio ? negocioPrevio.horarioJson : null,
+    estadoManual: negocioPrevio ? negocioPrevio.estadoManual : '',
     whatsapp: negocioPrevio ? negocioPrevio.whatsapp : '',
     etiquetas: negocioPrevio ? negocioPrevio.etiquetas : []
   };
