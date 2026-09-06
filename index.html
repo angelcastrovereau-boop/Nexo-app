@@ -893,6 +893,50 @@
 .conn-banner.offline{ background:#5B6472; }
 .conn-banner.weak{ background:#C97A1E; }
 .conn-banner.online{ background:#2E9E5B; }
+
+/* ═══════════ Panel de filtros de la pestaña Buscar (propio, no comparte
+   estilos con el picker de radio de "Destacados cerca de ti") ═══════════ */
+.filtros-btn{
+  position:relative; flex-shrink:0; width:42px; height:42px; border-radius:14px;
+  border:1.5px solid var(--line); background:var(--surface); display:flex; align-items:center; justify-content:center;
+}
+.filtros-btn svg{ width:19px; height:19px; stroke:var(--primary); fill:none; stroke-width:2; stroke-linecap:round; }
+.filtros-badge{
+  position:absolute; top:-5px; right:-5px; min-width:17px; height:17px; padding:0 4px; border-radius:100px;
+  background:var(--signal); color:#fff; font-size:10px; font-weight:800; display:flex; align-items:center; justify-content:center;
+}
+.filtros-resumen{ font-size:11.5px; color:var(--muted); margin:8px 2px 2px; }
+.filtros-overlay{
+  position:fixed; inset:0; background:rgba(15,26,46,0.45); z-index:400;
+  display:flex; align-items:flex-end; justify-content:center;
+}
+.filtros-overlay.hidden{ display:none; }
+.filtros-sheet{
+  width:100%; max-width:430px; background:var(--surface); border-radius:22px 22px 0 0;
+  padding:10px 20px calc(20px + env(safe-area-inset-bottom,0)); max-height:82vh; overflow-y:auto;
+  animation:filtrosSubir .28s cubic-bezier(.22,1,.36,1);
+}
+@keyframes filtrosSubir{ from{ transform:translateY(100%); } to{ transform:translateY(0); } }
+.filtros-handle{ width:38px; height:4px; background:var(--line); border-radius:100px; margin:4px auto 14px; }
+.filtros-sheet h3{ font-size:16px; font-weight:800; color:var(--ink); margin:0 0 14px; }
+.filtros-label{ font-size:12.5px; font-weight:800; color:var(--ink); margin:16px 0 8px; }
+.filtros-label-sub{ font-size:11px; font-weight:600; color:var(--muted-2); text-transform:none; }
+.filtros-cats{ display:flex; flex-wrap:wrap; gap:8px; }
+.filtros-cats .chip{ cursor:pointer; }
+.filtros-cats .chip.active, .filtros-orden .filtros-op.active{
+  background:var(--grad-blue); border-color:transparent; color:#fff;
+}
+#filtrosDistSlider{ width:100%; accent-color:var(--primary); }
+.filtros-hint{ font-size:11px; color:var(--muted-2); margin-top:4px; }
+.filtros-orden{ display:flex; flex-direction:column; gap:8px; }
+.filtros-op{
+  display:flex; align-items:center; justify-content:space-between; padding:11px 14px;
+  border:1.5px solid var(--line); border-radius:14px; font-size:13px; font-weight:700; color:var(--ink); cursor:pointer;
+}
+.filtros-op svg{ width:16px; height:16px; stroke:#fff; fill:none; stroke-width:2.6; opacity:0; }
+.filtros-op.active svg{ opacity:1; }
+.filtros-actions{ display:flex; gap:10px; margin-top:20px; }
+.filtros-actions .btn-ghost, .filtros-actions .btn-primary{ flex:1; }
 </style>
 </head>
 <body>
@@ -1794,14 +1838,44 @@
       <!-- ── TAB: BUSCAR ── -->
       <section class="tab-panel" id="tabBuscar">
         <div class="tab-screen">
-          <div class="quick-search" style="margin-top:16px">
-            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-            <input id="inputBuscar" oninput="renderBusqueda()" placeholder="Nombre, categoría o servicio…" style="border:none;outline:none;flex:1;font-size:13px;background:transparent">
+          <div style="display:flex;gap:8px;margin-top:16px;align-items:center">
+            <div class="quick-search" style="flex:1;margin-top:0">
+              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+              <input id="inputBuscar" oninput="renderBusqueda()" placeholder="Nombre, categoría o servicio…" style="border:none;outline:none;flex:1;font-size:13px;background:transparent">
+            </div>
+            <button class="filtros-btn" id="filtrosBtn" onclick="abrirFiltrosBusqueda()" aria-label="Filtrar y ordenar">
+              <svg viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+              <span class="filtros-badge hidden" id="filtrosBadge">0</span>
+            </button>
           </div>
           <div class="chips-row" id="chipsBuscar"></div>
+          <p class="filtros-resumen" id="filtrosResumen"></p>
           <div id="rowResultados"></div>
         </div>
       </section>
+
+      <!-- ── PANEL: FILTROS DE BÚSQUEDA (independiente de Explorar) ── -->
+      <div class="filtros-overlay hidden" id="filtrosOverlay" onclick="cerrarFiltrosBusqueda(event)">
+        <div class="filtros-sheet" onclick="event.stopPropagation()">
+          <div class="filtros-handle"></div>
+          <h3>Filtrar y ordenar</h3>
+
+          <p class="filtros-label">Categorías <span class="filtros-label-sub">(puedes elegir varias)</span></p>
+          <div class="filtros-cats" id="filtrosCatsGrid"></div>
+
+          <p class="filtros-label">Distancia máxima <span id="filtrosDistTxt" class="filtros-label-sub"></span></p>
+          <input type="range" id="filtrosDistSlider" min="0.5" max="10" step="0.5" value="10" oninput="onCambioDistanciaFiltro(this.value)">
+          <p class="filtros-hint" id="filtrosDistHint"></p>
+
+          <p class="filtros-label">Ordenar por</p>
+          <div class="filtros-orden" id="filtrosOrdenGrid"></div>
+
+          <div class="filtros-actions">
+            <button class="btn-ghost" onclick="limpiarFiltrosBusqueda()">Limpiar todo</button>
+            <button class="btn-primary" onclick="cerrarFiltrosBusqueda()">Ver resultados</button>
+          </div>
+        </div>
+      </div>
 
       <!-- ── TAB: FAVORITOS ── -->
       <section class="tab-panel" id="tabFavoritos">
@@ -2441,7 +2515,11 @@ const state = {
   premiumRotacionIdx:0, intervaloPremiumRotacion:null,
   // Sub-pestaña activa en "Destacados cerca de ti": 'negocios' muestra Premium
   // primero y luego el resto por cercanía; 'premium' muestra solo negocios Premium.
-  explorarSubTab:'negocios'
+  explorarSubTab:'negocios',
+  // Panel de filtros de la pestaña Buscar (independiente de categoriaActiva,
+  // que es la de Inicio/Explorar): acá se puede elegir VARIAS categorías a
+  // la vez, un límite de distancia real y un criterio de orden propio.
+  filtrosBusqueda:{ categorias:new Set(), distanciaMax:null, orden:'relevancia' }
 };
 
 // Red de seguridad: si un error inesperado en cualquier parte del código
@@ -6001,25 +6079,123 @@ function cambiarSubTabExplorar(tab){
   renderExplorar();
 }
 
-/* ─────────── BUSCAR ─────────── */
+/* ─────────── BUSCAR (con panel de filtros propio: categorías múltiples,
+   distancia real y orden — separado a propósito del picker de radio de
+   "Destacados cerca de ti" en Explorar, que es una cosa más simple) ─────────── */
 function renderChipsBuscar(){
-  document.getElementById('chipsBuscar').innerHTML = CATEGORIAS.map(c => `<div class="chip ${c===state.categoriaActiva?'active':''}" onclick="filtrarCategoriaEnBuscar('${c}')">${c}</div>`).join('');
+  const fb = state.filtrosBusqueda;
+  const activo = (c) => c === 'Todos' ? fb.categorias.size === 0 : fb.categorias.has(c);
+  document.getElementById('chipsBuscar').innerHTML = CATEGORIAS.map(c =>
+    `<div class="chip ${activo(c)?'active':''}" onclick="toggleCategoriaFiltroBusqueda('${c}')">${c}</div>`
+  ).join('');
 }
-function filtrarCategoriaEnBuscar(c){ state.categoriaActiva = c; renderBusqueda(); }
+function toggleCategoriaFiltroBusqueda(c){
+  const fb = state.filtrosBusqueda;
+  if(c === 'Todos'){ fb.categorias.clear(); }
+  else if(fb.categorias.has(c)){ fb.categorias.delete(c); }
+  else{ fb.categorias.add(c); }
+  renderBusqueda();
+}
+function abrirFiltrosBusqueda(){
+  renderPanelFiltrosBusqueda();
+  document.getElementById('filtrosOverlay').classList.remove('hidden');
+}
+function cerrarFiltrosBusqueda(){
+  document.getElementById('filtrosOverlay').classList.add('hidden');
+}
+function renderPanelFiltrosBusqueda(){
+  const fb = state.filtrosBusqueda;
+
+  // Categorías (multi-selección real, distinta del chip único de Inicio/Explorar)
+  document.getElementById('filtrosCatsGrid').innerHTML = CATEGORIAS.map(c =>
+    `<div class="chip ${(c==='Todos'?fb.categorias.size===0:fb.categorias.has(c))?'active':''}" onclick="toggleCategoriaFiltroBusqueda('${c}');renderPanelFiltrosBusqueda()">${c}</div>`
+  ).join('');
+
+  // Distancia: usa la misma distanciaKm() de siempre (real si "Mi ubicación"
+  // está activa, o la de muestra si no), pero acá se puede afinar con un
+  // control deslizante en vez de tres botones fijos.
+  const slider = document.getElementById('filtrosDistSlider');
+  slider.value = fb.distanciaMax === null ? 10 : fb.distanciaMax;
+  document.getElementById('filtrosDistTxt').textContent = fb.distanciaMax === null ? '(sin límite)' : `(hasta ${fb.distanciaMax} km)`;
+  document.getElementById('filtrosDistHint').textContent = state.miUbicacion
+    ? 'Calculado con tu ubicación real.'
+    : 'Activa "Mi ubicación" en el mapa para que este límite use tu distancia real; por ahora usa una distancia de muestra.';
+
+  // Orden
+  const OPCIONES_ORDEN = [
+    { id:'relevancia', label:'Recomendados (calificación y actividad)' },
+    { id:'cercania', label:'Más cercanos primero' },
+    { id:'calificacion', label:'Mejor calificados primero' },
+    { id:'nuevos', label:'Recién publicados primero' },
+  ];
+  document.getElementById('filtrosOrdenGrid').innerHTML = OPCIONES_ORDEN.map(o => `
+    <div class="filtros-op ${fb.orden===o.id?'active':''}" onclick="elegirOrdenBusqueda('${o.id}')">
+      <span>${o.label}</span>
+      <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+    </div>`).join('');
+}
+function onCambioDistanciaFiltro(valor){
+  const km = Number(valor);
+  state.filtrosBusqueda.distanciaMax = km >= 10 ? null : km;
+  document.getElementById('filtrosDistTxt').textContent = state.filtrosBusqueda.distanciaMax === null ? '(sin límite)' : `(hasta ${km} km)`;
+  renderBusqueda();
+}
+function elegirOrdenBusqueda(id){
+  state.filtrosBusqueda.orden = id;
+  renderPanelFiltrosBusqueda();
+  renderBusqueda();
+}
+function limpiarFiltrosBusqueda(){
+  state.filtrosBusqueda = { categorias:new Set(), distanciaMax:null, orden:'relevancia' };
+  renderPanelFiltrosBusqueda();
+  renderBusqueda();
+}
+function actualizarBadgeFiltrosBusqueda(cantidadResultados, totalResultadosSinFiltrar){
+  const fb = state.filtrosBusqueda;
+  let activos = fb.categorias.size + (fb.distanciaMax !== null ? 1 : 0) + (fb.orden !== 'relevancia' ? 1 : 0);
+  const badge = document.getElementById('filtrosBadge');
+  badge.textContent = activos;
+  badge.classList.toggle('hidden', activos === 0);
+
+  const resumen = document.getElementById('filtrosResumen');
+  if(activos === 0){ resumen.textContent = ''; return; }
+  const partes = [];
+  if(fb.categorias.size) partes.push(fb.categorias.size === 1 ? [...fb.categorias][0] : `${fb.categorias.size} categorías`);
+  if(fb.distanciaMax !== null) partes.push(`hasta ${fb.distanciaMax} km`);
+  resumen.textContent = `${cantidadResultados} de ${totalResultadosSinFiltrar} negocios · ${partes.join(' · ')}`;
+}
 function renderBusqueda(){
   renderChipsBuscar();
+  const fb = state.filtrosBusqueda;
   const q = (document.getElementById('inputBuscar').value || '').toLowerCase().trim();
-  let resultados = NEGOCIOS.filter(n => {
+
+  const coincideBusquedaYCategoria = NEGOCIOS.filter(n => {
     const coincideTexto = !q || n.nombre.toLowerCase().includes(q) || n.categoria.toLowerCase().includes(q) || (n.tipo && n.tipo.toLowerCase().includes(q));
-    const coincideCat = state.categoriaActiva === 'Todos' || n.categoria === state.categoriaActiva;
+    const coincideCat = fb.categorias.size === 0 || fb.categorias.has(n.categoria);
     return coincideTexto && coincideCat;
   });
-  // Dentro de cada categoría (y también en "Todos"), los mejor calificados
-  // aparecen primero y los que tienen menos o peores calificaciones quedan
-  // más abajo, pero SIGUEN VISIBLES — nunca se ocultan.
-  resultados = ordenarPorRecomendacion(resultados);
-  document.getElementById('rowResultados').innerHTML = resultados.length ? resultados.map(filaVertical).join('') : vacioBig('Sin resultados', 'Prueba con otro nombre, categoría o servicio.');
+
+  let resultados = fb.distanciaMax === null
+    ? coincideBusquedaYCategoria
+    : coincideBusquedaYCategoria.filter(n => distanciaKm(n) <= fb.distanciaMax);
+
+  if(fb.orden === 'cercania'){
+    resultados = [...resultados].sort((a,b) => distanciaKm(a) - distanciaKm(b));
+  } else if(fb.orden === 'calificacion'){
+    resultados = [...resultados].sort((a,b) => (b.scoreOrden||0) - (a.scoreOrden||0));
+  } else if(fb.orden === 'nuevos'){
+    resultados = [...resultados].sort((a,b) => (b.nuevo?1:0) - (a.nuevo?1:0) || (b.scoreOrden||0) - (a.scoreOrden||0));
+  } else {
+    // Dentro de cada categoría (y también en "Todos"), los mejor calificados
+    // aparecen primero y los que tienen menos o peores calificaciones quedan
+    // más abajo, pero SIGUEN VISIBLES — nunca se ocultan.
+    resultados = ordenarPorRecomendacion(resultados);
+  }
+
+  document.getElementById('rowResultados').innerHTML = resultados.length ? resultados.map(filaVertical).join('') : vacioBig('Sin resultados', 'Prueba con otro nombre, o quita algún filtro en "Filtrar y ordenar".');
+  actualizarBadgeFiltrosBusqueda(resultados.length, coincideBusquedaYCategoria.length);
 }
+
 
 /* ─────────── FAVORITOS ─────────── */
 function renderFavoritos(){
