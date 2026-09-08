@@ -43,7 +43,7 @@
   body.bloqueo-scroll-temporal{ overflow:hidden !important; }
 
   /* ═══════ Tutorial de bienvenida (coach marks) ═══════ */
-  body.tutorial-activo{ overflow:hidden !important; }
+  html.tutorial-activo, body.tutorial-activo{ overflow:hidden !important; height:100%; }
   .tutorial-backdrop{ position:fixed; inset:0; z-index:9998; }
   .tutorial-hueco{
     position:fixed; z-index:9999; border-radius:16px; pointer-events:none;
@@ -3309,6 +3309,7 @@ function iniciarTutorial(id){
   // banners, campos del formulario, etc.) y getBoundingClientRect() lea
   // posiciones reales.
   setTimeout(() => {
+    document.documentElement.classList.add('tutorial-activo');
     document.body.classList.add('tutorial-activo');
     document.getElementById('tutorialOverlay').classList.remove('hidden');
     pintarPasoTutorial();
@@ -3371,6 +3372,7 @@ function siguientePasoTutorial(){
 }
 function cerrarTutorial(){
   document.getElementById('tutorialOverlay').classList.add('hidden');
+  document.documentElement.classList.remove('tutorial-activo');
   document.body.classList.remove('tutorial-activo');
   const clave = claveTutorialVisto(tutorialActivo);
   if(clave){ try{ localStorage.setItem(clave, '1'); }catch(e){} }
@@ -3385,6 +3387,17 @@ window.addEventListener('resize', () => {
   if(!document.body.classList.contains('tutorial-activo')) return;
   pintarPasoTutorial();
 });
+// overflow:hidden en <html>/<body> no siempre alcanza en un WebView de
+// celular: un arrastre con el dedo puede seguir moviendo la pantalla real
+// detrás del overlay oscuro. Este bloqueo adicional evita ese gesto
+// mientras el tutorial está activo, para que el botón resaltado no se
+// desincronice del recuadro que lo señala.
+document.addEventListener('touchmove', (e) => {
+  if(document.body.classList.contains('tutorial-activo')) e.preventDefault();
+}, { passive:false });
+document.addEventListener('wheel', (e) => {
+  if(document.body.classList.contains('tutorial-activo')) e.preventDefault();
+}, { passive:false });
 
 /* ─────────── navegación entre pestañas de la barra inferior ─────────── */
 function mostrarTab(id){
