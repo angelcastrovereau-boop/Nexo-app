@@ -43,14 +43,19 @@
   body.bloqueo-scroll-temporal{ overflow:hidden !important; }
 
   /* ═══════ Tutorial de bienvenida (coach marks) ═══════ */
-  html.tutorial-activo, body.tutorial-activo{ overflow:hidden !important; height:100%; }
+  /* El bloqueo de scroll manual mientras el tutorial está activo se hace
+     por JS (touchmove/wheel), no con overflow:hidden aquí: overflow:hidden
+     recortaría los campos que están más abajo en pantalla (categoría,
+     ubicación, publicar) y el tutorial ya no podría mostrarlos. */
   .tutorial-backdrop{ position:fixed; inset:0; z-index:9998; }
   .tutorial-hueco{
     position:fixed; z-index:9999; border-radius:16px; pointer-events:none;
-    box-shadow:0 0 0 9999px rgba(5,7,10,0.78);
+    box-shadow:0 0 0 9999px rgba(5,7,10,0.78); opacity:0;
     transition:top .35s cubic-bezier(.34,1.56,.64,1), left .35s cubic-bezier(.34,1.56,.64,1),
-               width .35s cubic-bezier(.34,1.56,.64,1), height .35s cubic-bezier(.34,1.56,.64,1);
+               width .35s cubic-bezier(.34,1.56,.64,1), height .35s cubic-bezier(.34,1.56,.64,1),
+               opacity .2s ease;
   }
+  .tutorial-hueco.visible{ opacity:1; }
   .tutorial-hueco::after{
     content:''; position:absolute; inset:0; border-radius:16px; border:2px solid #fff;
     animation:tutorialPulso 1.6s ease-in-out infinite;
@@ -3342,12 +3347,25 @@ function pintarPasoTutorial(){
   const clavePaso = claveTutorialPaso(tutorialActivo);
   if(clavePaso){ try{ localStorage.setItem(clavePaso, String(tutorialPasoActual)); }catch(e){} }
 
+  // El propio tutorial lleva la pantalla hasta el botón que va a explicar
+  // (la persona no puede arrastrar manualmente, ver bloqueo de
+  // touchmove/wheel más abajo). Se atenúa el resaltado durante el
+  // desplazamiento suave y se vuelve a mostrar ya en su posición final.
+  document.getElementById('tutorialHueco').classList.remove('visible');
+  el.scrollIntoView({ behavior:'smooth', block:'center' });
+  clearTimeout(window._tutScrollTimer);
+  window._tutScrollTimer = setTimeout(() => dibujarResaltadoTutorial(el, paso, pasos), 380);
+}
+function dibujarResaltadoTutorial(el, paso, pasos){
+  if(!tutorialActivo) return;
+
   const r = el.getBoundingClientRect();
   const hueco = document.getElementById('tutorialHueco');
   hueco.style.top = (r.top - 6) + 'px';
   hueco.style.left = (r.left - 6) + 'px';
   hueco.style.width = (r.width + 12) + 'px';
   hueco.style.height = (r.height + 12) + 'px';
+  hueco.classList.add('visible');
 
   const burbuja = document.getElementById('tutorialBurbuja');
   document.getElementById('tutorialTitulo').textContent = paso.titulo;
@@ -3387,11 +3405,12 @@ window.addEventListener('resize', () => {
   if(!document.body.classList.contains('tutorial-activo')) return;
   pintarPasoTutorial();
 });
-// overflow:hidden en <html>/<body> no siempre alcanza en un WebView de
-// celular: un arrastre con el dedo puede seguir moviendo la pantalla real
-// detrás del overlay oscuro. Este bloqueo adicional evita ese gesto
-// mientras el tutorial está activo, para que el botón resaltado no se
-// desincronice del recuadro que lo señala.
+// Mientras el tutorial está activo, el desplazamiento solo lo controla el
+// propio tutorial (scrollIntoView en cada paso). Este bloqueo evita que la
+// persona arrastre la pantalla manualmente con el dedo o el mouse, para que
+// el recuadro resaltado no se desincronice del botón real. Al cerrar el
+// tutorial se quita la clase 'tutorial-activo' y la persona puede moverse
+// y tocar todo con total libertad, como siempre.
 document.addEventListener('touchmove', (e) => {
   if(document.body.classList.contains('tutorial-activo')) e.preventDefault();
 }, { passive:false });
